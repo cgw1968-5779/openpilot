@@ -1,5 +1,12 @@
+2020-07-23 (0.7.7.0)
+========================
+* 修正 appd。(感謝 @cgw1968)
+* Fixed appd. (Thanks to @cgw1968)
+
 2020-07-22 (0.7.7.0)
 ========================
+* 修正 waze 顯示。(感謝 @Mojo)
+* Fixed waze display. (Thanks to @Mojo)
 * 加回彎道減速功能。(感謝 @Mojo)
 * re-added Slow On Curve functionality. (Thanks to @Mojo)
 * 加入日文支援。(特別感謝 @ponzu07 提供)
