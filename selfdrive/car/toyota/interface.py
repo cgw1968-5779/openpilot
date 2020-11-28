@@ -245,7 +245,7 @@ class CarInterface(CarInterfaceBase):
 
     elif candidate == CAR.RAV4_TSS2:
       stop_and_go = True
-      ret.safetyParam = 56 # added new dbc file toyota_nodsu_pt_generated_rav4.dbc
+      ret.safetyParam = 56 # from cabana https://discord.com/channels/469524606043160576/574796986822295569/781874934661775400
       ret.wheelbase = 2.68986
       ret.steerRatio = 14.3
       tire_stiffness_factor = 0.7933
