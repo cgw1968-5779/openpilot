@@ -287,7 +287,7 @@ EVENTS: Dict[int, Dict[str, Union[Alert, Callable[[Any, messaging.SubMaster, boo
   EventName.startup: {
     ET.PERMANENT: Alert(
       "Be ready to take over at any time",
-      "Do not forget to PRAY!",
+      "Stay Fully Alert At All Times",
       AlertStatus.normal, AlertSize.mid,
       Priority.LOWER, VisualAlert.none, AudibleAlert.none, 0., 0., 7.),
   },
