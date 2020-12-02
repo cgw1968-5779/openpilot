@@ -260,7 +260,7 @@ class CarInterface(CarInterfaceBase):
         ret.lateralTuning.init('indi')
         ret.lateralTuning.indi.innerLoopGain = 23
         ret.lateralTuning.indi.outerLoopGainBP = [19, 20, 23, 24]
-        ret.lateralTuning.indi.outerLoopGainV = [17.5 ,23, 23, 26]
+        ret.lateralTuning.indi.outerLoopGainV = [17 ,23, 23, 26]
         ret.lateralTuning.indi.timeConstant = 8.0
         ret.lateralTuning.indi.actuatorEffectiveness = 23
       else:
