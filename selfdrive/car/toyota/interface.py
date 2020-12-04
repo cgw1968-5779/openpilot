@@ -287,9 +287,9 @@ class CarInterface(CarInterfaceBase):
         tire_stiffness_factor = 0.996  # not optimized yet
         ret.lateralTuning.init('indi')
         ret.lateralTuning.indi.innerLoopGain = 15
-        ret.lateralTuning.indi.outerLoopGainBP = [20, 21, 25, 26]
-        ret.lateralTuning.indi.outerLoopGainV = [9, 12, 13, 14.99]
-        ret.lateralTuning.indi.timeConstant = 5.5
+        ret.lateralTuning.indi.outerLoopGainBP = [19, 20, 23, 24]
+        ret.lateralTuning.indi.outerLoopGainV = [11.5 ,16, 16, 20]
+        ret.lateralTuning.indi.timeConstant = 8.0
         ret.lateralTuning.indi.actuatorEffectiveness = 15
       else:
         ret.lateralTuning.init('pid')
