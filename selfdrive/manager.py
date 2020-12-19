@@ -533,8 +533,14 @@ def manager_thread():
     started_prev = msg.thermal.started
 
     # check the status of all processes, did any of them die?
-    running_list = ["%s%s\u001b[0m" % ("\u001b[32m" if running[p].is_alive() else "\u001b[31m", p) for p in running]
-    cloudlog.debug(' '.join(running_list))
+    process_dead = False
+    for p in running:
+      if not running[p].is_alive():
+        process_dead = True
+    # If a process is dead, log the status of every process
+    if process_dead:
+      running_list = ["%s%s\u001b[0m" % ("\u001b[32m" if running[p].is_alive() else "\u001b[31m", p) for p in running]
+      cloudlog.debug(' '.join(running_list))
 
     # Exit main loop when uninstall is needed
     if params.get("DoUninstall", encoding='utf8') == "1":
@@ -630,8 +636,6 @@ def main():
     del managed_processes['logmessaged']
     del managed_processes['proclogd']
     del managed_processes['logcatd']
-  if params.get("dp_uploader") == b'0':
-    del managed_processes['uploader']
   if params.get("dp_updated") == b'0':
     del managed_processes['updated']
   if params.get('dp_gpxd') == b'0':
