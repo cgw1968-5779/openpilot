@@ -115,7 +115,7 @@ class opParams:
                                                                  #'The range is limited from 0.85 to 1.3. Set to None to disable', live=True),
                         #'use_virtual_middle_line': Param(False, bool, 'For roads over 4m wide, hug right. For roads under 2m wide, hug left.'),
                         'uniqueID': Param(None, [type(None), str], 'User\'s unique ID'),
-                        'enable_indi_live': Param(False, bool, live=True, depends_on='enable_indi_live'),
+                        'enable_indi_live': Param(False, bool, live=True),
                         'indi_inner_gain_bp': Param([0, 255, 255], [list, float, int], live=True, depends_on='enable_indi_live'),
                         'indi_inner_gain_v': Param([6.0, 6.0, 6.0], [list, float, int], live=True, depends_on='enable_indi_live'),
                         'indi_outer_gain_bp': Param([0, 255, 255], [list, float, int], live=True, depends_on='enable_indi_live'),
