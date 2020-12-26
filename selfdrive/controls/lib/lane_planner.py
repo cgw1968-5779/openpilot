@@ -68,7 +68,7 @@ class LanePlanner:
     self.r_prob = md.rightLane.prob  # right line prob
 
     if len(md.meta.desireState):
-      self.l_lane_change_prob = md.meta.desireState[log.PathPlan.Desire.laneChangeLeft - 6]
+      self.l_lane_change_prob = md.meta.desireState[log.PathPlan.Desire.laneChangeLeft - 7]
       self.r_lane_change_prob = md.meta.desireState[log.PathPlan.Desire.laneChangeRight - 2]
 
   def update_d_poly(self, v_ego):
