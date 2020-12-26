@@ -14,7 +14,7 @@ BRAKE_THRESHOLD_TO_PID = 0.2
 
 STOPPING_BRAKE_RATE = 0.2  # brake_travel/s while trying to stop
 STARTING_BRAKE_RATE = 0.9  # brake_travel/s while releasing on restart
-BRAKE_STOPPING_TARGET = 0.68  # apply at least this amount of brake to maintain the vehicle stationary
+BRAKE_STOPPING_TARGET = 0.69  # apply at least this amount of brake to maintain the vehicle stationary
 
 RATE = 80.0
 
