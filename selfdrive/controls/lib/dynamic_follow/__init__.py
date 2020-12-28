@@ -245,7 +245,7 @@ class DynamicFollow:
       df_profile = self.dp_dynamic_follow
 
     if df_profile == PROFILE_LONG:
-      y_dist = [1.1, 1.2, 1.3, 1.46, 1.61, 1.75, 1.88, 1.96, 2.25, 2.6, 2.7, 2.8, 3.0]  # smooth braking tune for RAV4TSS2
+      y_dist = [1.2, 1.25, 1.35, 1.46, 1.61, 1.75, 1.88, 1.96, 2.25, 2.6, 2.7, 2.8, 3.0]  # smooth braking tune for RAV4TSS2
       profile_mod_pos = [1.13, 1.06, 0.4, 0.05]
       profile_mod_neg = [1.0, 1.0, 2.0, 2.3]
     elif df_profile == PROFILE_SHORT:  # for in congested traffic
@@ -256,7 +256,7 @@ class DynamicFollow:
       profile_mod_pos = [1.09, 1.9, 3.15, 3.75]
       profile_mod_neg = [0.6, 0.6, 0.6, 0.2]
     elif df_profile == PROFILE_NORMAL:  # default to relaxed/stock
-      y_dist = [1.1, 1.2, 1.3, 1.4, 1.444, 1.477, 1.514, 1.537, 1.6, 1.65, 1.663, 1.675, 1.7]  # smooth braking tune for RAV4TSS2
+      y_dist = [1.2, 1.25, 1.33, 1.4, 1.444, 1.477, 1.514, 1.537, 1.6, 1.65, 1.663, 1.675, 1.7]  # smooth braking tune for RAV4TSS2
       profile_mod_pos = [1.08, 1.2, 1.2, 0.65]
       profile_mod_neg = [1.2, 1.05, 1.0, 1.0]
     else:
