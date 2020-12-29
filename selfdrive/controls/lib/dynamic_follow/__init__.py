@@ -245,18 +245,18 @@ class DynamicFollow:
       df_profile = self.dp_dynamic_follow
 
     if df_profile == PROFILE_LONG:
-      y_dist = [1.0, 1.12, 1.3, 1.46, 1.6, 1.76, 1.88, 1.96, 2.25, 2.6, 2.7, 2.8, 3.0]  # eliminates double braking
+      y_dist = [1.1, 1.2, 1.3, 1.46, 1.6, 1.76, 1.88, 1.96, 2.25, 2.6, 2.7, 2.8, 3.0]  # eliminates double braking
       profile_mod_pos = [1.0, 0.95, 0.4, 0.05]
       profile_mod_neg = [1.0, 1.0, 2.0, 2.3]
     elif df_profile == PROFILE_SHORT:  # for in congested traffic
       x_vel = [0.0, 1.892, 3.7432, 5.8632, 8.0727, 10.7301, 14.343, 17.6275, 22.4049, 28.6752, 34.8858, 40.35]
       # y_dist = [1.3781, 1.3791, 1.3802, 1.3825, 1.3984, 1.4249, 1.4194, 1.3162, 1.1916, 1.0145, 0.9855, 0.9562]  # original
       # y_dist = [1.3781, 1.3791, 1.3112, 1.2442, 1.2306, 1.2112, 1.2775, 1.1977, 1.0963, 0.9435, 0.9067, 0.8749]  # avg. 7.3 ft closer from 18 to 90 mph
-      y_dist = [1.0, 1.12, 1.25, 1.28, 1.3, 1.3, 1.27, 1.247, 1.216, 1.175, 1.135, 1.1]  # eliminates double braking
+      y_dist = [1.1, 1.2, 1.25, 1.28, 1.3, 1.3, 1.27, 1.247, 1.216, 1.175, 1.135, 1.1]  # eliminates double braking
       profile_mod_pos = [1.15, 1.5, 3.0, 3.75]
       profile_mod_neg = [0.6, 0.6, 0.6, 0.2]
     elif df_profile == PROFILE_NORMAL:  # default to relaxed/stock
-      y_dist = [1.0, 1.125, 1.28, 1.4, 1.444, 1.477, 1.514, 1.537, 1.6, 1.65, 1.663, 1.675, 1.7]  # eliminates double braking
+      y_dist = [1.1, 1.12, 1.28, 1.4, 1.444, 1.477, 1.514, 1.537, 1.6, 1.65, 1.663, 1.675, 1.7]  # eliminates double braking
       profile_mod_pos = [1.1, 1.05, 1.0, 0.65]
       profile_mod_neg = [1.2, 1.05, 1.0, 1.0]
     else:
