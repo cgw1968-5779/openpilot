@@ -221,13 +221,13 @@ class CarInterface(CarInterfaceBase):
       ret.mass = 3370. * CV.LB_TO_KG + STD_CARGO_KG
       ret.longitudinalTuning.kpV = [2.1, 1.2, 0.34]
       ret.longitudinalTuning.kiV = [0.54, 0.34]
-      ret.steerActuatorDelay = 0.12
+      ret.steerActuatorDelay = 0.5
       ret.steerLimitTimer = 5.0
       ret.lateralTuning.init('indi')
       ret.lateralTuning.indi.innerLoopGainBP = [16.7, 25, 36.1]
       ret.lateralTuning.indi.innerLoopGainV = [15, 15, 15]
       ret.lateralTuning.indi.outerLoopGainBP = [16.7, 25, 36.1]
-      ret.lateralTuning.indi.outerLoopGainV = [10, 15, 17]
+      ret.lateralTuning.indi.outerLoopGainV = [11, 15, 17]
       ret.lateralTuning.indi.timeConstantBP = [11, 11.01, 16, 16.01, 22, 22.01, 30, 30.01]
       ret.lateralTuning.indi.timeConstantV = [1, 1.5, 2.5, 3.5, 3.5, 5.5, 5.5, 9]
       ret.lateralTuning.indi.actuatorEffectivenessBP = [16.7, 25, 36.1]
