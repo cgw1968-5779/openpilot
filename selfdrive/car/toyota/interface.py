@@ -98,8 +98,8 @@ class CarInterface(CarInterfaceBase):
       tire_stiffness_factor = 0.5533
       ret.mass = 3650. * CV.LB_TO_KG + STD_CARGO_KG  # mean between normal and hybrid
       if ret.enableGasInterceptor:
-      ret.longitudinalTuning.kpV = [2.1, 1.2, 0.34]
-      ret.longitudinalTuning.kiV = [0.54, 0.34]
+        ret.longitudinalTuning.kpV = [2.1, 1.2, 0.34]
+        ret.longitudinalTuning.kiV = [0.54, 0.34]
       ret.lateralTuning.init('lqr')
 
       ret.lateralTuning.lqr.scale = 1500.0
