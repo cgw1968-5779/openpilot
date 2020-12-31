@@ -65,8 +65,8 @@ class CarInterface(CarInterfaceBase):
     elif candidate == CAR.PRIUS_TSS2:
       #ret.longitudinalTuning.kpV = [0.4, 0.36, 0.325]  # braking tune from rav4h
       #ret.longitudinalTuning.kiV = [0.195, 0.10]
-      ret.longitudinalTuning.kpV = [1.8, 0.75, 0.31]
-      ret.longitudinalTuning.kiV = [0.18, 0.13]
+      ret.longitudinalTuning.kpV = [2.1, 1.2, 0.34]
+      ret.longitudinalTuning.kiV = [0.54, 0.34]
       stop_and_go = True
       ret.safetyParam = 55
       ret.wheelbase = 2.70002
@@ -98,8 +98,8 @@ class CarInterface(CarInterfaceBase):
       tire_stiffness_factor = 0.5533
       ret.mass = 3650. * CV.LB_TO_KG + STD_CARGO_KG  # mean between normal and hybrid
       if ret.enableGasInterceptor:
-        ret.longitudinalTuning.kpV = [0.4, 0.36, 0.325]  # arne's tune.
-        ret.longitudinalTuning.kiV = [0.195, 0.10]
+      ret.longitudinalTuning.kpV = [2.1, 1.2, 0.34]
+      ret.longitudinalTuning.kiV = [0.54, 0.34]
       ret.lateralTuning.init('lqr')
 
       ret.lateralTuning.lqr.scale = 1500.0
@@ -402,13 +402,13 @@ class CarInterface(CarInterfaceBase):
     if ret.enableGasInterceptor:
       ret.gasMaxBP = [0., 9., 35]
       ret.gasMaxV = [0.2, 0.5, 0.7]
-      ret.longitudinalTuning.kpV = [1.2, 0.8, 0.5]
-      ret.longitudinalTuning.kiV = [0.18, 0.12]
+      ret.longitudinalTuning.kpV = [2.1, 1.2, 0.34]
+      ret.longitudinalTuning.kiV = [0.54, 0.34]
     else:
       ret.gasMaxBP = [0., 9., 55]
       ret.gasMaxV = [0.2, 0.5, 0.7]
-      ret.longitudinalTuning.kpV = [0.4, 0.36, 0.325]  # braking tune from rav4h
-      ret.longitudinalTuning.kiV = [0.195, 0.10]
+      ret.longitudinalTuning.kpV = [2.1, 1.2, 0.34]
+      ret.longitudinalTuning.kiV = [0.54, 0.34]
 
     return ret
 
