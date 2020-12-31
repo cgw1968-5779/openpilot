@@ -245,14 +245,14 @@ class CarInterface(CarInterfaceBase):
       ret.steerActuatorDelay = 0.12
       ret.steerLimitTimer = 5.0
       ret.lateralTuning.init('indi')
-      ret.lateralTuning.indi.innerLoopGainBP = [0]
-      ret.lateralTuning.indi.innerLoopGainV = [15.0]
-      ret.lateralTuning.indi.outerLoopGainBP = [20, 21, 24, 25]
-      ret.lateralTuning.indi.outerLoopGainV = [9.5, 16, 16, 21]
-      ret.lateralTuning.indi.timeConstantBP = [14, 18, 29, 30]
-      ret.lateralTuning.indi.timeConstantV = [5.0, 5.5, 6.0, 6.5]
-      ret.lateralTuning.indi.actuatorEffectivenessBP = [0]
-      ret.lateralTuning.indi.actuatorEffectivenessV = [15.0]
+      ret.lateralTuning.indi.innerLoopGainBP = [16.7, 25, 36.1]
+      ret.lateralTuning.indi.innerLoopGainV = [15, 15, 15]
+      ret.lateralTuning.indi.outerLoopGainBP = [16.7, 25, 36.1]
+      ret.lateralTuning.indi.outerLoopGainV = [9.5, 14.5, 18]
+      ret.lateralTuning.indi.timeConstantBP = [11, 11.01, 16, 16.01, 22, 22.01, 30, 30.01]
+      ret.lateralTuning.indi.timeConstantV = [1, 1.5, 2.5, 3.5, 3.5, 5.5, 5.5, 9]
+      ret.lateralTuning.indi.actuatorEffectivenessBP = [8, 14,  16.7, 22.2, 25, 30.6, 33.3, 36.1]
+      ret.lateralTuning.indi.actuatorEffectivenessV = [15, 15, 15, 15, 15, 15, 15, 15]
 
     elif candidate in [CAR.COROLLA_TSS2, CAR.COROLLAH_TSS2]:
       stop_and_go = True
