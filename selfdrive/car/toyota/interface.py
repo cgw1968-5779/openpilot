@@ -228,8 +228,8 @@ class CarInterface(CarInterfaceBase):
       ret.lateralTuning.indi.innerLoopGainV = [15, 15, 15, 15, 15, 15, 15, 15]
       ret.lateralTuning.indi.outerLoopGainBP = [8, 14,  16.7, 22.2, 25, 30.6, 33.3, 36.1]
       ret.lateralTuning.indi.outerLoopGainV = [5, 8, 11, 13, 14, 15, 17, 19]
-      ret.lateralTuning.indi.timeConstantBP = [11, 11.01, 16, 16.01, 22, 22.01, 30, 30.01]
-      ret.lateralTuning.indi.timeConstantV = [1, 1.5, 2.5, 3.5, 3.5, 5.5, 5.5, 9]
+      ret.lateralTuning.indi.timeConstantBP = [16, 16.01, 22, 22.01, 30, 30.01, 36, 36.01]
+      ret.lateralTuning.indi.timeConstantV = [0.5, 2, 2, 3.5, 3.5, 5, 5, 6]
       ret.lateralTuning.indi.actuatorEffectivenessBP = [8, 14,  16.7, 22.2, 25, 30.6, 33.3, 36.1]
       ret.lateralTuning.indi.actuatorEffectivenessV = [15, 15, 15, 15, 15, 15, 15, 15]
 
@@ -249,8 +249,8 @@ class CarInterface(CarInterfaceBase):
       ret.lateralTuning.indi.innerLoopGainV = [15, 15, 15]
       ret.lateralTuning.indi.outerLoopGainBP = [16.7, 25, 36.1]
       ret.lateralTuning.indi.outerLoopGainV = [9.5, 14.5, 18]
-      ret.lateralTuning.indi.timeConstantBP = [11, 11.01, 16, 16.01, 22, 22.01, 30, 30.01]
-      ret.lateralTuning.indi.timeConstantV = [1, 1.5, 2.5, 3.5, 3.5, 5.5, 5.5, 9]
+      ret.lateralTuning.indi.timeConstantBP = [16, 16.01, 22, 22.01, 30, 30.01, 36, 36.01]
+      ret.lateralTuning.indi.timeConstantV = [0.5, 2, 2, 3.5, 3.5, 5, 5, 6]
       ret.lateralTuning.indi.actuatorEffectivenessBP = [8, 14,  16.7, 22.2, 25, 30.6, 33.3, 36.1]
       ret.lateralTuning.indi.actuatorEffectivenessV = [15, 15, 15, 15, 15, 15, 15, 15]
 
