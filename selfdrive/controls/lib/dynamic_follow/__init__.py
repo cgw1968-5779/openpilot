@@ -259,7 +259,7 @@ class DynamicFollow:
       # y_dist = [1.385, 1.394, 1.406, 1.421, 1.444, 1.474, 1.516, 1.534, 1.546, 1.568, 1.579, 1.593, 1.614] # original DP
       y_dist = [1.2, 1.2, 1.4, 1.4, 1.444, 1.477, 1.514, 1.537, 1.6, 1.65, 1.663, 1.675, 1.7]
       profile_mod_pos = [1.0, 1.0, 1.1, 0.65]
-      profile_mod_neg = [1.2, 1.05, 1.0, 1.0]
+      profile_mod_neg = [1.1, 1.05, 1.0, 1.0]
     else:
       raise Exception('Unknown profile type: {}'.format(df_profile))
 
