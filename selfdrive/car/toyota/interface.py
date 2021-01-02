@@ -245,13 +245,13 @@ class CarInterface(CarInterfaceBase):
       ret.steerActuatorDelay = 0.5
       ret.steerLimitTimer = 5.0
       ret.lateralTuning.init('indi')
-      ret.lateralTuning.indi.innerLoopGainBP = [8.35, 16.7, 25, 33.3, 36.1]
+      ret.lateralTuning.indi.innerLoopGainBP = [16.7, 25, 33.3, 36.1]
       ret.lateralTuning.indi.innerLoopGainV = [15, 15, 15, 15]
-      ret.lateralTuning.indi.outerLoopGainBP = [8.35, 16.7, 25, 33.3, 36.1]
-      ret.lateralTuning.indi.outerLoopGainV = [4.5, 9, 12, 14.99, 18]
-      ret.lateralTuning.indi.timeConstantBP = [16.7, 16.71, 22, 22.01, 30, 30.01, 36.1, 36.11]
-      ret.lateralTuning.indi.timeConstantV = [0.5, 1, 1, 2, 2, 3, 3, 3]
-      ret.lateralTuning.indi.actuatorEffectivenessBP = [8.35, 16.7, 25, 33.3, 36.1]
+      ret.lateralTuning.indi.outerLoopGainBP = [16.7, 25, 33.3, 36.1]
+      ret.lateralTuning.indi.outerLoopGainV = [8.5, 13.8, 14.99, 18]
+      ret.lateralTuning.indi.timeConstantBP = [13.8, 13.81, 16.7, 16.71, 22, 22.01]
+      ret.lateralTuning.indi.timeConstantV = [0.5, 1, 1, 2, 2, 3]
+      ret.lateralTuning.indi.actuatorEffectivenessBP = [16.7, 25, 33.3, 36.1]
       ret.lateralTuning.indi.actuatorEffectivenessV = [15, 15, 15, 15]
 
     elif candidate in [CAR.COROLLA_TSS2, CAR.COROLLAH_TSS2]:
