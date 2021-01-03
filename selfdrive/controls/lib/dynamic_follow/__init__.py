@@ -298,7 +298,7 @@ class DynamicFollow:
       if self.lead_data.v_lead - deadzone > self.car_data.v_ego:
         TR_mods.append(rel_accel_mod)
 
-    x = [self.sng_speed / 5.0, self.sng_speed]  # as we approach 0, apply x% more distance
+    x = [self.sng_speed / 7.0, self.sng_speed]  # as we approach 0, apply x% more distance
     y = [1.05, 1.0]
     profile_mod_pos *= interp(self.car_data.v_ego, x, y)  # but only for currently positive mods
 
