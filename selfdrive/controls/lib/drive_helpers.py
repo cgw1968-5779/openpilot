@@ -17,8 +17,8 @@ class MPC_COST_LAT:
 
 
 class MPC_COST_LONG:
-  TTC = 10
-  DISTANCE = 0.1
+  TTC = 5
+  DISTANCE = 1.0
   ACCELERATION = 10.0
   JERK = 20.0
 
