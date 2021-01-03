@@ -117,7 +117,7 @@ class Cluster():
 
   def get_RadarState(self, model_prob=0.0):
     return {
-      "dRel": float(self.dRel), -> "dRel": float(max(0.0,self.dRel-0.6)),
+      "dRel": float(max(0.0,self.dRel-0.6)),
       "yRel": float(self.yRel),
       "vRel": float(self.vRel),
       "vLead": float(self.vLead),
