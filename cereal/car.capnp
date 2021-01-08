@@ -461,6 +461,11 @@ struct CarParams {
     timeConstantV @5:List(Float32);
     actuatorEffectivenessBP @6 :List(Float32);
     actuatorEffectivenessV @7 :List(Float32);
+    
+    outerLoopGainDEPRECATED @0 :Float32;
+    innerLoopGainDEPRECATED @1 :Float32;
+    timeConstantDEPRECATED @2 :Float32;
+    actuatorEffectivenessDEPRECATED @3 :Float32;
   }
 
   struct LateralLQRTuning {
