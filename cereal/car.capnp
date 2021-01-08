@@ -25,6 +25,7 @@ struct CarEvent @0x9b1657f34caf3ad3 {
     canError @0;
     steerUnavailable @1;
     brakeUnavailable @2;
+    gasUnavailableDEPRECATED @3;
     wrongGear @4;
     doorOpen @5;
     seatbeltNotLatched @6;
@@ -37,6 +38,7 @@ struct CarEvent @0x9b1657f34caf3ad3 {
     pedalPressed @13;
     cruiseDisabled @14;
     radarCanError @15;
+    dataNeededDEPRECATED @16;
     speedTooLow @17;
     outOfSpace @18;
     overheat @19;
@@ -47,22 +49,29 @@ struct CarEvent @0x9b1657f34caf3ad3 {
     pcmDisable @24;
     noTarget @25;
     radarFault @26;
+    modelCommIssueDEPRECATED @27;
     brakeHold @28;
     parkBrake @29;
     manualRestart @30;
     lowSpeedLockout @31;
     plannerError @32;
+    ipasOverrideDEPRECATED @33;
     debugAlert @34;
     steerTempUnavailableMute @35;
     resumeRequired @36;
     preDriverDistracted @37;
     promptDriverDistracted @38;
     driverDistracted @39;
+    geofenceDEPRECATED @40;
+    driverMonitorOnDEPRECATED @41;
+    driverMonitorOffDEPRECATED @42;
     preDriverUnresponsive @43;
     promptDriverUnresponsive @44;
     driverUnresponsive @45;
     belowSteerSpeed @46;
+    calibrationProgressDEPRECATED @47;
     lowBattery @48;
+    invalidGiraffeHondaDEPRECATED @49;
     vehicleModelInvalid @50;
     controlsFailed @51;
     sensorDataInvalid @52;
@@ -73,6 +82,7 @@ struct CarEvent @0x9b1657f34caf3ad3 {
     preLaneChangeLeft @57;
     preLaneChangeRight @58;
     laneChange @59;
+    invalidGiraffeToyotaDEPRECATED @60;
     internetConnectivityNeeded @61;
     communityFeatureDisallowed @62;
     lowMemory @63;
@@ -93,49 +103,32 @@ struct CarEvent @0x9b1657f34caf3ad3 {
     startupMaster @78;
     fcw @79;
     steerSaturated @80;
+    whitePandaUnsupportedDEPRECATED @81;    
+    startupOneplus @82;
+    canErrorPersistentDEPRECATED @83;
     belowEngageSpeed @84;
     noGps @85;
+    focusRecoverActiveDEPRECATED @86;
     wrongCruiseMode @87;
+    neosUpdateRequiredDEPRECATED @88;
     modeldLagging @89;
     deviceFalling @90;
     fanMalfunction @91;
     cameraMalfunction @92;
-    
-    startupOneplus @82;
-
-    gasUnavailableDEPRECATED @3;
-    dataNeededDEPRECATED @16;
-    modelCommIssueDEPRECATED @27;
-    ipasOverrideDEPRECATED @33;
-    geofenceDEPRECATED @40;
-    driverMonitorOnDEPRECATED @41;
-    driverMonitorOffDEPRECATED @42;
-    calibrationProgressDEPRECATED @47;
-    invalidGiraffeHondaDEPRECATED @49;
-    invalidGiraffeToyotaDEPRECATED @60;
-    internetConnectivityNeededDEPRECATED @103;
-    commIssueWarningDEPRECATED @104;
-    whitePandaUnsupportedDEPRECATED @81;
-    startupGreyPandaDEPRECATED @82;
-    canErrorPersistentDEPRECATED @83;
-    focusRecoverActiveDEPRECATED @86;
-    neosUpdateRequiredDEPRECATED @88;
     modelLagWarningDEPRECATED @93;
-
-    #dp
     preLaneChangeLeftALC @94;
     preLaneChangeRightALC @95;
     manualSteeringRequired @96;
     manualSteeringRequiredBlinkersOn @97;
     leadCarMoving @98;
-
-    # timebomb assist
     timebombWarn @99;
     timebombBypassing @100;
     timebombBypassed @101;
-
-    #arnepilot
     longControlDisabled @102;
+    internetConnectivityNeededDEPRECATED @103;
+    commIssueWarningDEPRECATED @104;
+
+    startupGreyPandaDEPRECATED @105;
   }
 }
 
