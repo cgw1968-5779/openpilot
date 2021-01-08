@@ -41,6 +41,10 @@ class CarInterface(CarInterfaceBase):
     ret.steerLimitTimer = 0.4
     
     # Default longitudinal tune
+    ret.minSpeedCan = 0.3
+    ret.stoppingBrakeRate = 0.2 # brake_travel/s while trying to stop
+    ret.startingBrakeRate = 0.8 # brake_travel/s while releasing on restart
+    ret.stoppingControl = False
     ret.longitudinalTuning.deadzoneBP = [0., 9.]
     ret.longitudinalTuning.deadzoneV = [0., .15]
     ret.longitudinalTuning.kpBP = [0., 5., 35.]
