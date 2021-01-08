@@ -126,7 +126,7 @@ class LongControl():
       if hasLead:
         factor = interp(dRel,[2.0,3.0,4.0,5.0,6.0,7.0,8.0], [3.0,2.1,1.5,1.0,0.6,0.29,0.0])
       if not CS.standstill or output_gb > -BRAKE_STOPPING_TARGET:
-        output_gb -= CP.stoppingBrakeRate / RATE
+        output_gb -= CP.stoppingBrakeRate / RATE * factor
       output_gb = clip(output_gb, -brake_max, gas_max)
 
       self.reset(CS.vEgo)
@@ -137,7 +137,7 @@ class LongControl():
       if hasLead:
         factor = interp(dRel,[0.0,2.0,4.0,6.0], [0.0,0.5,1.0,2.0])
       if output_gb < -0.2:
-        output_gb += CP.startingBrakeRate / RATE
+        output_gb += CP.startingBrakeRate / RATE * factor
       self.v_pid = CS.vEgo
       self.pid.reset()
 
