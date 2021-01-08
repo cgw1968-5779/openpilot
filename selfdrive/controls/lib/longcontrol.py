@@ -6,7 +6,7 @@ from selfdrive.controls.lib.dynamic_gas import DynamicGas
 from selfdrive.controls.lib.longcontrol import MIN_CAN_SPEED
 
 LongCtrlState = log.ControlsState.LongControlState
-
+MIN_CAN_SPEED = 0.250  # TODO: parametrize this in car interface
 STOPPING_EGO_SPEED = 0.5
 STOPPING_TARGET_SPEED = STOPPING_TARGET_SPEED_OFFSET
 STOPPING_TARGET_SPEED_OFFSET = 0.01
