@@ -113,8 +113,8 @@ struct CarEvent @0x9b1657f34caf3ad3 {
     calibrationProgressDEPRECATED @47;
     invalidGiraffeHondaDEPRECATED @49;
     invalidGiraffeToyotaDEPRECATED @60;
-    internetConnectivityNeededDEPRECATED @61;
-    commIssueWarningDEPRECATED @73;
+    internetConnectivityNeededDEPRECATED @103;
+    commIssueWarningDEPRECATED @104;
     whitePandaUnsupportedDEPRECATED @81;
     startupGreyPandaDEPRECATED @82;
     canErrorPersistentDEPRECATED @83;
