@@ -417,6 +417,9 @@ struct CarParams {
   steerRateCost @33 :Float32; # Lateral MPC cost on steering rate
   steerControlType @34 :SteerControlType;
   radarOffCan @35 :Bool; # True when radar objects aren't visible on CAN
+  minSpeedCan @51 :Float32; # Minimum vehicle speed from CAN (below this value drops to 0)
+  stoppingBrakeRate @52 :Float32; # brake_travel/s while trying to stop
+  startingBrakeRate @53 :Float32; # brake_travel/s while releasing on restart
 
   steerActuatorDelay @36 :Float32; # Steering wheel actuator delay in seconds
   openpilotLongitudinalControl @37 :Bool; # is openpilot doing the longitudinal control?
@@ -462,10 +465,10 @@ struct CarParams {
     actuatorEffectivenessBP @6 :List(Float32);
     actuatorEffectivenessV @7 :List(Float32);
     
-    outerLoopGainDEPRECATED @0 :Float32;
-    innerLoopGainDEPRECATED @1 :Float32;
-    timeConstantDEPRECATED @2 :Float32;
-    actuatorEffectivenessDEPRECATED @3 :Float32;
+    outerLoopGainDEPRECATED @8 :Float32;
+    innerLoopGainDEPRECATED @9 :Float32;
+    timeConstantDEPRECATED @10 :Float32;
+    actuatorEffectivenessDEPRECATED @11 :Float32;
   }
 
   struct LateralLQRTuning {
