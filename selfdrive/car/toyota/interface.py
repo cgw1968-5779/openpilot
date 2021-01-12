@@ -224,19 +224,26 @@ class CarInterface(CarInterfaceBase):
       ret.steerRateCost = 0.45
       tire_stiffness_factor = 0.7933
       ret.mass = 3370. * CV.LB_TO_KG + STD_CARGO_KG
-      ret.longitudinalTuning.kpV = [2.1, 1.2, 0.34]
-      ret.longitudinalTuning.kiV = [0.54, 0.34]
-      ret.steerActuatorDelay = 0.35
+      ret.longitudinalTuning.deadzoneBP = [0., 8.05]
+      ret.longitudinalTuning.deadzoneV = [.0, .14]
+      ret.longitudinalTuning.kpBP = [0., 5., 20.]
+      ret.longitudinalTuning.kpV = [1.5, 1.5, 10]
+      ret.longitudinalTuning.kiBP = [0., 5., 12., 20., 27.]
+      ret.longitudinalTuning.kiV = [.2, .18, .18, .13, .1]
+      ret.stoppingBrakeRate = 0.0685 # reach stopping target smoothly
+      ret.startingBrakeRate = 1.0 # release brakes fast
+      ret.startAccel = 1.8 # Accelerate from 0 faster
+      ret.steerActuatorDelay = 0.3
       ret.steerLimitTimer = 5.0
       ret.lateralTuning.init('indi')
-      ret.lateralTuning.indi.innerLoopGainBP = [16.7, 25, 36.1]
-      ret.lateralTuning.indi.innerLoopGainV = [9.5, 15, 15]
-      ret.lateralTuning.indi.outerLoopGainBP = [16.7, 25, 36.1]
-      ret.lateralTuning.indi.outerLoopGainV = [9.5, 14.99, 14.99]
-      ret.lateralTuning.indi.timeConstantBP = [16.7, 16.71, 22, 22.01, 26, 26.01, 36, 36.01]
-      ret.lateralTuning.indi.timeConstantV = [0.5, 1, 1, 2, 2, 4, 4, 5]
-      ret.lateralTuning.indi.actuatorEffectivenessBP = [16.7, 25, 36.1]
-      ret.lateralTuning.indi.actuatorEffectivenessV = [9.5, 15, 15]
+      ret.lateralTuning.indi.innerLoopGainBP = [16.7, 26]
+      ret.lateralTuning.indi.innerLoopGainV = [9.5, 16]
+      ret.lateralTuning.indi.outerLoopGainBP = [16.7, 26]
+      ret.lateralTuning.indi.outerLoopGainV = [9.5, 14.99]
+      ret.lateralTuning.indi.timeConstantBP = [16.7, 16.71, 22, 22.01, 26, 26.01, 30.1, 30.11, 36, 36.01]
+      ret.lateralTuning.indi.timeConstantV = [0.65, 1.3, 1.3, 1.83, 1.83, 2.66, 2.66, 4, 4, 4]
+      ret.lateralTuning.indi.actuatorEffectivenessBP = [16.7, 26]
+      ret.lateralTuning.indi.actuatorEffectivenessV = [9.5, 15]
 
     elif candidate == CAR.RAV4H_TSS2:
       stop_and_go = True
