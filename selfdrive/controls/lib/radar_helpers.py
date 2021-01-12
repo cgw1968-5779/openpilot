@@ -110,8 +110,6 @@ class Cluster():
       return _LEAD_ACCEL_TAU
     else:
       return mean([t.aLeadTau for t in self.tracks if t.cnt > 1])
-    else:
-      return mean([t.aLeadTau for t in self.tracks if t.cnt > 1])
 
   @property
   def measured(self):
