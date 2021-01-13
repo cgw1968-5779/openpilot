@@ -233,7 +233,7 @@ class CarInterface(CarInterfaceBase):
       ret.stoppingBrakeRate = 0.0695 # reach stopping target smoothly
       ret.startingBrakeRate = 1.0 # release brakes fast
       ret.startAccel = 1.8 # Accelerate from 0 faster
-      ret.steerActuatorDelay = 0.3
+      ret.steerActuatorDelay = 0.25
       ret.steerLimitTimer = 5.0
       ret.lateralTuning.init('indi')
       ret.lateralTuning.indi.innerLoopGainBP = [16.7, 26]
