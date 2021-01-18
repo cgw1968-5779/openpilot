@@ -117,7 +117,7 @@ class Cluster():
 
   def get_RadarState(self, model_prob=0.0):
     return {
-      "dRel": float(max(0.0,self.dRel-0.8)),
+      "dRel": float(max(0.0,self.dRel-0.88)),
       "yRel": float(self.yRel),
       "vRel": float(self.vRel),
       "vLead": float(self.vLead),
@@ -132,7 +132,7 @@ class Cluster():
 
   def get_RadarState_from_vision(self, lead_msg, v_ego):
     return {
-      "dRel": float(max(0.0,lead_msg.dist - RADAR_TO_CAMERA-0.8)),
+      "dRel": float(max(0.0,lead_msg.dist - RADAR_TO_CAMERA-0.88)),
       "yRel": float(lead_msg.relY),
       "vRel": float(lead_msg.relVel),
       "vLead": float(v_ego + lead_msg.relVel),
