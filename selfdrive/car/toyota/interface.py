@@ -223,7 +223,7 @@ class CarInterface(CarInterfaceBase):
       ret.safetyParam = 56
       ret.wheelbase = 2.68986
       ret.steerRatio = 14.3
-      ret.steerRateCost = 1.0
+      ret.steerRateCost = 0.5
       tire_stiffness_factor = 0.7933
       ret.mass = 3370. * CV.LB_TO_KG + STD_CARGO_KG
       ret.longitudinalTuning.deadzoneBP = [0., 8.05]
@@ -232,11 +232,11 @@ class CarInterface(CarInterfaceBase):
       ret.longitudinalTuning.kpV = [1.8, 2.1, 20]
       ret.longitudinalTuning.kiBP = [0., 5., 12., 20., 27.]
       ret.longitudinalTuning.kiV = [.18, .18, .18, .13, .1]
-      ret.stoppingBrakeRate = 0.0695 # reach stopping target smoothly
-      ret.startingBrakeRate = 1.5 # release brakes fast
-      ret.startAccel = 2.5 # Accelerate from 0 faster
+      ret.stoppingBrakeRate = 0.08 # reach stopping target smoothly
+      ret.startingBrakeRate = 1.3 # release brakes fast
+      ret.startAccel = 1.5 # Accelerate from 0 faster
       ret.steerActuatorDelay = 0.01
-      ret.steerLimitTimer = 5
+      ret.steerLimitTimer = .4
       ret.lateralTuning.init('indi')
       ret.lateralTuning.indi.innerLoopGainBP = [16.7, 26]
       ret.lateralTuning.indi.innerLoopGainV = [15, 15]
@@ -261,9 +261,9 @@ class CarInterface(CarInterfaceBase):
       ret.longitudinalTuning.kpV = [1.8, 2.1, 20]
       ret.longitudinalTuning.kiBP = [0., 5., 12., 20., 27.]
       ret.longitudinalTuning.kiV = [.2, .18, .18, .13, .1]
-      ret.stoppingBrakeRate = 0.0695 # reach stopping target smoothly
+      ret.stoppingBrakeRate = 0.1 # reach stopping target smoothly
       ret.startingBrakeRate = 1.0 # release brakes fast
-      ret.startAccel = 2.0 # Accelerate from 0 faster
+      ret.startAccel = 1.5 # Accelerate from 0 faster
       ret.steerActuatorDelay = 0.01
       ret.steerLimitTimer = 5.0
       ret.lateralTuning.init('indi')
