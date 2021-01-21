@@ -253,7 +253,7 @@ class DynamicFollow:
       x_vel = [0.0, 1.892, 3.7432, 5.8632, 8.0727, 10.7301, 14.343, 17.6275, 22.4049, 28.6752, 34.8858, 40.35]
       # y_dist = [1.3781, 1.3791, 1.3457, 1.3134, 1.3145, 1.318, 1.3485, 1.257, 1.144, 0.979, 0.9461, 0.9156] # original DP
       y_dist = [1.32, 1.33, 1.34, 1.35, 1.31, 1.25, 1.1, 1.0, 0.9, 0.95, 1.0, 1.1]
-      profile_mod_pos = [1.23, 1.55, 1.8, 2.4]
+      profile_mod_pos = [1.25, 1.4, 1.9, 2.4]
       profile_mod_neg = [0.9, 0.9, 1.1, 1.05]
     elif df_profile == PROFILE_NORMAL:  # default to relaxed/stock
       # y_dist = [1.385, 1.394, 1.406, 1.421, 1.444, 1.474, 1.516, 1.534, 1.546, 1.568, 1.579, 1.593, 1.614] # original DP
@@ -278,7 +278,7 @@ class DynamicFollow:
       TR = interp(self.car_data.v_ego, x_vel, y_dist)
     else:  # this allows us to get closer to the lead car when stopping, while being able to have smooth stop and go when reaccelerating
       self.sng = True
-      x = [self.sng_speed * 0.7, self.sng_speed]  # decrease TR between 12.6 and 18 mph from 1.8s to defined TR above at 18mph while accelerating
+      x = [self.sng_speed * 0.5, self.sng_speed]  # decrease TR between 12.6 and 18 mph from 1.8s to defined TR above at 18mph while accelerating
       y = [self.sng_TR, interp(self.sng_speed, x_vel, y_dist)]
       TR = interp(self.car_data.v_ego, x, y)
 
@@ -298,7 +298,7 @@ class DynamicFollow:
       if self.lead_data.v_lead - deadzone > self.car_data.v_ego:
         TR_mods.append(rel_accel_mod)
 
-    x = [self.sng_speed / 5.0, self.sng_speed]  # as we approach 0, apply x% more distance
+    x = [self.sng_speed / 3.0, self.sng_speed]  # as we approach 0, apply x% more distance
     y = [1.05, 1.0]
     profile_mod_pos *= interp(self.car_data.v_ego, x, y)  # but only for currently positive mods
 
