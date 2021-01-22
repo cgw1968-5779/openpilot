@@ -283,6 +283,15 @@ class CarInterface(CarInterfaceBase):
       ret.steerRatio = 15.33
       tire_stiffness_factor = 0.996  # not optimized yet
       ret.mass = 3060. * CV.LB_TO_KG + STD_CARGO_KG
+       ret.longitudinalTuning.deadzoneBP = [0., 8.05]
+      ret.longitudinalTuning.deadzoneV = [.0, .14]
+      ret.longitudinalTuning.kpBP = [0., 5., 20.]
+      ret.longitudinalTuning.kpV = [1.6, 1.1, 0.34]
+      ret.longitudinalTuning.kiBP = [0., 5., 12., 20., 27.]
+      ret.longitudinalTuning.kiV = [.18, .18, .18, .13, .1]
+      ret.stoppingBrakeRate = 0.2 # reach stopping target smoothly
+      ret.startingBrakeRate = 1.05 # release brakes fast
+      ret.startAccel = 1.5 # Accelerate from 0 faster
       ret.steerActuatorDelay = 0.45 
       ret.steerLimitTimer = 5.0
       ret.lateralTuning.init('indi')
