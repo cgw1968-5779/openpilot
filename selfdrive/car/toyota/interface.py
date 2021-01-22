@@ -229,7 +229,7 @@ class CarInterface(CarInterfaceBase):
       ret.longitudinalTuning.deadzoneBP = [0., 8.05]
       ret.longitudinalTuning.deadzoneV = [.0, .14]
       ret.longitudinalTuning.kpBP = [0., 5., 20.]
-      ret.longitudinalTuning.kpV = [1.7, 1.5, 1.0]
+      ret.longitudinalTuning.kpV = [1.9, 1.6, 1.0]
       ret.longitudinalTuning.kiBP = [0., 5., 12., 20., 27.]
       ret.longitudinalTuning.kiV = [.18, .18, .18, .13, .1]
       ret.stoppingBrakeRate = 0.1 # reach stopping target smoothly
