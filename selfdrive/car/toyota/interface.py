@@ -233,8 +233,8 @@ class CarInterface(CarInterfaceBase):
       ret.longitudinalTuning.kiBP = [0., 5., 12., 20., 27.]
       ret.longitudinalTuning.kiV = [.18, .18, .18, .13, .1]
       ret.stoppingBrakeRate = 0.1 # reach stopping target smoothly
-      ret.startingBrakeRate = 1.3 # release brakes fast
-      ret.startAccel = 1.5 # Accelerate from 0 faster
+      ret.startingBrakeRate = 1.2 # release brakes fast
+      ret.startAccel = 2.0 # Accelerate from 0 faster
       ret.steerActuatorDelay = 0.01
       ret.steerLimitTimer = 0.5
       ret.lateralTuning.init('indi')
@@ -257,13 +257,13 @@ class CarInterface(CarInterfaceBase):
       ret.mass = 3370. * CV.LB_TO_KG + STD_CARGO_KG
       ret.longitudinalTuning.deadzoneBP = [0., 8.05]
       ret.longitudinalTuning.deadzoneV = [.0, .14]
-      ret.longitudinalTuning.kpBP = [0., 5., 10.]
-      ret.longitudinalTuning.kpV = [1.7, 1.5, 1.0]
+      ret.longitudinalTuning.kpBP = [0., 5., 20.]
+      ret.longitudinalTuning.kpV = [2.63, 1.37, 0.34]
       ret.longitudinalTuning.kiBP = [0., 5., 12., 20., 27.]
       ret.longitudinalTuning.kiV = [.18, .18, .18, .13, .1]
       ret.stoppingBrakeRate = 0.1 # reach stopping target smoothly
       ret.startingBrakeRate = 1.2 # release brakes fast
-      ret.startAccel = 1.5 # Accelerate from 0 faster
+      ret.startAccel = 2.0 # Accelerate from 0 faster
       ret.steerActuatorDelay = 0.01
       ret.steerLimitTimer = 0.5
       ret.lateralTuning.init('indi')
