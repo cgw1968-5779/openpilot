@@ -281,7 +281,7 @@ class DynamicFollow:
     TR_mods = []
     # Dynamic follow modifications (the secret sauce)
     x = [-26, -15.6464, -9.8422, -6.0, -4.0, -2.68, -2.3, -1.8, -1.26, -0.61, 0, 0.61, 1.26, 2.1, 2.68, 4.4704]  # relative velocity values
-    y = [1.76, 1.504, 1.34, 1.29, 1.25, 1.22, 1.19, 1.13, 1.053, 1.017, 1.0, 0.985, 0.958, 0.87, 0.81, 0.685]  # multiplier values
+    y = [1.81, 1.55, 1.39, 1.34, 1.3, 1.27, 1.24, 1.18, 1.103, 1.057, 1.0, 0.985, 0.958, 0.87, 0.81, 0.685]  # multiplier values
     y = np.array(y) - 1  # converts back to original abs mod
     y *= 1.1  # multiplier for how much to mod
     y = y / TR + 1  # converts back to multipliers
