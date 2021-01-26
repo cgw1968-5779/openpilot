@@ -245,10 +245,10 @@ class DynamicFollow:
 
     x_vel = [0.0, 1.8627, 3.7253, 5.588, 7.4507, 9.3133, 11.5598, 13.645, 22.352, 31.2928, 33.528, 35.7632, 40.2336]  # velocities
     if df_profile == self.df_profiles.roadtrip:
-      y_dist = [1.6428, 1.65, 1.7, 1.75, 1.8, 1.85, 1.9, 2.0, 2.1, 2.2, 2.3, 2.4, 2.5]  # TRs
+      y_dist = [1.6428, 1.646, 1.6514, 1.6591, 1.6744, 1.7, 1.8, 1.9, 2.0, 2.1, 2.2, 2.3, 2.4]  # TRs
     elif df_profile == self.df_profiles.traffic:  # for in congested traffic
       x_vel = [0.0, 1.892, 3.7432, 5.8632, 8.0727, 10.7301, 14.343, 17.6275, 22.4049, 28.6752, 34.8858, 40.35]
-      y_dist = [1.37, 1.37, 1.37, 1.35, 1.3, 1.25, 1.2, 1.15, 1.1, 0.979, 0.9461, 0.9156]
+      y_dist = [1.3781, 1.3791, 1.3457, 1.3134, 1.3145, 1.318, 1.3485, 1.257, 1.144, 0.979, 0.9461, 0.9156]
     elif df_profile == self.df_profiles.relaxed:  # default to relaxed/stock
       y_dist = [1.411, 1.418, 1.428, 1.441, 1.461, 1.49, 1.535, 1.561, 1.589, 1.612, 1.621, 1.632, 1.648]
     else:
@@ -281,7 +281,7 @@ class DynamicFollow:
     TR_mods = []
     # Dynamic follow modifications (the secret sauce)
     x = [-26, -15.6464, -9.8422, -6.0, -4.0, -2.68, -2.3, -1.8, -1.26, -0.61, 0, 0.61, 1.26, 2.1, 2.68, 4.4704]  # relative velocity values
-    y = [1.4, 1.28, 1.27, 1.26, 1.25, 1.22, 1.19, 1.13, 1.053, 1.017, 1.0, 0.985, 0.958, 0.87, 0.81, 0.685]  # multiplier values
+    y = [1.76, 1.504, 1.34, 1.29, 1.25, 1.22, 1.19, 1.13, 1.053, 1.017, 1.0, 0.985, 0.958, 0.87, 0.81, 0.685]  # multiplier values
     y = np.array(y) - 1  # converts back to original abs mod
     y *= 1.1  # multiplier for how much to mod
     y = y / TR + 1  # converts back to multipliers
