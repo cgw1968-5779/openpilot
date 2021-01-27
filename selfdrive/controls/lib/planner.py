@@ -215,11 +215,11 @@ class Planner():
 
     blinkers = sm['carState'].leftBlinker or sm['carState'].rightBlinker
     if blinkers:
-      steering_angle = sm['carState'].steeringAngle * 0.8
+      steering_angle = sm['carState'].steeringAngle * 0.95
       if v_ego < 11:
         angle_later = 0.
       else:
-        angle_later = sm['latControl'].anglelater * 0.8
+        angle_later = sm['latControl'].anglelater * 0.95
     else:
       steering_angle = sm['carState'].steeringAngle
       if v_ego < 11:
