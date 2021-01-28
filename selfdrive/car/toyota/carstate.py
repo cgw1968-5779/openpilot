@@ -37,7 +37,7 @@ class CarState(CarStateBase):
     self.Angles_later = np.zeros(250)
     self.Angle_counter = 0
     self.Angle = [0, 5, 10, 15,20,25,30,35,60,100,180,270,500]
-    self.Angle_Speed = [255,245,225,200,170,145,110,100,80,66,54,34,28]
+    self.Angle_Speed = [255,255,255,245,230,215,200,200,200,200,200,200,200]
     self.smartspeed = 0
     self.rsa_ignored_speed = 0
     self.spdval1 = 0
