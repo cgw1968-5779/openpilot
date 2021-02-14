@@ -6,7 +6,7 @@ from selfdrive.car import apply_toyota_steer_torque_limits, create_gas_command, 
 from selfdrive.car.toyota.toyotacan import create_steer_command, create_ui_command, \
                                            create_accel_command, create_acc_cancel_command, \
                                            create_fcw_command
-from selfdrive.car.toyota.values import Ecu, CAR, STATIC_MSGS, SteerLimitParams, TSS2_CAR
+from selfdrive.car.toyota.values import Ecu, CAR, STATIC_MSGS, SteerLimitParams, TSS2_CAR, NO_STOP_TIMER_CAR
 from opendbc.can.packer import CANPacker
 from common.op_params import opParams
 #import cereal.messaging as messaging
@@ -130,7 +130,7 @@ class CarController():
 
     apply_accel, self.accel_steady = accel_hysteresis(apply_accel, self.accel_steady, enabled)
     factor = 2 if ludicrous_mode else 1
-    apply_accel = clip(apply_accel * ACCEL_SCALE * factor, ACCEL_MIN, ACCEL_MAX)
+    apply_accel = clip(apply_accel * ACCEL_SCALE, ACCEL_MIN, ACCEL_MAX)
     #if ludicrous_mode:
     #  print(apply_accel)
     if CS.CP.enableGasInterceptor:
@@ -185,7 +185,7 @@ class CarController():
       pcm_cancel_cmd = 1
 
     # on entering standstill, send standstill request
-    if CS.out.standstill and not self.last_standstill:
+    if not CS.out.standstill and not self.last_standstill and CS.CP.carFingerprint not in NO_STOP_TIMER_CAR:
       self.standstill_req = True
     if CS.pcm_acc_status != 8:
       # pcm entered standstill or it's disabled
