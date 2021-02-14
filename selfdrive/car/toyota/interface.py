@@ -254,8 +254,8 @@ class CarInterface(CarInterfaceBase):
       ret.longitudinalTuning.kiV = [0.54, 0.34]  # minor double braking still remains
       if spairrowtuning:
         ret.steerActuatorDelay = 0.12
-        ret.steerRatio = 15.33
-        ret.steerLimitTimer = 5.0
+        ret.steerRatio = 14.3
+        ret.steerLimitTimer = 0.1
         tire_stiffness_factor = 0.996  # not optimized yet
         ret.lateralTuning.init('indi')
         ret.lateralTuning.indi.innerLoopGain = 15
@@ -433,7 +433,7 @@ class CarInterface(CarInterfaceBase):
       ret.lateralTuning.pid.kpV, ret.lateralTuning.pid.kiV = [[0.6], [0.1]]
       ret.lateralTuning.pid.kfV = [0.00007]
 
-    ret.steerRateCost = 0.5
+    ret.steerRateCost = 0.3
     ret.centerToFront = ret.wheelbase * 0.44
 
     # TODO: get actual value, for now starting with reasonable value for
