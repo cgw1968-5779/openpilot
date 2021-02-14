@@ -12,7 +12,7 @@ from common.realtime import sec_since_boot
 from selfdrive.swaglog import cloudlog
 from selfdrive.config import Conversions as CV
 from selfdrive.controls.lib.speed_smoother import speed_smoother
-from selfdrive.controls.lib.longcontrol import LongCtrlState, MIN_CAN_SPEED
+from selfdrive.controls.lib.longcontrol import LongCtrlState
 from selfdrive.controls.lib.fcw import FCWChecker
 from selfdrive.controls.lib.long_mpc import LongitudinalMpc
 from selfdrive.controls.lib.drive_helpers import V_CRUISE_MAX
@@ -45,7 +45,7 @@ _A_CRUISE_MIN_V_ECO = [-1.0, -0.7, -0.6, -0.5, -0.3]
 _A_CRUISE_MIN_V_SPORT = [-3.0, -2.6, -2.3, -2.0, -1.0]
 _A_CRUISE_MIN_V_FOLLOWING = [-3.0, -2.5, -2.0, -1.5, -1.0]
 _A_CRUISE_MIN_V = [-2.0, -1.5, -1.0, -0.7, -0.5]
-_A_CRUISE_MIN_BP = [0.0, 5.0, 10.0, 20.0, 55.0]
+_A_CRUISE_MIN_BP = [0.0, 5.0, 10.0, 20.0, 40.0]
 
 # need fast accel at very low speed for stop and go
 # make sure these accelerations are smaller than mpc limits
@@ -333,7 +333,7 @@ class Planner():
     else:
       starting = long_control_state == LongCtrlState.starting
       a_ego = min(sm['carState'].aEgo, 0.0)
-      reset_speed = MIN_CAN_SPEED if starting else v_ego
+      reset_speed = self.CP.minSpeedCan if starting else v_ego
       reset_accel = self.CP.startAccel if starting else a_ego
       self.v_acc = reset_speed
       self.a_acc = reset_accel
