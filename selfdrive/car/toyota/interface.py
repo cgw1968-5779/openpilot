@@ -230,6 +230,7 @@ class CarInterface(CarInterfaceBase):
       ret.lateralTuning.pid.kfV = [0.00006]
 
     elif candidate == CAR.RAV4_TSS2:
+
       stop_and_go = True
       ret.safetyParam = 56
       ret.wheelbase = 2.68986
@@ -237,8 +238,12 @@ class CarInterface(CarInterfaceBase):
       ret.steerRateCost = 0.25
       tire_stiffness_factor = 0.7933
       ret.mass = 3370. * CV.LB_TO_KG + STD_CARGO_KG
-      ret.longitudinalTuning.kpV = [2.1, 1.2, 0.34]
-      ret.longitudinalTuning.kiV = [0.54, 0.34]
+      ret.longitudinalTuning.deadzoneBP = [0., 8.05]
+      ret.longitudinalTuning.deadzoneV = [.0, .14]
+      ret.longitudinalTuning.kpBP = [0., 5., 20.]
+      ret.longitudinalTuning.kpV = [1.3, 1.0, 0.7]
+      ret.longitudinalTuning.kiBP = [0., 5., 12., 20., 27.]
+      ret.longitudinalTuning.kiV = [.35, .23, .20, .17, .1]
       ret.stoppingBrakeRate = 0.16 # reach stopping target smoothly
       ret.startingBrakeRate = 0.75 # release brakes fast
       ret.startAccel = 1.30 # Accelerate from 0 faster
