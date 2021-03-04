@@ -104,14 +104,14 @@ class CarInterface(CarInterfaceBase):
         #ret.lateralTuning.indi.actuatorEffectivenessBP = [16.7, 25]
         #ret.lateralTuning.indi.actuatorEffectivenessV = [15, 15]
         #ret.lateralTuning.init('indi') #really good tune from cgw.
-        ret.lateralTuning.indi.innerLoopGainBP = [16.7, 25, 36.1]
-        ret.lateralTuning.indi.innerLoopGainV = [9.5, 15, 15]
-        ret.lateralTuning.indi.outerLoopGainBP = [16.7, 25, 36.1]
-        ret.lateralTuning.indi.outerLoopGainV = [9.5, 14.99, 14.99]
-        ret.lateralTuning.indi.timeConstantBP = [16.7, 16.71, 22, 22.01, 26, 26.01, 36, 36.01]
-        ret.lateralTuning.indi.timeConstantV = [0.5, 1, 1, 2, 2, 4, 4, 5]
-        ret.lateralTuning.indi.actuatorEffectivenessBP = [16.7, 25, 36.1]
-        ret.lateralTuning.indi.actuatorEffectivenessV = [9.5, 15, 15]
+        ret.lateralTuning.indi.innerLoopGainBP = [16.7, 25]
+        ret.lateralTuning.indi.innerLoopGainV = [15, 15]
+        ret.lateralTuning.indi.outerLoopGainBP = [8.3, 11.1, 13.9, 16.7, 19.4, 22.2,  25, 30.6, 33.3, 36.1]
+        ret.lateralTuning.indi.outerLoopGainV = [4.7, 6.45, 8.2, 9.95, 11.7, 13.45, 14.99, 14.99, 14.99, 14.99]
+        ret.lateralTuning.indi.timeConstantBP = [8.3, 11.1, 13.9, 16.7, 19.4, 22.2, 25, 30.6, 33.3, 36.1]
+        ret.lateralTuning.indi.timeConstantV = [1.0, 1.3, 1.6, 1.9, 2.2, 2.5, 2.8, 3.4, 3.7, 4.0]
+        ret.lateralTuning.indi.actuatorEffectivenessBP = [16.7, 25]
+        ret.lateralTuning.indi.actuatorEffectivenessV = [15, 15]
 
     elif candidate in [CAR.RAV4, CAR.RAV4H]:
       stop_and_go = True if (candidate in CAR.RAV4H) else False
