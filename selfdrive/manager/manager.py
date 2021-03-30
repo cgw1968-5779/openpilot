@@ -2,13 +2,13 @@
 import datetime
 import os
 import signal
-import subprocess
+#import subprocess
 import sys
 import traceback
 
 import cereal.messaging as messaging
 import selfdrive.crash as crash
-from common.basedir import BASEDIR
+#from common.basedir import BASEDIR
 from common.params import Params
 from common.text_window import TextWindow
 from selfdrive.hardware import HARDWARE

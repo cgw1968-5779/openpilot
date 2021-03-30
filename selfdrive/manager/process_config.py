@@ -1,6 +1,6 @@
 import os
 
-from selfdrive.manager.process import PythonProcess, NativeProcess, DaemonProcess
+from selfdrive.manager.process import PythonProcess, NativeProcess#, DaemonProcess
 from selfdrive.hardware import EON, TICI, PC
 
 WEBCAM = os.getenv("WEBCAM") is not None
