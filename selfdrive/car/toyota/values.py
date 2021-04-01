@@ -12,8 +12,8 @@ class CarControllerParams:
 
   STEER_MAX = 1500
   STEER_DELTA_UP = 10       # 1.5s time to peak torque
-  STEER_DELTA_DOWN = 25     # always lower than 45 otherwise the Rav4 faults (Prius seems ok with 50)
-  STEER_ERROR_MAX = 350     # max delta between torque cmd and torque motor
+  STEER_DELTA_DOWN = 44     # always lower than 45 otherwise the Rav4 faults (Prius seems ok with 50)
+  STEER_ERROR_MAX = 500     # max delta between torque cmd and torque motor
 
 class CAR:
   PRIUS = "TOYOTA PRIUS 2017"
@@ -297,7 +297,7 @@ FINGERPRINTS = {
 }
 
 # Don't use theses fingerprints for fingerprinting, they are still needed for ECU detection
-IGNORED_FINGERPRINTS = [CAR.RAV4H_TSS2, CAR.HIGHLANDERH_TSS2, CAR.LEXUS_RXH_TSS2, CAR.PRIUS_TSS2,
+IGNORED_FINGERPRINTS = [CAR.RAV4H_TSS2, CAR.HIGHLANDERH_TSS2, CAR.LEXUS_RXH_TSS2,
                         CAR.LEXUS_NX, CAR.CAMRY_TSS2, CAR.CAMRYH_TSS2, CAR.LEXUS_ESH, CAR.MIRAI]
 
 FW_VERSIONS = {

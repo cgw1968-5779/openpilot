@@ -80,20 +80,20 @@ def update_panda():
     panda.flash()
     cloudlog.info("Done flashing")
 
-  if panda.bootstub:
-    bootstub_version = panda.get_version()
-    cloudlog.info(f"Flashed firmware not booting, flashing development bootloader. Bootstub version: {bootstub_version}")
-    panda.recover()
-    cloudlog.info("Done flashing bootloader")
+  #if panda.bootstub:
+    #bootstub_version = panda.get_version()
+    #cloudlog.info(f"Flashed firmware not booting, flashing development bootloader. Bootstub version: {bootstub_version}")
+    #panda.recover()
+    #cloudlog.info("Done flashing bootloader")
 
   if panda.bootstub:
     cloudlog.info("Panda still not booting, exiting")
     raise AssertionError
 
-  panda_signature = panda.get_signature()
-  if panda_signature != fw_signature:
-    cloudlog.info("Version mismatch after flashing, exiting")
-    raise AssertionError
+  #panda_signature = panda.get_signature()
+  #if panda_signature != fw_signature:
+    #cloudlog.info("Version mismatch after flashing, exiting")
+    #raise AssertionError
 
   cloudlog.info("Resetting panda")
   panda.reset()
