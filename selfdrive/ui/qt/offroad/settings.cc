@@ -208,13 +208,13 @@ QWidget * network_panel(QWidget * parent) {
   layout->addWidget(horizontal_line());
 
   const char* gitpull = "/data/openpilot/scripts/gitpull.sh ''";
-  layout->addWidget(new ButtonControl("Git Pull, new changes",
+  layout->addWidget(new ButtonControl("Git Pull", "new changes", "",
                                       [=]() { std::system(gitpull); }));
 
   layout->addWidget(horizontal_line());
 
   const char* panda_flashing = "/data/openpilot/scripts/panda_flashing.sh ''";
-  layout->addWidget(new ButtonControl("Flash panda", "pressing this button will manully flash the panda.",
+  layout->addWidget(new ButtonControl("Flash panda", "pressing this button will manully flash the panda.", "",
                                       [=]() {
                                         if (ConfirmationDialog::confirm("are you sure?")) {
                                           std::system(panda_flashing);
