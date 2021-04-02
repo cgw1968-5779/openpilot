@@ -94,24 +94,24 @@ class Controls:
   # WARNING
   #
 
-    panda_recognized = False
-    panda_dongle_id = params.get('DongleId')
+    #panda_recognized = False
+    #panda_dongle_id = params.get('DongleId')
     # If panda_dongle_id is None we may be running in docker/CI
-    if panda_dongle_id is not None:
+    #if panda_dongle_id is not None:
       # if dongle is detected, verify the ID.
-      panda_dongle_hash = hashlib.md5(panda_dongle_id).hexdigest()
-      print("panda dongle hash: " + panda_dongle_hash)
-      if panda_dongle_hash in \
+      #panda_dongle_hash = hashlib.md5(panda_dongle_id).hexdigest()
+      #print("panda dongle hash: " + panda_dongle_hash)
+      #if panda_dongle_hash in \
         [
           #arne put your hash in here. 'hash' #arne
-          '1e1a47b244ec1f373f2f7622a0e87449'#brian
-          '89e39241d3782b0a3893ecad61156e82'#kumar,
-          'c489a77b24f636ccab80bbfe1818a957'#kuamr
-        ]:
-        print("panda dongle recognized")
+          #'1e1a47b244ec1f373f2f7622a0e87449'#brian
+          #'89e39241d3782b0a3893ecad61156e82'#kumar,
+          #'c489a77b24f636ccab80bbfe1818a957'#kuamr
+        #]:
+        #print("panda dongle recognized")
 
-    if not panda_recognized:
-      car_recognized = False
+    #if not panda_recognized:
+      #car_recognized = False
 
     # If stock camera is disconnected, we loaded car controls and it's not dashcam mode
     controller_available = self.CP.enableCamera and self.CI.CC is not None and not passive and not self.CP.dashcamOnly
