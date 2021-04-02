@@ -102,7 +102,7 @@ class Controls:
       #panda_dongle_hash = hashlib.md5(panda_dongle_id).hexdigest()
       #print("panda dongle hash: " + panda_dongle_hash)
       #if panda_dongle_hash in \
-        [
+        #[
           #arne put your hash in here. 'hash' #arne
           #'1e1a47b244ec1f373f2f7622a0e87449'#brian
           #'89e39241d3782b0a3893ecad61156e82'#kumar,
