@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 import os
-import hashlib
+#import hashlib
 import math
 from cereal import car, log
 from common.numpy_fast import clip
