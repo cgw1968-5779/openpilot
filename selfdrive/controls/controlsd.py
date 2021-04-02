@@ -236,8 +236,8 @@ class Controls:
                                                  LaneChangeState.laneChangeFinishing]:
       self.events.add(EventName.laneChange)
 
-    if self.can_rcv_error or (not CS.canValid and self.sm.frame > 5 / DT_CTRL):
-      self.events.add(EventName.canError)
+    #if self.can_rcv_error or (not CS.canValid and self.sm.frame > 5 / DT_CTRL):
+      #self.events.add(EventName.canError)
 
     safety_mismatch = self.sm['pandaState'].safetyModel != self.CP.safetyModel
     safety_mismatch = safety_mismatch or self.sm['pandaState'].safetyParam != self.CP.safetyParam
