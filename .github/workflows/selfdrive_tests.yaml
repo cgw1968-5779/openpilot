@@ -59,6 +59,23 @@ jobs:
                           rm -rf /tmp/scons_cache/* && \
                           scons -j$(nproc) --cache-populate"
 
+  docker_push:
+    name: docker push
+    runs-on: ubuntu-20.04
+    timeout-minutes: 50
+    if: github.ref == 'refs/heads/master' && github.event_name != 'pull_request' && github.repository == 'commaai/openpilot'
+    needs: static_analysis # hack to ensure slow tests run first since this and static_analysis are fast
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        submodules: true
+    - name: Build Docker image
+      run: eval "$BUILD"
+    - name: Push to container registry
+      run: |
+        $DOCKER_LOGIN
+        docker push $DOCKER_REGISTRY/$BASE_IMAGE:latest
+
   static_analysis:
     name: static analysis
     runs-on: ubuntu-20.04
