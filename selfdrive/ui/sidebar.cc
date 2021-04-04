@@ -7,7 +7,7 @@
 #include "sidebar.hpp"
 
 static void draw_background(UIState *s) {
-  const NVGcolor color = nvgRGBA(0x39, 0x39, 0x39, 0xff);
+  const NVGcolor color = nvgRGBA(0x0, 0x0, 0x0, 0xff);
   ui_fill_rect(s->vg, {0, 0, sbr_w, s->fb_h}, color);
 }
 
