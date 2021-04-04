@@ -1,6 +1,7 @@
 from cereal import log
 from common.numpy_fast import clip, interp
 from selfdrive.controls.lib.pid import PIController
+from selfdrive.controls.lib.dynamic_gas import DynamicGas
 
 LongCtrlState = log.ControlsState.LongControlState
 
@@ -61,6 +62,9 @@ class LongControl():
     self.v_pid = 0.0
     self.last_output_gb = 0.0
 
+    #dynamic_gas
+    self.dynamic_gas = DynamicGas(CP)
+
   def reset(self, v_pid):
     """Reset PID controller and change setpoint"""
     self.pid.reset()
@@ -71,6 +75,9 @@ class LongControl():
     # Actuation limits
     gas_max = interp(CS.vEgo, CP.gasMaxBP, CP.gasMaxV)
     brake_max = interp(CS.vEgo, CP.brakeMaxBP, CP.brakeMaxV)
+
+    #dynamic_gas
+    gas_max = self.dynamic_gas.update(CS, radarState)
 
     # Update state machine
     output_gb = self.last_output_gb
