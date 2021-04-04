@@ -25,15 +25,15 @@ Spinner::Spinner(QWidget *parent) {
   main_layout->addWidget(track, 0, 0, Qt::AlignHCenter | Qt::AlignVCenter);
 
   // pre-compute all the track imgs. make this a gif instead?
-  track_idx = 0;
-  QTransform transform;
-  QPixmap track_img = QPixmap("../assets/img_spinner_track.png").scaled(spinner_size, Qt::KeepAspectRatio, Qt::SmoothTransformation);
-  for (auto &img : track_imgs) {
-    QPixmap r = track_img.transformed(transform.rotate(360/spinner_fps), Qt::SmoothTransformation);
-    int x = (r.width() - track->width()) / 2;
-    int y = (r.height() - track->height()) / 2;
-    img = r.copy(x, y, track->width(), track->height());
-  }
+  //track_idx = 0;
+  //QTransform transform;
+  //QPixmap track_img = QPixmap("../assets/img_spinner_track.png").scaled(spinner_size, Qt::KeepAspectRatio, Qt::SmoothTransformation);
+  //for (auto &img : track_imgs) {
+    //QPixmap r = track_img.transformed(transform.rotate(360/spinner_fps), Qt::SmoothTransformation);
+    //int x = (r.width() - track->width()) / 2;
+    //int y = (r.height() - track->height()) / 2;
+    //img = r.copy(x, y, track->width(), track->height());
+  //}
 
   text = new QLabel();
   text->setVisible(false);
