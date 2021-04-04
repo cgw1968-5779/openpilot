@@ -105,6 +105,12 @@ typedef struct UIScene {
   cereal::ControlsState::AlertSize alert_size;
 
   cereal::PandaState::PandaType pandaType;
+  int engineRPM;
+  bool headlightON;
+  bool parkingLightON;
+  bool steerOverride;
+  float output_scale;
+  float aEgo;
   NetStatus athenaStatus;
 
   cereal::DeviceState::Reader deviceState;

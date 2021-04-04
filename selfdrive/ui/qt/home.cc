@@ -230,8 +230,9 @@ GLWindow::GLWindow(QWidget* parent) : brightness_filter(BACKLIGHT_OFFROAD, BACKL
   backlight_timer = new QTimer(this);
   QObject::connect(backlight_timer, SIGNAL(timeout()), this, SLOT(backlightUpdate()));
 
-  brightness_b = Params(true).get<float>("BRIGHTNESS_B").value_or(10.0);
-  brightness_m = Params(true).get<float>("BRIGHTNESS_M").value_or(0.1);
+// commas version of brightness control
+  //brightness_b = Params(true).get<float>("BRIGHTNESS_B").value_or(10.0);
+  //brightness_m = Params(true).get<float>("BRIGHTNESS_M").value_or(0.1);
 }
 
 GLWindow::~GLWindow() {
@@ -259,17 +260,24 @@ void GLWindow::initializeGL() {
 }
 
 void GLWindow::backlightUpdate() {
-  // Update brightness
-  float clipped_brightness = std::min(100.0f, (ui_state.scene.light_sensor * brightness_m) + brightness_b);
+  // brightness
+  int brightness = BACKLIGHT_OFFROAD;
   if (!ui_state.scene.started) {
-    clipped_brightness = BACKLIGHT_OFFROAD;
+    brightness = BACKLIGHT_OFFROAD;
   }
 
-  int brightness = brightness_filter.update(clipped_brightness);
   if (!ui_state.awake) {
     brightness = 0;
     emit screen_shutoff();
   }
+
+  if (ui_state.scene.car_state.getHeadlightON()) {
+      brightness = 9.0;
+    } else if (ui_state.scene.car_state.getParkingLightON() && !ui_state.scene.car_state.getHeadlightON()) {
+      brightness = 50.0;
+    } else {
+      brightness = 100.0;
+    }
 
   if (brightness != last_brightness) {
     std::thread{Hardware::set_brightness, brightness}.detach();
