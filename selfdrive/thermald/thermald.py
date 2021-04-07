@@ -22,6 +22,10 @@ from selfdrive.pandad import get_expected_signature
 from selfdrive.swaglog import cloudlog
 from selfdrive.thermald.power_monitoring import PowerMonitoring
 from selfdrive.version import get_git_branch, terms_version, training_version
+from common.op_params import opParams
+
+op_params = opParams()
+ArizonaMode = op_params.get('ArizonaMode')
 
 FW_SIGNATURE = get_expected_signature()
 
@@ -93,6 +97,9 @@ _TEMP_THRS_L = [42.5, 57.5, 72.5, 10000]
 _FAN_SPEEDS = [0, 16384, 32768, 65535]
 # max fan speed only allowed if battery is hot
 _BAT_TEMP_THRESHOLD = 45.
+if ArizonaMode:
+  _FAN_SPEEDS = [0, 65535, 65535, 65535]
+  _BAT_TEMP_THERSHOLD = 15.
 
 
 def handle_fan_eon(max_cpu_temp, bat_temp, fan_speed, ignition):
