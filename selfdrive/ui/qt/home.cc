@@ -100,6 +100,7 @@ OffroadHome::OffroadHome(QWidget* parent) : QWidget(parent) {
   center_layout = new QStackedLayout();
 
   QHBoxLayout* statsAndSetup = new QHBoxLayout();
+  statsAndSetup->setMargin(0);
 
   DriveStats* drive = new DriveStats;
   drive->setFixedSize(800, 800);
@@ -229,8 +230,7 @@ GLWindow::GLWindow(QWidget* parent) : brightness_filter(BACKLIGHT_OFFROAD, BACKL
 
   backlight_timer = new QTimer(this);
   QObject::connect(backlight_timer, SIGNAL(timeout()), this, SLOT(backlightUpdate()));
-
-// commas version of brightness control
+// comma brightness
   //brightness_b = Params(true).get<float>("BRIGHTNESS_B").value_or(10.0);
   //brightness_m = Params(true).get<float>("BRIGHTNESS_M").value_or(0.1);
 }
