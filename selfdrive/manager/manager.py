@@ -26,6 +26,7 @@ def manager_init():
 
   default_params = [
     ("CompletedTrainingVersion", "0"),
+    ("HandsOnWheelMonitoring", "0"),
     ("HasAcceptedTerms", "0"),
     ("IsUploadRawEnabled", "1"),
     ("LastUpdateTime", datetime.datetime.utcnow().isoformat().encode('utf8')),
@@ -39,6 +40,10 @@ def manager_init():
   for k, v in default_params:
     if params.get(k) is None:
       params.put(k, v)
+
+  # parameters set by Enviroment Varables
+  if os.getenv("HANDSMONITORING") is not None:
+    params.put("HandsOnWheelMonitoring", str(int(os.getenv("HANDSMONITORING"))))
 
   # is this dashcam?
   if os.getenv("PASSIVE") is not None:
