@@ -117,6 +117,7 @@ typedef struct UIScene {
   bool headlightON;
   bool parkingLightON;
   bool disengage_blink;
+  float aEgo;
   NetStatus athenaStatus;
 
   cereal::DeviceState::Reader deviceState;
