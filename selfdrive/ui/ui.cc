@@ -147,6 +147,14 @@ static void update_sockets(UIState *s) {
   UIScene &scene = s->scene;
   if (scene.started && sm.updated("controlsState")) {
     scene.controls_state = sm["controlsState"].getControlsState();
+    auto alert_sound = scene.controls_state.getAlertSound();
+
+      if (alert_sound == AudibleAlert::CHIME_DISENGAGE) {
+      s->scene.disengage_blink = true;
+      } else if (alert_sound == AudibleAlert::NONE) {
+      s->scene.disengage_blink = false;
+      }
+
   }
   if (sm.updated("carState")) {
     scene.car_state = sm["carState"].getCarState();

@@ -116,6 +116,7 @@ typedef struct UIScene {
   int engineRPM;
   bool headlightON;
   bool parkingLightON;
+  bool disengage_blink;
   NetStatus athenaStatus;
 
   cereal::DeviceState::Reader deviceState;
