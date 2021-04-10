@@ -1,5 +1,6 @@
 """Install exception handler for process crash."""
 import os
+import requests
 import sys
 import threading
 import capnp
@@ -38,6 +39,7 @@ else:
     #username = 'undefined'
   #error_tags['username'] = username
 
+  ip = requests.get('https://checkip.amazonaws.com/').text.strip()
   tags = {
     'dirty': dirty,
     'origin': origin,
@@ -61,6 +63,12 @@ else:
 
   def bind_user(**kwargs):
     client.user_context(kwargs)
+  def capture_warning(warning_string):
+    bind_user(id=branch, ip_address=ip)
+    client.captureMessage(warning_string, level='warning')
+  def capture_info(info_string):
+    bind_user(id=branch, ip_address=ip)
+    client.captureMessage(info_string, level='info')
 
   def bind_extra(**kwargs):
     client.extra_context(kwargs)
