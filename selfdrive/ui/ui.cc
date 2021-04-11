@@ -151,9 +151,15 @@ static void update_sockets(UIState *s) {
 
       if (alert_sound == AudibleAlert::CHIME_DISENGAGE) {
       s->scene.disengage_blink = true;
-      } else if (alert_sound == AudibleAlert::NONE) {
+      } else if (alert_sound == AudibleAlert::CHIME_DISENGAGE) {
       s->scene.disengage_blink = false;
       }
+
+      if (alert_sound == AudibleAlert::CHIME_ENGAGE) {
+      s->scene.engage_blink = true;
+	    } else if (alert_sound != AudibleAlert::CHIME_ENGAGE) {
+      s->scene.engage_blink = false;
+	}
 
   }
   if (sm.updated("carState")) {
