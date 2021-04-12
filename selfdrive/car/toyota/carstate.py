@@ -331,7 +331,7 @@ class CarState(CarStateBase):
     return f'{tsgn}: {desc}' if desc is not None else f'{tsgn}'
 
   def _calculate_speed_limit(self):
-    if self._tsgn1 == 1:
+    if self._tsgn1 == 36:
       return self._spdval1 * CV.KPH_TO_MS
     if self._tsgn1 == 36:
       return self._spdval1 * CV.MPH_TO_MS
