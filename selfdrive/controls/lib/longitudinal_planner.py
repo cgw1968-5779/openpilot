@@ -71,7 +71,9 @@ class Planner():
     self.mpc1 = LongitudinalMpc(1)
     self.mpc2 = LongitudinalMpc(2)
     self.turn_controller = TurnController(CP)
+    cloudlog.info("turn_controller init")
     self.speed_limit_controller = SpeedLimitController(CP)
+    cloudlog.info("speed_limit_controller init")
 
     self.v_acc_start = 0.0
     self.a_acc_start = 0.0
