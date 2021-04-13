@@ -257,13 +257,15 @@ static void ui_draw_vision_speed(UIState *s) {
   const float speed = std::max(0.0, s->scene.car_state.getVEgo() * (s->scene.is_metric ? 3.6 : 2.2369363));
   const std::string speed_str = std::to_string((int)std::nearbyint(speed));
   nvgTextAlign(s->vg, NVG_ALIGN_CENTER | NVG_ALIGN_BASELINE);
+  NVGcolor color = s->scene.car_state.getBrakeLights() ? nvgRGBA(255, 66, 66, 255) : COLOR_WHITE;
   ui_draw_text(s, s->viz_rect.centerX(), 240, speed_str.c_str(), 96 * 2.5, COLOR_WHITE, "sans-bold");
   ui_draw_text(s, s->viz_rect.centerX(), 320, s->scene.is_metric ? "km/h" : "mph", 36 * 2.5, COLOR_WHITE_ALPHA(200), "sans-regular");
+
+  // turning blinker sequential @crwusiz
   const int viz_blinker_w = 280;
   const int viz_blinker_x = s->viz_rect.centerX() - 140;
   const int viz_add = 50;
 
-  // turning blinker sequential @crwusiz
   if(s->scene.leftBlinker) {
     nvgBeginPath(s->vg); // left1=50(viz_add) , y 105->100 , 210->200 , 315->300
     nvgMoveTo(s->vg, viz_blinker_x - viz_add                    , s->viz_rect.y + (header_h/4.2));
@@ -953,16 +955,7 @@ static void ui_draw_vision(UIState *s) {
 
 static void ui_draw_background(UIState *s) {
   const NVGcolor color = bg_colors[s->status];
-
-  NVGcolor val_color = COLOR_WHITE;
-
-  if( s->scene.brakePress ) val_color = COLOR_RED;
-  else if (s->scene.brakeLights && s->scene.started) { // conditions, do not remove scene.started, brakeLights + enabled + started should do the disable trick, or you can use the cruise cancel thing in cereal
-    glClearColor(get_alert_alpha(1.5), 0.0, 0.0, 1.0); // get_alert_alpha(1.0) increase this to speed up
-  } else {
-    glClearColor(color.r, color.g, color.b, 1.0); // default colour
-  }
-
+  glClearColor(color.r, color.g, color.b, 1.0);
   glClear(GL_STENCIL_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
 }
 

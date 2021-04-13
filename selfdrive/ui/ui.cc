@@ -155,11 +155,16 @@ static void update_state(UIState *s) {
   if (scene.started && sm.updated("controlsState")) {
     scene.controls_state = sm["controlsState"].getControlsState();
     scene.angleSteersDes = scene.controls_state.getSteeringAngleDesiredDeg();
+    if(scene.leftBlinker!=scene.car_state.getLeftBlinker() || scene.rightBlinker!=scene.car_state.getRightBlinker()){
+      scene.blinker_blinkingrate = 120;
+    }
   }
   if (sm.updated("carState")) {
     scene.car_state = sm["carState"].getCarState();
-    s->scene.engineRPM = scene.car_state.getEngineRPM();
-    s->scene.brakePress = scene.car_state.getBrakePressed();
+    scene.leftBlinker = scene.car_state.getLeftBlinker();
+    scene.rightBlinker = scene.car_state.getRightBlinker();
+    scene.engineRPM = scene.car_state.getEngineRPM();
+    //s->scene.brakePress = scene.car_state.getBrakePressed();
     s->scene.brakeLights = scene.car_state.getBrakeLights();
     s->scene.parkingLightON = scene.car_state.getParkingLightON();
     s->scene.headlightON = scene.car_state.getHeadlightON();

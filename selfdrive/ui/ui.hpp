@@ -143,10 +143,10 @@ typedef struct UIScene {
   char batteryStatus[64];
   char ipAddr[20];
   int fanSpeed;
-  bool brakePress;
+  //bool brakePress;
   bool leftBlinker, rightBlinker;
   int blinker_blinkingrate;
-  
+
   NetStatus athenaStatus;
 
   cereal::DeviceState::Reader deviceState;
