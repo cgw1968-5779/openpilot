@@ -22,7 +22,7 @@ TrackWidget::TrackWidget(QWidget *parent) {
   //QTransform transform;
   //QPixmap track_img = QPixmap("../assets/img_spinner_track.png").scaled(spinner_size, Qt::KeepAspectRatio, Qt::SmoothTransformation);
   //for (auto &img : track_imgs) {
-    //img = track_img.transformed(transform.rotate(360/spinner_fps), Qt::SmoothTransformation);
+    //mg = track_img.transformed(transform.rotate(360/spinner_fps), Qt::SmoothTransformation);
   //}
 
   m_anim.setDuration(1000);
