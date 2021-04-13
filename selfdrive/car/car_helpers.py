@@ -11,6 +11,7 @@ from selfdrive.car.fw_versions import get_fw_versions, match_fw_to_car
 from selfdrive.swaglog import cloudlog
 import cereal.messaging as messaging
 from selfdrive.car import gen_empty_fingerprint
+from common.op_params import opParams
 
 from cereal import car
 from common.travis_checker import travis
@@ -18,6 +19,7 @@ if not travis:
     import selfdrive.crash as crash
 EventName = car.CarEvent.EventName
 
+use_car_caching = opParams().get('use_car_caching')
 
 def get_startup_event(car_recognized, controller_available):
   if comma_remote and tested_branch:
@@ -124,6 +126,15 @@ def fingerprint(logcan, sendcan):
   frame_fingerprint = 10  # 0.1s
   car_fingerprint = None
   done = False
+
+  if cached_fingerprint is not None and use_car_caching:  # if we previously identified a car and fingerprint and user hasn't disabled caching
+    cached_fingerprint = json.loads(cached_fingerprint)
+    if cached_fingerprint[0] is None or len(cached_fingerprint) < 3:
+      params.delete('CachedFingerprint')
+    else:
+      finger[0] = {int(key): value for key, value in cached_fingerprint[2].items()}
+      source = car.CarParams.FingerprintSource.can
+      return (str(cached_fingerprint[0]), finger, vin, car_fw, cached_fingerprint[1])
 
   while not done:
     a = get_one_can(logcan)
