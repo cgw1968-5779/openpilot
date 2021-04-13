@@ -5,10 +5,14 @@ from selfdrive.car.toyota.values import Ecu, ECU_FINGERPRINT, CAR, TSS2_CAR, NO_
 from selfdrive.car import STD_CARGO_KG, scale_rot_inertia, scale_tire_stiffness, is_ecu_disconnected, gen_empty_fingerprint
 from selfdrive.swaglog import cloudlog
 from selfdrive.car.interfaces import CarInterfaceBase
+from common.op_params import opParams
 
 GearShifter = car.CarState.GearShifter
 
 EventName = car.CarEvent.EventName
+
+op_params = opParams()
+prius_pid = op_params.get('prius_pid')
 
 class CarInterface(CarInterfaceBase):
   def __init__(self, CP, CarController, CarState):
