@@ -90,6 +90,11 @@ def only_toyota_left(candidate_cars):
 
 # **** for use live only ****
 def fingerprint(logcan, sendcan):
+  if not travis:
+    cached_fingerprint = Params().get("CachedFingerprint")
+  else:
+    cached_fingerprint = None
+
   fixed_fingerprint = os.environ.get('FINGERPRINT', "")
   skip_fw_query = os.environ.get('SKIP_FW_QUERY', False)
 
@@ -130,7 +135,7 @@ def fingerprint(logcan, sendcan):
   if cached_fingerprint is not None and use_car_caching:  # if we previously identified a car and fingerprint and user hasn't disabled caching
     cached_fingerprint = json.loads(cached_fingerprint)
     if cached_fingerprint[0] is None or len(cached_fingerprint) < 3:
-      params.delete('CachedFingerprint')
+      Params().put("CachedFingerprint")
     else:
       finger[0] = {int(key): value for key, value in cached_fingerprint[2].items()}
       source = car.CarParams.FingerprintSource.can
