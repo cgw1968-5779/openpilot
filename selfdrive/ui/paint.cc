@@ -451,23 +451,6 @@ static void ui_draw_vision_event(UIState *s) {
     const int img_wheel_y = bg_wheel_y - 55;
     const float img_rotation = angleSteers/180*3.141592;
     float img_wheel_alpha = 0.1f;
-    bool is_engaged = (s->status == STATUS_ENGAGED) && ! steerOverride;
-    bool is_warning = (s->status == STATUS_WARNING);
-    bool is_engageable = s->scene.controls_state.getEngageable();
-
-    if (is_engaged || is_warning || is_engageable) {
-      nvgBeginPath(s->vg);
-      nvgCircle(s->vg, bg_wheel_x, (bg_wheel_y + (bdr_s*3)), bg_wheel_size);
-      if (is_engaged) {
-        nvgFillColor(s->vg, COLOR_ENGAGED_ALPHA(180));
-      } else if (is_warning) {
-        nvgFillColor(s->vg, COLOR_WARNING_ALPHA(180));
-      } else if (is_engageable) {
-        nvgFillColor(s->vg, COLOR_ENGAGEABLE_ALPHA(180));
-      }
-      nvgFill(s->vg);
-      img_wheel_alpha = 1.0f;
-    }
     nvgSave(s->vg);
     nvgTranslate(s->vg,bg_wheel_x, bg_wheel_y + (bdr_s*1.5));
     nvgRotate(s->vg,-img_rotation);
