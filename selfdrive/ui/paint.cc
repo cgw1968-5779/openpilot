@@ -441,7 +441,7 @@ static void ui_draw_vision_event(UIState *s) {
 
    // draw steering wheel
     float angleSteers = s->scene.car_state.getSteeringAngleDeg();
-    int steerOverride = s->scene.car_state.getSteeringPressed();
+    //int steerOverride = s->scene.car_state.getSteeringPressed();
 
     const int bg_wheel_size = 96;
     const int bg_wheel_x = viz_event_x + (viz_event_w - bg_wheel_size);
