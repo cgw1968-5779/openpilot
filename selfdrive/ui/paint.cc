@@ -450,6 +450,10 @@ static void ui_draw_vision_event(UIState *s) {
     const int img_wheel_x = bg_wheel_x - (img_wheel_size/2);
     const int img_wheel_y = bg_wheel_y - 55;
     const float img_rotation = angleSteers/180*3.141592;
+    nvgBeginPath(s->vg);
+    nvgCircle(s->vg, bg_wheel_x, (bg_wheel_y + (bdr_s*1.5)), bg_wheel_size);
+    nvgFillColor(s->vg,bg_colors[s->status]);
+    nvgFill(s->vg);
     float img_wheel_alpha = 0.1f;
     nvgSave(s->vg);
     nvgTranslate(s->vg,bg_wheel_x, bg_wheel_y + (bdr_s*1.5));
