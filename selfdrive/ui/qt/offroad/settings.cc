@@ -267,7 +267,15 @@ QWidget * network_panel(QWidget * parent) {
   layout->addWidget(horizontal_line());
 
   const char* panda_flashing = "/data/openpilot/scripts/panda_flashing.sh ''";
-  layout->addWidget(new ButtonControl("Flash panda", "pressing this button will manully flash the panda.", "",
+  layout->addWidget(new ButtonControl("Flash panda", "Flash", "Are you sure you want to flash the panda manully?",
+                                      [=]() {
+                                        if (ConfirmationDialog::confirm("are you sure?")) {
+                                          std::system(panda_flashing);
+                                        }
+                                      }));
+
+  const char* panda_flashing = "/data/openpilot/scripts/run_mixplorer.sh ''";
+  layout->addWidget(new ButtonControl("Mixplorer", "Open Files", "This is open file browers.",
                                       [=]() {
                                         if (ConfirmationDialog::confirm("are you sure?")) {
                                           std::system(panda_flashing);
