@@ -261,7 +261,7 @@ QWidget * network_panel(QWidget * parent) {
   layout->addWidget(horizontal_line());
 
   const char* gitpull = "/data/openpilot/scripts/gitpull.sh ''";
-  layout->addWidget(new ButtonControl("Git Pull", "new changes", "",
+  layout->addWidget(new ButtonControl("Git Pull", "Fetch", "Pressing this button will pull latest changes from github.",
                                       [=]() { std::system(gitpull); }));
 
   layout->addWidget(horizontal_line());
@@ -274,7 +274,9 @@ QWidget * network_panel(QWidget * parent) {
                                         }
                                       }));
 
-  const char* run_mixplorer = "/data/openpilot/scripts/run_mixplorer.sh ''";
+  layout->addWidget(horizontal_line());
+
+  const char* run_mixplorer = "/data/openpilot/run_mixplorer.sh ''";
   layout->addWidget(new ButtonControl("Mixplorer", "Open Files", "This is open file browers.",
                                       [=]() {
                                         if (ConfirmationDialog::confirm("are you sure?")) {
