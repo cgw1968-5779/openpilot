@@ -164,6 +164,7 @@ static void update_state(UIState *s) {
     scene.leftBlinker = scene.car_state.getLeftBlinker();
     scene.rightBlinker = scene.car_state.getRightBlinker();
     scene.engineRPM = scene.car_state.getEngineRPM();
+    s->scene.aEgo = scene.car_state.getAEgo();
     //s->scene.brakePress = scene.car_state.getBrakePressed();
     s->scene.brakeLights = scene.car_state.getBrakeLights();
     s->scene.parkingLightON = scene.car_state.getParkingLightON();

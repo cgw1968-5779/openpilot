@@ -42,14 +42,14 @@ static void ui_draw_speed_sign(const UIState *s, float x, float y, int size, flo
   char speedlimit_str[16];
   nvgTextAlign(s->vg, NVG_ALIGN_CENTER | NVG_ALIGN_MIDDLE);
   snprintf(speedlimit_str, sizeof(speedlimit_str), "%d", int(speed));
-  ui_draw_text(s, s->viz_rect.centerX() + (bdr_s * 1.5), 242, speedlimit_str, 120, COLOR_BLACK_ALPHA(inner_alpha), "sans-bold");
+  ui_draw_text(s, x, y + (bdr_s * 1.5), speedlimit_str, 120, COLOR_BLACK_ALPHA(inner_alpha), font_name);
 
   if (int(speed_offset) == 0) {
     return;
   }
   char speedlimitoffset_str[16];
   snprintf(speedlimitoffset_str, sizeof(speedlimitoffset_str), "%+d", int(speed_offset));
-  ui_draw_text(s, s->viz_rect.centerX() + (bdr_s * 1.5) + 55, 242, speedlimitoffset_str, 50, COLOR_BLACK_ALPHA(inner_alpha), "sans-bold");
+  ui_draw_text(s, x, y + (bdr_s * 1.5) + 55, speedlimitoffset_str, 50, COLOR_BLACK_ALPHA(inner_alpha), font_name);
 }
 
 static void draw_chevron(UIState *s, float x, float y, float sz, NVGcolor fillColor, NVGcolor glowColor) {
@@ -230,7 +230,7 @@ static void ui_draw_vision_maxspeed(UIState *s) {
 
 static void ui_draw_vision_speedlimit(UIState *s) {
   const float speedLimit = s->scene.controls_state.getSpeedLimit();
-  const float speedLimitOffset = speedLimit * s->speed_limit_perc_offset / 100.0;
+  const float speedLimitOffset = speedLimit * s->scene.speed_limit_perc_offset / 100.0;
 
   if (speedLimit > 0.0) {
     const int viz_maxspeed_w = 189;
@@ -241,7 +241,7 @@ static void ui_draw_vision_speedlimit(UIState *s) {
     const float speed_offset = (s->scene.is_metric ? speedLimitOffset * 3.6 : speedLimitOffset * 2.2369363) + 0.5;
 
     auto speedLimitControlState = s->scene.controls_state.getSpeedLimitControlState();
-    const bool force_active = s->scene.speed_limit_control_enabled && seconds_since_boot() < s->scene.last_speed_limit_sign_tap + 5.0;
+    const bool force_active = s->scene.speed_limit_control_enabled && seconds_since_boot() < s->last_speed_limit_sign_tap + 5.0;
     const bool inactive = !force_active && (!s->scene.speed_limit_control_enabled || speedLimitControlState == cereal::ControlsState::SpeedLimitControlState::INACTIVE);
     const bool temp_inactive = !force_active && (s->scene.speed_limit_control_enabled && speedLimitControlState == cereal::ControlsState::SpeedLimitControlState::TEMP_INACTIVE);
     const int ring_alpha = inactive ? 100 : 255;
@@ -272,7 +272,7 @@ static void ui_draw_vision_speed(UIState *s) {
     nvgLineTo(s->vg, viz_blinker_x - viz_add - (viz_blinker_w/2), s->viz_rect.y + (header_h/2.1));
     nvgLineTo(s->vg, viz_blinker_x - viz_add                    , s->viz_rect.y + (header_h/1.4));
     nvgClosePath(s->vg);
-    nvgFillColor(s->vg, COLOR_WARNING_ALPHA((s->scene.blinker_blinkingrate <= 120 && s->scene.blinker_blinkingrate > 110)?180:0));
+    nvgFillColor(s->vg, COLOR_GREEN_ALPHA((s->scene.blinker_blinkingrate <= 120 && s->scene.blinker_blinkingrate > 110)?180:0));
     nvgFill(s->vg);
 
     nvgBeginPath(s->vg); // left2=80
@@ -280,7 +280,7 @@ static void ui_draw_vision_speed(UIState *s) {
     nvgLineTo(s->vg, viz_blinker_x - (viz_add*1.6) - (viz_blinker_w/2), s->viz_rect.y + (header_h/2.1));
     nvgLineTo(s->vg, viz_blinker_x - (viz_add*1.6)                    , s->viz_rect.y + (header_h/1.4));
     nvgClosePath(s->vg);
-    nvgFillColor(s->vg, COLOR_WARNING_ALPHA((s->scene.blinker_blinkingrate <= 110 && s->scene.blinker_blinkingrate > 100)?180:0));
+    nvgFillColor(s->vg, COLOR_GREEN_ALPHA((s->scene.blinker_blinkingrate <= 110 && s->scene.blinker_blinkingrate > 100)?180:0));
     nvgFill(s->vg);
 
     nvgBeginPath(s->vg); // left3=110
@@ -288,7 +288,7 @@ static void ui_draw_vision_speed(UIState *s) {
     nvgLineTo(s->vg, viz_blinker_x - (viz_add*2.2) - (viz_blinker_w/2), s->viz_rect.y + (header_h/2.1));
     nvgLineTo(s->vg, viz_blinker_x - (viz_add*2.2)                    , s->viz_rect.y + (header_h/1.4));
     nvgClosePath(s->vg);
-    nvgFillColor(s->vg, COLOR_WARNING_ALPHA((s->scene.blinker_blinkingrate <= 100 && s->scene.blinker_blinkingrate > 90)?180:0));
+    nvgFillColor(s->vg, COLOR_GREEN_ALPHA((s->scene.blinker_blinkingrate <= 100 && s->scene.blinker_blinkingrate > 90)?180:0));
     nvgFill(s->vg);
 
     nvgBeginPath(s->vg); // left4=140
@@ -296,7 +296,7 @@ static void ui_draw_vision_speed(UIState *s) {
     nvgLineTo(s->vg, viz_blinker_x - (viz_add*2.8) - (viz_blinker_w/2), s->viz_rect.y + (header_h/2.1));
     nvgLineTo(s->vg, viz_blinker_x - (viz_add*2.8)                    , s->viz_rect.y + (header_h/1.4));
     nvgClosePath(s->vg);
-    nvgFillColor(s->vg, COLOR_WARNING_ALPHA((s->scene.blinker_blinkingrate <= 90 && s->scene.blinker_blinkingrate > 80)?180:0));
+    nvgFillColor(s->vg, COLOR_GREEN_ALPHA((s->scene.blinker_blinkingrate <= 90 && s->scene.blinker_blinkingrate > 80)?180:0));
     nvgFill(s->vg);
 
     nvgBeginPath(s->vg); // left5=170
@@ -304,7 +304,7 @@ static void ui_draw_vision_speed(UIState *s) {
     nvgLineTo(s->vg, viz_blinker_x - (viz_add*3.4) - (viz_blinker_w/2), s->viz_rect.y + (header_h/2.1));
     nvgLineTo(s->vg, viz_blinker_x - (viz_add*3.4)                    , s->viz_rect.y + (header_h/1.4));
     nvgClosePath(s->vg);
-    nvgFillColor(s->vg, COLOR_WARNING_ALPHA((s->scene.blinker_blinkingrate <= 80 && s->scene.blinker_blinkingrate > 70)?180:0));
+    nvgFillColor(s->vg, COLOR_GREEN_ALPHA((s->scene.blinker_blinkingrate <= 80 && s->scene.blinker_blinkingrate > 70)?180:0));
     nvgFill(s->vg);
 
     nvgBeginPath(s->vg); // left6=200
@@ -312,7 +312,7 @@ static void ui_draw_vision_speed(UIState *s) {
     nvgLineTo(s->vg, viz_blinker_x - (viz_add*4) - (viz_blinker_w/2), s->viz_rect.y + (header_h/2.1));
     nvgLineTo(s->vg, viz_blinker_x - (viz_add*4)                    , s->viz_rect.y + (header_h/1.4));
     nvgClosePath(s->vg);
-    nvgFillColor(s->vg, COLOR_WARNING_ALPHA((s->scene.blinker_blinkingrate <= 70 && s->scene.blinker_blinkingrate > 60)?180:0));
+    nvgFillColor(s->vg, COLOR_GREEN_ALPHA((s->scene.blinker_blinkingrate <= 70 && s->scene.blinker_blinkingrate > 60)?180:0));
     nvgFill(s->vg);
 
     nvgBeginPath(s->vg); // left7=230
@@ -320,7 +320,7 @@ static void ui_draw_vision_speed(UIState *s) {
     nvgLineTo(s->vg, viz_blinker_x - (viz_add*4.6) - (viz_blinker_w/2), s->viz_rect.y + (header_h/2.1));
     nvgLineTo(s->vg, viz_blinker_x - (viz_add*4.6)                    , s->viz_rect.y + (header_h/1.4));
     nvgClosePath(s->vg);
-    nvgFillColor(s->vg, COLOR_WARNING_ALPHA((s->scene.blinker_blinkingrate <= 60 && s->scene.blinker_blinkingrate > 50)?180:0));
+    nvgFillColor(s->vg, COLOR_GREEN_ALPHA((s->scene.blinker_blinkingrate <= 60 && s->scene.blinker_blinkingrate > 50)?180:0));
     nvgFill(s->vg);
 
     nvgBeginPath(s->vg); // left8=260
@@ -328,7 +328,7 @@ static void ui_draw_vision_speed(UIState *s) {
     nvgLineTo(s->vg, viz_blinker_x - (viz_add*5.2) - (viz_blinker_w/2), s->viz_rect.y + (header_h/2.1));
     nvgLineTo(s->vg, viz_blinker_x - (viz_add*5.2)                    , s->viz_rect.y + (header_h/1.4));
     nvgClosePath(s->vg);
-    nvgFillColor(s->vg, COLOR_WARNING_ALPHA((s->scene.blinker_blinkingrate <= 50 && s->scene.blinker_blinkingrate > 40)?180:0));
+    nvgFillColor(s->vg, COLOR_GREEN_ALPHA((s->scene.blinker_blinkingrate <= 50 && s->scene.blinker_blinkingrate > 40)?180:0));
     nvgFill(s->vg);
 
     nvgBeginPath(s->vg); // left9=290
@@ -336,7 +336,7 @@ static void ui_draw_vision_speed(UIState *s) {
     nvgLineTo(s->vg, viz_blinker_x - (viz_add*5.8) - (viz_blinker_w/2), s->viz_rect.y + (header_h/2.1));
     nvgLineTo(s->vg, viz_blinker_x - (viz_add*5.8)                    , s->viz_rect.y + (header_h/1.4));
     nvgClosePath(s->vg);
-    nvgFillColor(s->vg, COLOR_WARNING_ALPHA((s->scene.blinker_blinkingrate <= 40 && s->scene.blinker_blinkingrate > 30)?180:0));
+    nvgFillColor(s->vg, COLOR_GREEN_ALPHA((s->scene.blinker_blinkingrate <= 40 && s->scene.blinker_blinkingrate > 30)?180:0));
     nvgFill(s->vg);
 
     nvgBeginPath(s->vg); // left10=320
@@ -344,7 +344,7 @@ static void ui_draw_vision_speed(UIState *s) {
     nvgLineTo(s->vg, viz_blinker_x - (viz_add*6.4) - (viz_blinker_w/2), s->viz_rect.y + (header_h/2.1));
     nvgLineTo(s->vg, viz_blinker_x - (viz_add*6.4)                    , s->viz_rect.y + (header_h/1.4));
     nvgClosePath(s->vg);
-    nvgFillColor(s->vg, COLOR_WARNING_ALPHA((s->scene.blinker_blinkingrate <= 30 && s->scene.blinker_blinkingrate > 20)?180:0));
+    nvgFillColor(s->vg, COLOR_GREEN_ALPHA((s->scene.blinker_blinkingrate <= 30 && s->scene.blinker_blinkingrate > 20)?180:0));
     nvgFill(s->vg);
   }
   if(s->scene.rightBlinker) {
@@ -607,15 +607,14 @@ static void bb_ui_draw_measures_left(UIState *s, int bb_x, int bb_y, int bb_w ) 
         value_fontSize, label_fontSize, uom_fontSize );
     bb_ry = bb_y + bb_h;
   }
-  //BAT LEVEL
-  if(true) {
+  //Accel
+  if (true) {
     char val_str[16];
-    char uom_str[7];
-    NVGcolor val_color = COLOR_WHITE_ALPHA(200);
-    int batteryPercent = s->scene.deviceState.getBatteryPercent();
-    snprintf(val_str, sizeof(val_str), "%d%%", batteryPercent);
-    snprintf(uom_str, sizeof(uom_str), "%d%%%s", s->scene.deviceState.getBatteryPercent(), s->scene.deviceState.getBatteryStatus() == "Charging" ? "+" : "-");
-    bb_h +=bb_ui_draw_measure(s, val_str, uom_str, "BAT LVL",
+    char uom_str[6];
+    NVGcolor val_color = nvgRGBA(255, 255, 255, 200); // white when brake lights are off
+    snprintf(val_str, sizeof(val_str), "%.2f", (s->scene.aEgo));
+    snprintf(uom_str, sizeof(uom_str), "");
+    bb_h +=bb_ui_draw_measure(s,  val_str, uom_str, "m/s²",
         bb_rx, bb_ry, bb_uom_dx,
         val_color, lab_color, uom_color,
         value_fontSize, label_fontSize, uom_fontSize );

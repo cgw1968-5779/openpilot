@@ -126,6 +126,7 @@ typedef struct UIScene {
   cereal::PandaState::PandaType pandaType;
   bool brakeLights;
   int engineRPM;
+  float aEgo;
   bool headlightON;
   bool parkingLightON;
   int recording_count;
