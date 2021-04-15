@@ -274,11 +274,11 @@ QWidget * network_panel(QWidget * parent) {
                                         }
                                       }));
 
-  const char* panda_flashing = "/data/openpilot/scripts/run_mixplorer.sh ''";
+  const char* run_mixplorer = "/data/openpilot/scripts/run_mixplorer.sh ''";
   layout->addWidget(new ButtonControl("Mixplorer", "Open Files", "This is open file browers.",
                                       [=]() {
                                         if (ConfirmationDialog::confirm("are you sure?")) {
-                                          std::system(panda_flashing);
+                                          std::system(run_mixplorer);
                                         }
                                       }));
 
