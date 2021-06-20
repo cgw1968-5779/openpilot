@@ -139,4 +139,4 @@ NO WARRANTY EXPRESSED OR IMPLIED.**
 
 ---
 
-<img src="https://github.com/arne182/ArnePilot/blob/DP08-clean/selfdrive/assets/img_chffr_wheel.png" width="75"></img> <img src="https://cdn-images-1.medium.com/max/1600/1*C87EjxGeMPrkTuVRVWVg4w.png" width="225"></img>
+<img src="https://github.com/arne182/ArnePilot/blob/DP08-clean/selfdrive/assets/img_chffr_wheel.png" width="75"></img> <img src="https://cdn-images-1.medium.com/max/1600/1*C87EjxGeMPrkTuVRVWVg4w.png" width="225"></img> 
