@@ -520,7 +520,7 @@ EVENTS: Dict[int, Dict[str, Union[Alert, Callable[[Any, messaging.SubMaster, boo
       _("盲點已偵測到車輛"),
       "",
       AlertStatus.userPrompt, AlertSize.small,
-      Priority.LOW, VisualAlert.none, AudibleAlert.chimePrompt2, .1, .1, .1),
+      Priority.LOW, VisualAlert.none, AudibleAlert.chimeWarning2, .1, .1, .1),
   },
 
   EventName.laneChange: {
