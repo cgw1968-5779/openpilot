@@ -11,13 +11,13 @@ STOPPING_TARGET_SPEED_OFFSET = 0.01
 STARTING_TARGET_SPEED = 0.5
 DECEL_THRESHOLD_TO_PID = 0.8
 
-DECEL_STOPPING_TARGET = 2.0  # apply at least this amount of brake to maintain the vehicle stationary
+DECEL_STOPPING_TARGET = 0.4  # apply at least this amount of brake to maintain the vehicle stationary
 
-RATE = 100.0
+RATE = 25.0
 
 # As per ISO 15622:2018 for all speeds
 ACCEL_MIN_ISO = -3.5 # m/s^2
-ACCEL_MAX_ISO = 2.0 # m/s^2
+ACCEL_MAX_ISO = 1.5 # m/s^2
 
 
 # TODO this logic isn't really car independent, does not belong here
