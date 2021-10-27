@@ -242,10 +242,10 @@ def joystick_alert(CP: car.CarParams, sm: messaging.SubMaster, metric: bool) -> 
 
 def alca_alert(CP: car.CarParams, sm: messaging.SubMaster, metric: bool) -> Alert:
   return Alert(
-    _("Auto Lane Change starts in %.1f secs") % float(sm['lateralPlan'].dpALCAStartIn),
-    _("Monitor Other Vehicles"),
+    _("%.1f 秒鐘後開始自動換道") % float(sm['lateralPlan'].dpALCAStartIn),
+    _("注意其他車道車輛"),
     AlertStatus.normal, AlertSize.mid,
-    Priority.LOWER, VisualAlert.steerRequired, AudibleAlert.none, 0., .1, .1, alert_rate=0.1)
+    Priority.LOWER, VisualAlert.steerRequired, AudibleAlert.chimeWarning2, 1., .1, .1, alert_rate=0)
 
 def speed_limit_adjust_alert(CP: car.CarParams, sm: messaging.SubMaster, metric: bool) -> Alert:
   speedLimit = sm['longitudinalPlan'].speedLimit
@@ -279,8 +279,8 @@ EVENTS: Dict[int, Dict[str, Union[Alert, Callable[[Any, messaging.SubMaster, boo
 
   EventName.startup: {
     ET.PERMANENT: Alert(
-      _("Be ready to take over at any time"),
-      _("Always keep hands on wheel and eyes on road"),
+      _("請隨時準備接控車輛"),
+      _("保持警戒注意交通路況並隨時應變"),
       AlertStatus.normal, AlertSize.mid,
       Priority.LOWER, VisualAlert.none, AudibleAlert.none, 0., 0., 5.),
   },
@@ -325,8 +325,8 @@ EVENTS: Dict[int, Dict[str, Union[Alert, Callable[[Any, messaging.SubMaster, boo
 
   EventName.startupNoFw: {
     ET.PERMANENT: Alert(
-      _("Car Unrecognized"),
-      _("Check All Connections"),
+      _("車款無法辨識"),
+      _("請檢查硬體連線是否正常"),
       AlertStatus.userPrompt, AlertSize.mid,
       Priority.LOWER, VisualAlert.none, AudibleAlert.none, 0., 0., 10.),
   },
@@ -364,16 +364,16 @@ EVENTS: Dict[int, Dict[str, Union[Alert, Callable[[Any, messaging.SubMaster, boo
   # See https://github.com/commaai/openpilot/wiki/Fingerprinting for more information
   EventName.carUnrecognized: {
     ET.PERMANENT: Alert(
-      _("Dashcam Mode"),
-      _("Car Unrecognized"),
+      _("行車記錄模式"),
+      _("車款無法辨識"),
       AlertStatus.normal, AlertSize.mid,
       Priority.LOWEST, VisualAlert.none, AudibleAlert.none, 0., 0., .2),
   },
 
   EventName.stockAeb: {
     ET.PERMANENT: Alert(
-      _("BRAKE!"),
-      _("Stock AEB: Risk of Collision"),
+      _("緊急煞車"),
+      _("原廠偵測器：有碰撞之可能"),
       AlertStatus.critical, AlertSize.full,
       Priority.HIGHEST, VisualAlert.fcw, AudibleAlert.none, 1., 2., 2.),
     ET.NO_ENTRY: NoEntryAlert("Stock AEB: Risk of Collision"),
@@ -381,16 +381,16 @@ EVENTS: Dict[int, Dict[str, Union[Alert, Callable[[Any, messaging.SubMaster, boo
 
   EventName.fcw: {
     ET.PERMANENT: Alert(
-      _("BRAKE!"),
-      _("Risk of Collision"),
+      _("緊急煞車"),
+      _("有碰撞之可能"),
       AlertStatus.critical, AlertSize.full,
       Priority.HIGHEST, VisualAlert.fcw, AudibleAlert.chimeWarningRepeat, 1., 2., 2.),
   },
 
   EventName.ldw: {
     ET.PERMANENT: Alert(
-      _("TAKE CONTROL"),
-      _("Lane Departure Detected"),
+      _("請立即手控方向盤"),
+      _("偵測到偏移於線道之外"),
       AlertStatus.userPrompt, AlertSize.mid,
       Priority.LOW, VisualAlert.ldw, AudibleAlert.chimePrompt, 1., 2., 3.),
   },
@@ -425,10 +425,10 @@ EVENTS: Dict[int, Dict[str, Union[Alert, Callable[[Any, messaging.SubMaster, boo
 
   EventName.steerTempUnavailableSilent: {
     ET.WARNING: Alert(
-      _("Steering Temporarily Unavailable"),
+      _("方向盤輔助暫時失效"),
       "",
       AlertStatus.userPrompt, AlertSize.small,
-      Priority.LOW, VisualAlert.steerRequired, AudibleAlert.chimePrompt, 1., 1., 1.),
+      Priority.LOW, VisualAlert.steerRequired, AudibleAlert.chimePrompt, 0., 0., 0.),
   },
 
   EventName.preDriverDistracted: {
@@ -489,8 +489,8 @@ EVENTS: Dict[int, Dict[str, Union[Alert, Callable[[Any, messaging.SubMaster, boo
 
   EventName.resumeRequired: {
     ET.WARNING: Alert(
-      _("STOPPED"),
-      _("Press Resume to Move"),
+      _("已停止"),
+      _("按 Res 恢復自動駕駛"),
       AlertStatus.userPrompt, AlertSize.mid,
       Priority.LOW, VisualAlert.none, AudibleAlert.none, 0., 0., .2),
   },
@@ -501,7 +501,7 @@ EVENTS: Dict[int, Dict[str, Union[Alert, Callable[[Any, messaging.SubMaster, boo
 
   EventName.preLaneChangeLeft: {
     ET.WARNING: Alert(
-      _("Steer Left to Start Lane Change Once Safe"),
+      _("輕轉方向盤開始自動左換道"),
       "",
       AlertStatus.normal, AlertSize.small,
       Priority.LOW, VisualAlert.none, AudibleAlert.none, .0, .1, .1, alert_rate=0.75),
@@ -509,7 +509,7 @@ EVENTS: Dict[int, Dict[str, Union[Alert, Callable[[Any, messaging.SubMaster, boo
 
   EventName.preLaneChangeRight: {
     ET.WARNING: Alert(
-      _("Steer Right to Start Lane Change Once Safe"),
+      _("輕轉方向盤開始自動右換道"),
       "",
       AlertStatus.normal, AlertSize.small,
       Priority.LOW, VisualAlert.none, AudibleAlert.none, .0, .1, .1, alert_rate=0.75),
@@ -517,15 +517,15 @@ EVENTS: Dict[int, Dict[str, Union[Alert, Callable[[Any, messaging.SubMaster, boo
 
   EventName.laneChangeBlocked: {
     ET.WARNING: Alert(
-      _("Car Detected in Blindspot"),
+      _("盲點已偵測到車輛"),
       "",
       AlertStatus.userPrompt, AlertSize.small,
-      Priority.LOW, VisualAlert.none, AudibleAlert.chimePrompt, .1, .1, .1),
+      Priority.LOW, VisualAlert.none, AudibleAlert.chimePrompt2, .1, .1, .1),
   },
 
   EventName.laneChange: {
     ET.WARNING: Alert(
-      _("Changing Lanes"),
+      _("換道中"),
       "",
       AlertStatus.normal, AlertSize.small,
       Priority.LOW, VisualAlert.none, AudibleAlert.none, .0, .1, .1),
@@ -533,10 +533,10 @@ EVENTS: Dict[int, Dict[str, Union[Alert, Callable[[Any, messaging.SubMaster, boo
 
   EventName.steerSaturated: {
     ET.WARNING: Alert(
-      _("TAKE CONTROL"),
-      _("Turn Exceeds Steering Limit"),
+      _("請手控方向盤"),
+      _("彎道超出方向盤轉向限制"),
       AlertStatus.userPrompt, AlertSize.mid,
-      Priority.LOW, VisualAlert.steerRequired, AudibleAlert.chimePrompt, 1., 1., 1.),
+      Priority.LOW, VisualAlert.steerRequired, AudibleAlert.chimePrompt, 0., 0., 0.),
   },
 
   # Thrown when the fan is driven at >50% but is not rotating
@@ -563,14 +563,18 @@ EVENTS: Dict[int, Dict[str, Union[Alert, Callable[[Any, messaging.SubMaster, boo
 
   EventName.speedLimitActive: {
     ET.WARNING: Alert(
-      "Cruise set to speed limit",
+      "定速已設定",
       "",
       AlertStatus.normal, AlertSize.small,
       Priority.LOW, VisualAlert.none, AudibleAlert.none, 1., 0., 2.),
   },
 
   EventName.speedLimitValueChange: {
-    ET.WARNING: speed_limit_adjust_alert,
+    ET.WARNING: Alert(
+      "已更新至道路速限",
+      "",
+      AlertStatus.normal, AlertSize.small,
+      Priority.LOW, VisualAlert.none, AudibleAlert.none, 1., 0., 2.),
   },
 
   # ********** events that affect controls state transitions **********
@@ -840,7 +844,7 @@ EVENTS: Dict[int, Dict[str, Union[Alert, Callable[[Any, messaging.SubMaster, boo
 
   EventName.reverseGear: {
     ET.PERMANENT: Alert(
-      _("Reverse\nGear"),
+      _("倒退／N 檔"),
       "",
       AlertStatus.normal, AlertSize.full,
       Priority.LOWEST, VisualAlert.none, AudibleAlert.none, 0., 0., .2, creation_delay=0.5),
@@ -874,8 +878,8 @@ EVENTS: Dict[int, Dict[str, Union[Alert, Callable[[Any, messaging.SubMaster, boo
 
   EventName.noTarget: {
     ET.IMMEDIATE_DISABLE: Alert(
-      _("openpilot Canceled"),
-      _("No close lead car"),
+      _("自駕已取消"),
+      _("無前車可跟車"),
       AlertStatus.normal, AlertSize.mid,
       Priority.HIGH, VisualAlert.none, AudibleAlert.chimeDisengage, .4, 2., 3.),
     ET.NO_ENTRY: NoEntryAlert(_("No Close Lead Car")),
@@ -892,13 +896,13 @@ EVENTS: Dict[int, Dict[str, Union[Alert, Callable[[Any, messaging.SubMaster, boo
   # When the car is driving faster than most cars in the training data the model outputs can be unpredictable
   EventName.speedTooHigh: {
     ET.WARNING: Alert(
-      _("Speed Too High"),
-      _("Model uncertain at this speed"),
+      _("速度過快"),
+      _("系統無法保持穩定"),
       AlertStatus.userPrompt, AlertSize.mid,
       Priority.HIGH, VisualAlert.steerRequired, AudibleAlert.chimeWarning2Repeat, 2.2, 3., 4.),
     ET.NO_ENTRY: Alert(
-      _("Speed Too High"),
-      _("Slow down to engage"),
+      _("速度過快"),
+      _("減速以啟用定速"),
       AlertStatus.normal, AlertSize.mid,
       Priority.LOW, VisualAlert.none, AudibleAlert.chimeError, .4, 2., 3.),
   },
