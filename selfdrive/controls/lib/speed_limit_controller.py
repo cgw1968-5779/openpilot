@@ -15,10 +15,10 @@ _PARAMS_UPDATE_PERIOD = 2.  # secs. Time between parameter updates.
 _TEMP_INACTIVE_GUARD_PERIOD = 1.  # secs. Time to wait after activation before considering temp deactivation signal.
 
 # Lookup table for speed limit percent offset depending on speed.
-_LIMIT_PERC_OFFSET_V = [0.0,  .0256, .1,    .0204, .2,   .044,  .1429, .0253, .25,  0,     .1,   .01,  .13,  .0092, .18,  .167]
-_LIMIT_PERC_OFFSET_BP = [0.0, 10.83, 11.11, 13.61, 13.9, 19.17, 19.4,  21.94, 22.2, 22.78, 25.0, 27.5, 27.8, 30.28, 30.6, 33.3333] 
-                        # 0,  40,    45,    50,    60,   72,    80,    81,    100,  81,    99,   100,  113,  110,   125,  140 kph
-                        # 0,  39,    40,    49,    50,   69,    70,    79,    80,   81,    90,   99,   100,  109,   110,  120 kph
+_LIMIT_PERC_OFFSET_V = [0.0,  .0256, 0.15,  0.0,   0.02.  .2,   0.0,   .044,  .1429, .0253, .25,  0,     .1,   .01,  .13,  .0092, .18,  .167]
+_LIMIT_PERC_OFFSET_BP = [0.0, 10.83, 11.11, 11.39, 13.61, 13.9, 14.17, 19.17, 19.4,  21.94, 22.2, 22.78, 25.0, 27.5, 27.8, 30.28, 30.6, 33.3333] 
+                        # 0,  40,    40,    41,    50,    60,   51,    72,    80,    81,    100,  81,    99,   100,  113,  110,   125,  140 kph
+                        # 0,  39,    40,    41,    49,    50,   51,    69,    70,    79,    80,   81,    90,   99,   100,  109,   110,  120 kph
 
 #_LIMIT_PERC_OFFSET_V = [0.28, 0.038]  # 55, 105, 135 km/h 96, 129
 #_LIMIT_PERC_OFFSET_BP = [13.9, 36.1]  # 50, 100, 130 km/h
