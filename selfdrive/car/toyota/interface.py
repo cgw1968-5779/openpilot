@@ -287,7 +287,7 @@ class CarInterface(CarInterfaceBase):
       ret.mass = 3900. * CV.LB_TO_KG + STD_CARGO_KG # Average between ICE and Hybrid
       #ret.lateralTuning.init('indi')
       #ret.lateralTuning.indi.innerLoopGainBP = [6, 8, 8.3, 16.7, 24]
-      #ret.lateralTuning.indi.innerLoopGainV = [1.75, 1.95, 4.5, 14.3, 15]
+      #ret.lateralTuning.indi.innerLoopGainV = [3.75, 3.95, 6.5, 14.3, 15]
       #ret.lateralTuning.indi.outerLoopGainBP = [6, 8, 8.3, 16.7, 24]
       #ret.lateralTuning.indi.outerLoopGainV = [1.5, 1.75, 3.2, 13.0, 15]
       #ret.lateralTuning.indi.timeConstantBP = [20, 24]
