@@ -242,10 +242,10 @@ def joystick_alert(CP: car.CarParams, sm: messaging.SubMaster, metric: bool) -> 
 
 def alca_alert(CP: car.CarParams, sm: messaging.SubMaster, metric: bool) -> Alert:
   return Alert(
-    _("% 秒鐘後開始自動換道") % float(sm['lateralPlan'].dpALCAStartIn),
+    _("開始自動換道"),
     _("注意其他車道車輛"),
     AlertStatus.normal, AlertSize.mid,
-    Priority.LOWER, VisualAlert.steerRequired, AudibleAlert.chimeWarning2, 1., .1, .1, alert_rate=10)
+    Priority.LOWER, VisualAlert.steerRequired, AudibleAlert.chimeWarning2, 1., .1, .1)
 
 def speed_limit_adjust_alert(CP: car.CarParams, sm: messaging.SubMaster, metric: bool) -> Alert:
   speedLimit = sm['longitudinalPlan'].speedLimit
