@@ -116,7 +116,18 @@ class CarInterface(CarInterfaceBase):
       ret.lateralTuning.pid.kpV, ret.lateralTuning.pid.kiV = [[0.25], [0.05]]
       if candidate not in [CAR.IONIQ_EV_2020, CAR.IONIQ_PHEV]:
         ret.minSteerSpeed = 32 * CV.MPH_TO_MS
-    elif candidate == CAR.VELOSTER:
+      # Improved longitudinal tune
+      ret.longitudinalTuning.deadzoneBP = [0., 9]
+      ret.longitudinalTuning.deadzoneV = [.0, .15]
+      ret.longitudinalTuning.kpBP = [0., 5., 35.]
+      ret.longitudinalTuning.kpV = [3.4, 2.3, 1.5]
+      ret.longitudinalTuning.kiBP = [0., 5., 13.9, 25., 35.]
+      ret.longitudinalTuning.kiV = [.3, .31, .32, .33, .34]
+      ret.stoppingDecelRate = 0.06  # reach stopping target smoothly
+      ret.startingAccelRate = 8.0  # release brakes fast
+      ret.startAccel = 14.0  # Accelerate from 0 faster
+
+elif candidate == CAR.VELOSTER:
       ret.lateralTuning.pid.kf = 0.00005
       ret.mass = 3558. * CV.LB_TO_KG
       ret.wheelbase = 2.80
