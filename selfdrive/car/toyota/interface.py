@@ -298,14 +298,14 @@ class CarInterface(CarInterfaceBase):
       ret.steerRateCost = 0.5
       ret.steerLimitTimer = 1
       ret.lateralTuning.init('indi')
-      ret.lateralTuning.indi.innerLoopGainBP = [16, 20, 30]
-      ret.lateralTuning.indi.innerLoopGainV = [6.3, 15, 15]
-      ret.lateralTuning.indi.outerLoopGainBP = [16, 20, 30]
-      ret.lateralTuning.indi.outerLoopGainV = [5, 13.7, 15]
+      ret.lateralTuning.indi.innerLoopGainBP = [10, 15, 20]
+      ret.lateralTuning.indi.innerLoopGainV = [6.3, 13, 15]
+      ret.lateralTuning.indi.outerLoopGainBP = [10, 15, 20]
+      ret.lateralTuning.indi.outerLoopGainV = [5, 11.7, 15]
       ret.lateralTuning.indi.timeConstantBP = [20, 24]
       ret.lateralTuning.indi.timeConstantV = [1.8, 2.2]
       ret.lateralTuning.indi.actuatorEffectivenessBP = [10, 15, 20]
-      ret.lateralTuning.indi.actuatorEffectivenessV = [1, 1.5, 15]
+      ret.lateralTuning.indi.actuatorEffectivenessV = [1, 3.5, 15]
 
       # 2019+ Rav4 TSS2 uses two different steering racks and specific tuning seems to be necessary.
       # See https://github.com/commaai/openpilot/pull/21429#issuecomment-873652891
