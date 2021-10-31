@@ -23,8 +23,8 @@ from selfdrive.swaglog import cloudlog
 
 LON_MPC_STEP = 0.2  # first step is 0.2s
 AWARENESS_DECEL = -0.2     # car smoothly decel at .2m/s^2 when user is distracted
-A_CRUISE_MIN = -1.2
-A_CRUISE_MAX_VALS = [1.2, 1.2, 0.8, 0.6]
+A_CRUISE_MIN = -1.0
+A_CRUISE_MAX_VALS = [1.0, 1.0, 0.8, 0.6]
 A_CRUISE_MAX_BP = [0., 15., 25., 40.]
 
 # Lookup table for turns
@@ -53,10 +53,10 @@ _DP_CRUISE_MIN_V_ECO = [-0.26, -0.3, -0.9, -1.1, -0.6, -0.3, -0.2]
 _DP_CRUISE_MIN_V_SPORT = [-1.0, -2.0, -4.0, -4.0, -4.0, -2.0, -1.0]
 _DP_CRUISE_MIN_BP = [0.0, 3.0, 5.0, 20.0, 33.3, 40.0, 55.0]
 
-_DP_CRUISE_MAX_V = [3.0, 2.3, .6, .26, .09]
-_DP_CRUISE_MAX_V_ECO = [3.0, 2.0, .55, .23, .07]
-_DP_CRUISE_MAX_V_SPORT = [3.5, 3.5, 3.5, 3.5, 3.5]
-_DP_CRUISE_MAX_BP = [0., 5., 10., 20., 55.]
+_DP_CRUISE_MAX_V = [3.0, 3.0, 2.3, 1.2, .7, .3, .1]
+_DP_CRUISE_MAX_V_ECO = [3.0, 3.0, 2.0, 1.1, .55, .25, .08]
+_DP_CRUISE_MAX_V_SPORT = [3.5, 3.5, 3.0, 2.5, 2.5, 3.5, 3.5]
+_DP_CRUISE_MAX_BP = [0., 5., 8., 11., 15., 20., 55.]
 
 def dp_calc_cruise_accel_limits(v_ego, dp_profile):
   if dp_profile == DP_ACCEL_ECO:
