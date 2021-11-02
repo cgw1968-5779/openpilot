@@ -595,10 +595,10 @@ class CarInterface(CarInterfaceBase):
       # Improved longitudinal tune
       ret.longitudinalTuning.deadzoneBP = [0., 9]
       ret.longitudinalTuning.deadzoneV = [.0, .15]
-      ret.longitudinalTuning.kpBP = [0., 5., 10., 35.]
-      ret.longitudinalTuning.kpV = [3.3, 2.4, 2.4, 1.5]
+      ret.longitudinalTuning.kpBP = [0., 5., 35.]
+      ret.longitudinalTuning.kpV = [3.3, 2.5, 1.6]
       ret.longitudinalTuning.kiBP = [0., 5., 13.9, 25., 35.]
-      ret.longitudinalTuning.kiV = [.28, .31, .34, .33, .34]
+      ret.longitudinalTuning.kiV = [.33, .31, .32, .33, .34]
       ret.stoppingDecelRate = 0.06  # reach stopping target smoothly
       ret.startingAccelRate = 8.0  # release brakes fast
       ret.startAccel = 14.0  # Accelerate from 0 faster
