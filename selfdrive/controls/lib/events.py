@@ -571,7 +571,7 @@ EVENTS: Dict[int, Dict[str, Union[Alert, Callable[[Any, messaging.SubMaster, boo
 
   EventName.speedLimitValueChange: {
     ET.WARNING: Alert(
-      "已更新至道路速限",
+      "已更新速限",
       "",
       AlertStatus.normal, AlertSize.small,
       Priority.LOW, VisualAlert.none, AudibleAlert.none, 1., 0., 2.),
