@@ -299,11 +299,11 @@ class CarInterface(CarInterfaceBase):
       ret.steerLimitTimer = 1
       ret.lateralTuning.init('indi')
       ret.lateralTuning.indi.innerLoopGainBP = [8.3, 8.31, 19.4]
-      ret.lateralTuning.indi.innerLoopGainV = [3.9, 9, 15]
+      ret.lateralTuning.indi.innerLoopGainV = [3.9, 10, 15]
       ret.lateralTuning.indi.outerLoopGainBP = [8.3, 8.31, 16.7]
-      ret.lateralTuning.indi.outerLoopGainV = [2.2, 7.75, 15]
+      ret.lateralTuning.indi.outerLoopGainV = [2.2, 8.75, 15]
       ret.lateralTuning.indi.timeConstantBP = [10, 20, 24]
-      ret.lateralTuning.indi.timeConstantV = [0.85, 1.4, 2.2]
+      ret.lateralTuning.indi.timeConstantV = [0.85, 1.2, 2.2]
       ret.lateralTuning.indi.actuatorEffectivenessBP = [8.3, 8.31, 19.4]
       ret.lateralTuning.indi.actuatorEffectivenessV = [3.9, 9, 15]
 
