@@ -205,18 +205,19 @@ class CarInterface(CarInterfaceBase):
       ret.steerRatio = 13.7
       tire_stiffness_factor = 0.7933
       ret.mass = 3400. * CV.LB_TO_KG + STD_CARGO_KG  # mean between normal and hybrid
-      ret.lateralTuning.init('indi')
-      ret.lateralTuning.indi.innerLoopGainBP = [16, 20, 30]
-      ret.lateralTuning.indi.innerLoopGainV = [7, 15, 15]
-      ret.lateralTuning.indi.outerLoopGainBP = [16, 20, 30]
-      ret.lateralTuning.indi.outerLoopGainV = [5.8, 13.7, 15]
-      ret.lateralTuning.indi.timeConstantBP = [20, 24]
-      ret.lateralTuning.indi.timeConstantV = [1.8, 2.2]
-      ret.lateralTuning.indi.actuatorEffectivenessBP = [10, 15, 20]
-      ret.lateralTuning.indi.actuatorEffectivenessV = [1, 1.5, 15]
       ret.steerActuatorDelay = 0
-      ret.steerRateCost = 0.5
-      ret.steerLimitTimer = 1
+      ret.steerRateCost = 0.4
+      ret.steerLimitTimer = 5
+      ret.lateralTuning.init('indi')
+      ret.lateralTuning.indi.innerLoopGainBP = [8.3, 8.31, 19.4]
+      ret.lateralTuning.indi.innerLoopGainV = [3.9, 10, 15]
+      ret.lateralTuning.indi.outerLoopGainBP = [8.3, 8.31, 16.7]
+      ret.lateralTuning.indi.outerLoopGainV = [2.2, 8.75, 15]
+      ret.lateralTuning.indi.timeConstantBP = [10, 17, 24, 30]
+      ret.lateralTuning.indi.timeConstantV = [0.6, 1.0, 1.8, 2.2]
+      ret.lateralTuning.indi.actuatorEffectivenessBP = [8.3, 8.31, 19.4]
+      ret.lateralTuning.indi.actuatorEffectivenessV = [2.2, 10, 15]
+
       
     elif candidate in [CAR.HIGHLANDER_TSS2, CAR.HIGHLANDERH_TSS2]:
       stop_and_go = True
@@ -225,18 +226,19 @@ class CarInterface(CarInterfaceBase):
       ret.steerRatio = 16.0
       tire_stiffness_factor = 0.8
       ret.mass = 4700. * CV.LB_TO_KG + STD_CARGO_KG  # 4260 + 4-5 people
-      ret.lateralTuning.init('indi')
-      ret.lateralTuning.indi.innerLoopGainBP = [16, 20, 30]
-      ret.lateralTuning.indi.innerLoopGainV = [7, 15, 15]
-      ret.lateralTuning.indi.outerLoopGainBP = [16, 20, 30]
-      ret.lateralTuning.indi.outerLoopGainV = [5.8, 13.7, 15]
-      ret.lateralTuning.indi.timeConstantBP = [20, 24]
-      ret.lateralTuning.indi.timeConstantV = [1.8, 2.2]
-      ret.lateralTuning.indi.actuatorEffectivenessBP = [10, 15, 20]
-      ret.lateralTuning.indi.actuatorEffectivenessV = [1, 1.5, 15]
       ret.steerActuatorDelay = 0
-      ret.steerRateCost = 0.5
-      ret.steerLimitTimer = 1
+      ret.steerRateCost = 0.4
+      ret.steerLimitTimer = 5
+      ret.lateralTuning.init('indi')
+      ret.lateralTuning.indi.innerLoopGainBP = [8.3, 8.31, 19.4]
+      ret.lateralTuning.indi.innerLoopGainV = [3.9, 10, 15]
+      ret.lateralTuning.indi.outerLoopGainBP = [8.3, 8.31, 16.7]
+      ret.lateralTuning.indi.outerLoopGainV = [2.2, 8.75, 15]
+      ret.lateralTuning.indi.timeConstantBP = [10, 17, 24, 30]
+      ret.lateralTuning.indi.timeConstantV = [0.6, 1.0, 1.8, 2.2]
+      ret.lateralTuning.indi.actuatorEffectivenessBP = [8.3, 8.31, 19.4]
+      ret.lateralTuning.indi.actuatorEffectivenessV = [2.2, 10, 15]
+
       
     elif candidate in [CAR.HIGHLANDER, CAR.HIGHLANDERH]:
       stop_and_go = True
@@ -245,18 +247,18 @@ class CarInterface(CarInterfaceBase):
       ret.steerRatio = 16.0
       tire_stiffness_factor = 0.8
       ret.mass = 4607. * CV.LB_TO_KG + STD_CARGO_KG  # mean between normal and hybrid limited
-      ret.lateralTuning.init('indi')
-      ret.lateralTuning.indi.innerLoopGainBP = [16, 20, 30]
-      ret.lateralTuning.indi.innerLoopGainV = [7, 15, 15]
-      ret.lateralTuning.indi.outerLoopGainBP = [16, 20, 30]
-      ret.lateralTuning.indi.outerLoopGainV = [5.8, 13.7, 15]
-      ret.lateralTuning.indi.timeConstantBP = [20, 24]
-      ret.lateralTuning.indi.timeConstantV = [1.8, 2.2]
-      ret.lateralTuning.indi.actuatorEffectivenessBP = [10, 15, 20]
-      ret.lateralTuning.indi.actuatorEffectivenessV = [1, 1.5, 15]
       ret.steerActuatorDelay = 0
-      ret.steerRateCost = 0.5
-      ret.steerLimitTimer = 1
+      ret.steerRateCost = 0.4
+      ret.steerLimitTimer = 5
+      ret.lateralTuning.init('indi')
+      ret.lateralTuning.indi.innerLoopGainBP = [8.3, 8.31, 19.4]
+      ret.lateralTuning.indi.innerLoopGainV = [3.9, 10, 15]
+      ret.lateralTuning.indi.outerLoopGainBP = [8.3, 8.31, 16.7]
+      ret.lateralTuning.indi.outerLoopGainV = [2.2, 8.75, 15]
+      ret.lateralTuning.indi.timeConstantBP = [10, 17, 24, 30]
+      ret.lateralTuning.indi.timeConstantV = [0.6, 1.0, 1.8, 2.2]
+      ret.lateralTuning.indi.actuatorEffectivenessBP = [8.3, 8.31, 19.4]
+      ret.lateralTuning.indi.actuatorEffectivenessV = [2.2, 10, 15]
 
     elif candidate in [CAR.AVALON, CAR.AVALON_2019, CAR.AVALONH_2019]:
       stop_and_go = False
@@ -265,18 +267,18 @@ class CarInterface(CarInterfaceBase):
       ret.steerRatio = 14.8  # Found at https://pressroom.toyota.com/releases/2016+avalon+product+specs.download
       tire_stiffness_factor = 0.7983
       ret.mass = 3505. * CV.LB_TO_KG + STD_CARGO_KG  # mean between normal and hybrid
-      ret.lateralTuning.init('indi')
-      ret.lateralTuning.indi.innerLoopGainBP = [16, 20, 30]
-      ret.lateralTuning.indi.innerLoopGainV = [7, 15, 15]
-      ret.lateralTuning.indi.outerLoopGainBP = [16, 20, 30]
-      ret.lateralTuning.indi.outerLoopGainV = [5.8, 13.7, 15]
-      ret.lateralTuning.indi.timeConstantBP = [20, 24]
-      ret.lateralTuning.indi.timeConstantV = [1.8, 2.2]
-      ret.lateralTuning.indi.actuatorEffectivenessBP = [10, 15, 20]
-      ret.lateralTuning.indi.actuatorEffectivenessV = [1, 1.5, 15]
       ret.steerActuatorDelay = 0
-      ret.steerRateCost = 0.5
-      ret.steerLimitTimer = 1
+      ret.steerRateCost = 0.4
+      ret.steerLimitTimer = 5
+      ret.lateralTuning.init('indi')
+      ret.lateralTuning.indi.innerLoopGainBP = [8.3, 8.31, 19.4]
+      ret.lateralTuning.indi.innerLoopGainV = [3.9, 10, 15]
+      ret.lateralTuning.indi.outerLoopGainBP = [8.3, 8.31, 16.7]
+      ret.lateralTuning.indi.outerLoopGainV = [2.2, 8.75, 15]
+      ret.lateralTuning.indi.timeConstantBP = [10, 17, 24, 30]
+      ret.lateralTuning.indi.timeConstantV = [0.6, 1.0, 1.8, 2.2]
+      ret.lateralTuning.indi.actuatorEffectivenessBP = [8.3, 8.31, 19.4]
+      ret.lateralTuning.indi.actuatorEffectivenessV = [2.2, 10, 15]
 
     elif candidate in [CAR.RAV4_TSS2, CAR.RAV4H_TSS2]:
       stop_and_go = True
@@ -322,17 +324,17 @@ class CarInterface(CarInterfaceBase):
       tire_stiffness_factor = 0.444  # not optimized yet
       ret.mass = 3060. * CV.LB_TO_KG + STD_CARGO_KG
       ret.steerActuatorDelay = 0
-      ret.steerRateCost = 0.5
-      ret.steerLimitTimer = 1
+      ret.steerRateCost = 0.4
+      ret.steerLimitTimer = 5
       ret.lateralTuning.init('indi')
-      ret.lateralTuning.indi.innerLoopGainBP = [16, 20, 30]
-      ret.lateralTuning.indi.innerLoopGainV = [7, 15, 15]
-      ret.lateralTuning.indi.outerLoopGainBP = [16, 20, 30]
-      ret.lateralTuning.indi.outerLoopGainV = [5.8, 13.7, 15]
-      ret.lateralTuning.indi.timeConstantBP = [20, 24]
-      ret.lateralTuning.indi.timeConstantV = [1.8, 2.2]
-      ret.lateralTuning.indi.actuatorEffectivenessBP = [10, 15, 20]
-      ret.lateralTuning.indi.actuatorEffectivenessV = [1, 1.5, 15]
+      ret.lateralTuning.indi.innerLoopGainBP = [8.3, 8.31, 19.4]
+      ret.lateralTuning.indi.innerLoopGainV = [3.9, 10, 15]
+      ret.lateralTuning.indi.outerLoopGainBP = [8.3, 8.31, 16.7]
+      ret.lateralTuning.indi.outerLoopGainV = [2.2, 8.75, 15]
+      ret.lateralTuning.indi.timeConstantBP = [10, 17, 24, 30]
+      ret.lateralTuning.indi.timeConstantV = [0.6, 1.0, 1.8, 2.2]
+      ret.lateralTuning.indi.actuatorEffectivenessBP = [8.3, 8.31, 19.4]
+      ret.lateralTuning.indi.actuatorEffectivenessV = [2.2, 10, 15]
 
     elif candidate in [CAR.LEXUS_ES_TSS2, CAR.LEXUS_ESH_TSS2]:
       stop_and_go = True
