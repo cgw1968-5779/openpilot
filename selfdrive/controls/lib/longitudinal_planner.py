@@ -48,15 +48,15 @@ DP_ACCEL_SPORT = 2
 #_DP_CRUISE_MIN_V_SPORT = [-1.0, -2.0, -4.0, -4.0, -4.0, -2.0, -1.0]
 #_DP_CRUISE_MIN_BP = [0.0, 3.0, 5.0, 20.0, 33.3, 40.0, 55.0]
 
-_DP_CRUISE_MIN_V = [-1.1 -1.1 -1.1 -1.1 -0.7, -0.3, -0.2]
-_DP_CRUISE_MIN_V_ECO = [-1.0, -1.0, -1.0, -1.0, -0.6, -0.3, -0.2]
+_DP_CRUISE_MIN_V = [-1.05, -1.05, -1.05, -1.05, -0.7, -0.3, -0.2]
+_DP_CRUISE_MIN_V_ECO = [-0.96, -0.96, -0.96, -0.96, -0.6, -0.3, -0.2]
 _DP_CRUISE_MIN_V_SPORT = [-2.0, -2.0, -2.0, -2.0, -2.0, -2.0, -2.0]
 _DP_CRUISE_MIN_BP = [0.0, 3.0, 5.0, 20.0, 33.3, 40.0, 55.0]
 
-_DP_CRUISE_MAX_V = [3.0, 3.0, 1.9, 1.0, .7, .3, .1]
-_DP_CRUISE_MAX_V_ECO = [3.0, 3.0, 1.8, .9, .55, .25, .08]
+_DP_CRUISE_MAX_V = [3.3, 3.0, 1.8, 1.0, .7, .3, .1]
+_DP_CRUISE_MAX_V_ECO = [3.0, 3.0, 1.6, .9, .55, .25, .08]
 _DP_CRUISE_MAX_V_SPORT = [3.5, 3.5, 3.0, 2.5, 2.5, 3.5, 3.5]
-_DP_CRUISE_MAX_BP = [0., 5., 8., 11., 15., 20., 55.]
+_DP_CRUISE_MAX_BP = [0., 6., 8., 11., 15., 20., 55.]
 
 def dp_calc_cruise_accel_limits(v_ego, dp_profile):
   if dp_profile == DP_ACCEL_ECO:
