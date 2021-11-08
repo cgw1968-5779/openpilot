@@ -563,7 +563,7 @@ EVENTS: Dict[int, Dict[str, Union[Alert, Callable[[Any, messaging.SubMaster, boo
 
   EventName.speedLimitActive: {
     ET.WARNING: Alert(
-      "定速已設定",
+      "",
       "",
       AlertStatus.normal, AlertSize.small,
       Priority.LOW, VisualAlert.none, AudibleAlert.none, 1., 0., 2.),
@@ -844,7 +844,7 @@ EVENTS: Dict[int, Dict[str, Union[Alert, Callable[[Any, messaging.SubMaster, boo
 
   EventName.reverseGear: {
     ET.PERMANENT: Alert(
-      _("倒退／N 檔"),
+      _("倒退／R 檔"),
       "",
       AlertStatus.normal, AlertSize.full,
       Priority.LOWEST, VisualAlert.none, AudibleAlert.none, 0., 0., .2, creation_delay=0.5),
