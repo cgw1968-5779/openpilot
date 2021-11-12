@@ -286,27 +286,19 @@ class CarInterface(CarInterfaceBase):
       ret.wheelbase = 2.68986
       ret.steerRatio = 14.4
       tire_stiffness_factor = 0.7933
-      ret.mass = 3900. * CV.LB_TO_KG + STD_CARGO_KG # Average between ICE and Hybrid
-      #ret.lateralTuning.indi.innerLoopGainBP = [20, 24, 30]
-      #ret.lateralTuning.indi.innerLoopGainV = [7.25, 7.5, 9]
-      #ret.lateralTuning.indi.outerLoopGainBP = [20, 24, 30]
-      #ret.lateralTuning.indi.outerLoopGainV = [6, 7.25, 6]
-      #ret.lateralTuning.indi.timeConstantBP = [20, 24]
-      #ret.lateralTuning.indi.timeConstantV = [2.0, 2.2]
-      #ret.lateralTuning.indi.actuatorEffectivenessBP = [20, 24]
-      #ret.lateralTuning.indi.actuatorEffectivenessV = [2, 3]
+      ret.mass = 3585. * CV.LB_TO_KG + STD_CARGO_KG # Average between ICE and Hybrid
+      ret.lateralTuning.init('indi')
+      ret.lateralTuning.indi.innerLoopGainBP = [10, 13.7, 13.71, 20]
+      ret.lateralTuning.indi.innerLoopGainV = [3.625, 4.6, 12, 15]
+      ret.lateralTuning.indi.outerLoopGainBP = [10, 13.7, 13.71, 20]
+      ret.lateralTuning.indi.outerLoopGainV = [3.0, 3.625, 10.75, 15]
+      ret.lateralTuning.indi.timeConstantBP = [10, 18, 24, 30]
+      ret.lateralTuning.indi.timeConstantV = [0.5, 0.8, 1.8, 2.2]
+      ret.lateralTuning.indi.actuatorEffectivenessBP = [10, 13.7, 13.71, 20]
+      ret.lateralTuning.indi.actuatorEffectivenessV = [1.0, 1.5, 10.75, 15]
       ret.steerActuatorDelay = 0
       ret.steerRateCost = 0.4
       ret.steerLimitTimer = 1 
-      ret.lateralTuning.init('indi')
-      ret.lateralTuning.indi.innerLoopGainBP = [10, 13.7, 13.71, 20]
-      ret.lateralTuning.indi.innerLoopGainV = [3.625, 4.25, 12, 15]
-      ret.lateralTuning.indi.outerLoopGainBP = [10, 13.7, 13.71, 20]
-      ret.lateralTuning.indi.outerLoopGainV = [3.0, 3.625, 10.75, 15]
-      ret.lateralTuning.indi.timeConstantBP = [10, 17, 24, 30]
-      ret.lateralTuning.indi.timeConstantV = [0.6, 0.9, 1.8, 2.2]
-      ret.lateralTuning.indi.actuatorEffectivenessBP = [10, 13.7, 13.71, 20]
-      ret.lateralTuning.indi.actuatorEffectivenessV = [1.0, 1.5, 10.75, 15]
 
       # 2019+ Rav4 TSS2 uses two different steering racks and specific tuning seems to be necessary.
       # See https://github.com/commaai/openpilot/pull/21429#issuecomment-873652891
