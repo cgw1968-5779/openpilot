@@ -593,8 +593,8 @@ class CarInterface(CarInterfaceBase):
       ret.longitudinalTuning.kiBP = [0., 5., 13.9, 25., 35.]
       ret.longitudinalTuning.kiV = [.3, .31, .32, .33, .34]
       ret.stoppingDecelRate = 0.08  # reach stopping target smoothly
-      ret.startingAccelRate = 8.0  # release brakes fast
-      ret.startAccel = 20.0  # Accelerate from 0 faster
+      ret.startingAccelRate = 20.0  # release brakes fast
+      ret.startAccel = 40.0  # Accelerate from 0 faster
     else:
       # Default longitudinal tune
       ret.longitudinalTuning.deadzoneBP = [0., 9.]
