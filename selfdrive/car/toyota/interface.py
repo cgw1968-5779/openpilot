@@ -288,14 +288,14 @@ class CarInterface(CarInterfaceBase):
       tire_stiffness_factor = 0.7933
       ret.mass = 3585. * CV.LB_TO_KG + STD_CARGO_KG # Average between ICE and Hybrid
       ret.lateralTuning.init('indi')
-      ret.lateralTuning.indi.innerLoopGainBP = [10, 13.7, 13.71, 20]
-      ret.lateralTuning.indi.innerLoopGainV = [3.625, 4.6, 12, 15]
-      ret.lateralTuning.indi.outerLoopGainBP = [10, 13.7, 13.71, 20]
-      ret.lateralTuning.indi.outerLoopGainV = [3.0, 3.625, 10.75, 15]
-      ret.lateralTuning.indi.timeConstantBP = [10, 18, 24, 30]
-      ret.lateralTuning.indi.timeConstantV = [0.5, 0.8, 1.8, 2.2]
-      ret.lateralTuning.indi.actuatorEffectivenessBP = [10, 13.7, 13.71, 20]
-      ret.lateralTuning.indi.actuatorEffectivenessV = [1.0, 1.5, 10.75, 15]
+      ret.lateralTuning.indi.innerLoopGainBP = [10, 10.01, 16.71, 20, 30] # [10, 13.7, 13.71, 20] 
+      ret.lateralTuning.indi.innerLoopGainV = [3.625, 9.6, 13, 15, 17] # [3.625, 4.6, 12, 15] 
+      ret.lateralTuning.indi.outerLoopGainBP = [10, 10.01, 16.71, 20, 30] # [10, 13.7, 13.71, 20] 
+      ret.lateralTuning.indi.outerLoopGainV = [3., 8.45, 11.85, 13.85, 15.99] # [3.0, 3.625, 10.75, 14.99] 
+      ret.lateralTuning.indi.timeConstantBP = [5, 8, 16, 20, 24, 30] # [10, 15, 18, 24, 30] 
+      ret.lateralTuning.indi.timeConstantV = [0.3, 0.4, 0.5, 0.6, 1.2, 1.4] # [0.4, 0.4, 0.8, 1.8, 2.2] 
+      ret.lateralTuning.indi.actuatorEffectivenessBP = [1, 10.01, 16.7, 20] # [10, 13.7, 13.71, 20] 
+      ret.lateralTuning.indi.actuatorEffectivenessV = [0.1, 1.0, 11, 15] # [1.0, 1.5, 15, 15] 
       ret.steerActuatorDelay = 0
       ret.steerRateCost = 0.4
       ret.steerLimitTimer = 1 
