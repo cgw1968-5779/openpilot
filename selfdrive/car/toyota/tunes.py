@@ -80,7 +80,7 @@ def set_lat_tune(tune, name):
     tune.indi.outerLoopGainBP = [10, 10.01, 16.71, 20, 30]
     tune.indi.outerLoopGainV = [3., 8.45, 11.85, 13.85, 14.99]
     tune.indi.timeConstantBP = [4.15, 8.3, 11.1, 13.9, 16.7, 20, 24, 30]
-    tune.indi.timeConstantV = [0.2, 0.39, 0.46, 0.51, 0.55, 1.0, 1.2, 1.4]
+    tune.indi.timeConstantV = [0.2, 0.39, 0.46, 0.505, 0.55, 1.0, 1.2, 1.4]
     tune.indi.actuatorEffectivenessBP = [1, 10.01, 16.7, 16.71, 20]
     tune.indi.actuatorEffectivenessV = [0.1, 1.0, 11, 15, 15]
 
