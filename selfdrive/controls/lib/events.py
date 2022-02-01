@@ -151,7 +151,7 @@ class NoEntryAlert(Alert):
 
 class SoftDisableAlert(Alert):
   def __init__(self, alert_text_2):
-    super().__init__(_("TAKE CONTROL IMMEDIATELY"), alert_text_2,
+    super().__init__(_("立即接管車輛控制"), alert_text_2,
                      AlertStatus.userPrompt, AlertSize.full,
                      Priority.MID, VisualAlert.steerRequired,
                      AudibleAlert.warningSoft, 2.),
@@ -166,7 +166,7 @@ class UserSoftDisableAlert(SoftDisableAlert):
 
 class ImmediateDisableAlert(Alert):
   def __init__(self, alert_text_2):
-    super().__init__(_("TAKE CONTROL IMMEDIATELY"), alert_text_2,
+    super().__init__(_("立即接管車輛控制"), alert_text_2,
                      AlertStatus.critical, AlertSize.full,
                      Priority.HIGHEST, VisualAlert.steerRequired,
                      AudibleAlert.warningImmediate, 4.),
@@ -236,8 +236,8 @@ def below_steer_speed_alert(CP: car.CarParams, sm: messaging.SubMaster, metric: 
 
 def calibration_incomplete_alert(CP: car.CarParams, sm: messaging.SubMaster, metric: bool, soft_disable_time: int) -> Alert:
   return Alert(
-    _("Calibration in Progress: %d%%") % sm['liveCalibration'].calPerc,
-    _("Drive Above %s") % get_display_speed(MIN_SPEED_FILTER, metric),
+    _("路線校正中: %d%%") % sm['liveCalibration'].calPerc,
+    _("請加速超過 %s") % get_display_speed(MIN_SPEED_FILTER, metric),
     AlertStatus.normal, AlertSize.mid,
     Priority.LOWEST, VisualAlert.none, AudibleAlert.none, .2)
 
@@ -266,8 +266,8 @@ def joystick_alert(CP: car.CarParams, sm: messaging.SubMaster, metric: bool, sof
 
 def alca_alert(CP: car.CarParams, sm: messaging.SubMaster, metric: bool, soft_disable_time: int) -> Alert:
   return Alert(
-    _("Auto Lane Change starts in %.1f secs") % float(sm['lateralPlan'].dpALCAStartIn),
-    _("Monitor Other Vehicles"),
+    _("自動車道變換即將開始 %.1f secs") % float(sm['lateralPlan'].dpALCAStartIn),
+    _("注意其他車輛"),
     AlertStatus.normal, AlertSize.mid,
     Priority.LOWER, VisualAlert.steerRequired, AudibleAlert.none, 0., alert_rate=0.1)
 
@@ -299,7 +299,7 @@ EVENTS: Dict[int, Dict[str, Union[Alert, AlertCallbackType]]] = {
   },
 
   EventName.startup: {
-    ET.PERMANENT: StartupAlert(_("Be ready to take over at any time"))
+    ET.PERMANENT: StartupAlert(_("請隨時準備接控車輛"))
   },
 
   EventName.startupMaster: {
@@ -309,7 +309,7 @@ EVENTS: Dict[int, Dict[str, Union[Alert, AlertCallbackType]]] = {
 
   # Car is recognized, but marked as dashcam only
   EventName.startupNoControl: {
-    ET.PERMANENT: StartupAlert(_("Dashcam mode")),
+    ET.PERMANENT: StartupAlert(_("行車記錄模式")),
   },
 
   # Car is not recognized
@@ -324,7 +324,7 @@ EVENTS: Dict[int, Dict[str, Union[Alert, AlertCallbackType]]] = {
   },
 
   EventName.dashcamMode: {
-    ET.PERMANENT: NormalPermanentAlert(_("Dashcam Mode"),
+    ET.PERMANENT: NormalPermanentAlert(_("行車記錄模式"),
                                        priority=Priority.LOWEST),
   },
 
@@ -349,15 +349,15 @@ EVENTS: Dict[int, Dict[str, Union[Alert, AlertCallbackType]]] = {
   # read-only mode. This can be solved by adding your fingerprint.
   # See https://github.com/commaai/openpilot/wiki/Fingerprinting for more information
   EventName.carUnrecognized: {
-    ET.PERMANENT: NormalPermanentAlert(_("Dashcam Mode"),
-                                       _("Car Unrecognized"),
+    ET.PERMANENT: NormalPermanentAlert(_("行車記錄模式"),
+                                       _("車輛未被支援"),
                                        priority=Priority.LOWEST),
   },
 
   EventName.stockAeb: {
     ET.PERMANENT: Alert(
-      _("BRAKE!"),
-      _("Stock AEB: Risk of Collision"),
+      _("踩煞車!"),
+      _("原廠系統: 有碰撞的危險"),
       AlertStatus.critical, AlertSize.full,
       Priority.HIGHEST, VisualAlert.fcw, AudibleAlert.none, 2.),
     ET.NO_ENTRY: NoEntryAlert(_("Stock AEB: Risk of Collision")),
@@ -365,15 +365,15 @@ EVENTS: Dict[int, Dict[str, Union[Alert, AlertCallbackType]]] = {
 
   EventName.fcw: {
     ET.PERMANENT: Alert(
-      _("BRAKE!"),
-      _("Risk of Collision"),
+      _("踩煞車!"),
+      _("有碰撞的危險"),
       AlertStatus.critical, AlertSize.full,
       Priority.HIGHEST, VisualAlert.fcw, AudibleAlert.warningSoft, 2.),
   },
 
   EventName.ldw: {
     ET.PERMANENT: Alert(
-      _("Lane Departure Detected"),
+      _("偵測到車道偏移"),
       "",
       AlertStatus.userPrompt, AlertSize.small,
       Priority.LOW, VisualAlert.ldw, AudibleAlert.prompt, 3.),
@@ -404,7 +404,7 @@ EVENTS: Dict[int, Dict[str, Union[Alert, AlertCallbackType]]] = {
 
   EventName.steerTempUnavailableSilent: {
     ET.WARNING: Alert(
-      _("Steering Temporarily Unavailable"),
+      _("方向盤不受系統控制"),
       "",
       AlertStatus.userPrompt, AlertSize.small,
       Priority.LOW, VisualAlert.steerRequired, AudibleAlert.prompt, 1.),
@@ -412,7 +412,7 @@ EVENTS: Dict[int, Dict[str, Union[Alert, AlertCallbackType]]] = {
 
   EventName.preDriverDistracted: {
     ET.WARNING: Alert(
-      _("Pay Attention"),
+      _("注意"),
       "",
       AlertStatus.normal, AlertSize.small,
       Priority.LOW, VisualAlert.none, AudibleAlert.none, .1),
@@ -420,16 +420,16 @@ EVENTS: Dict[int, Dict[str, Union[Alert, AlertCallbackType]]] = {
 
   EventName.promptDriverDistracted: {
     ET.WARNING: Alert(
-      _("Pay Attention"),
-      _("Driver Distracted"),
+      _("注意"),
+      _("偵測到駕駛者分心"),
       AlertStatus.userPrompt, AlertSize.mid,
       Priority.MID, VisualAlert.steerRequired, AudibleAlert.promptDistracted, .1),
   },
 
   EventName.driverDistracted: {
     ET.WARNING: Alert(
-      _("DISENGAGE IMMEDIATELY"),
-      _("Driver Distracted"),
+      _("立刻手動接管車輛"),
+      _("駕駛者分心"),
       AlertStatus.critical, AlertSize.full,
       Priority.HIGH, VisualAlert.steerRequired, AudibleAlert.warningImmediate, .1),
   },
@@ -452,8 +452,8 @@ EVENTS: Dict[int, Dict[str, Union[Alert, AlertCallbackType]]] = {
 
   EventName.driverUnresponsive: {
     ET.WARNING: Alert(
-      _("DISENGAGE IMMEDIATELY"),
-      _("Driver Unresponsive"),
+      _("立即手動接管車輛"),
+      _("駕駛無反應"),
       AlertStatus.critical, AlertSize.full,
       Priority.HIGH, VisualAlert.steerRequired, AudibleAlert.warningImmediate, .1),
   },
@@ -480,7 +480,7 @@ EVENTS: Dict[int, Dict[str, Union[Alert, AlertCallbackType]]] = {
 
   EventName.preLaneChangeLeft: {
     ET.WARNING: Alert(
-      _("Steer Left to Start Lane Change Once Safe"),
+      _("左轉方向盤開始自動換道"),
       "",
       AlertStatus.normal, AlertSize.small,
       Priority.LOW, VisualAlert.none, AudibleAlert.none, .1, alert_rate=0.75),
@@ -488,7 +488,7 @@ EVENTS: Dict[int, Dict[str, Union[Alert, AlertCallbackType]]] = {
 
   EventName.preLaneChangeRight: {
     ET.WARNING: Alert(
-      _("Steer Right to Start Lane Change Once Safe"),
+      _("右轉方向盤開始自動換道"),
       "",
       AlertStatus.normal, AlertSize.small,
       Priority.LOW, VisualAlert.none, AudibleAlert.none, .1, alert_rate=0.75),
@@ -496,7 +496,7 @@ EVENTS: Dict[int, Dict[str, Union[Alert, AlertCallbackType]]] = {
 
   EventName.laneChangeBlocked: {
     ET.WARNING: Alert(
-      _("Car Detected in Blindspot"),
+      _("盲點偵測到車輛"),
       "",
       AlertStatus.userPrompt, AlertSize.small,
       Priority.LOW, VisualAlert.none, AudibleAlert.prompt, .1),
@@ -504,7 +504,7 @@ EVENTS: Dict[int, Dict[str, Union[Alert, AlertCallbackType]]] = {
 
   EventName.laneChange: {
     ET.WARNING: Alert(
-      _("Changing Lanes"),
+      _("換道中"),
       "",
       AlertStatus.normal, AlertSize.small,
       Priority.LOW, VisualAlert.none, AudibleAlert.none, .1),
@@ -512,8 +512,8 @@ EVENTS: Dict[int, Dict[str, Union[Alert, AlertCallbackType]]] = {
 
   EventName.steerSaturated: {
     ET.WARNING: Alert(
-      _("Take Control"),
-      _("Turn Exceeds Steering Limit"),
+      _("接管控制"),
+      _("彎道超出自駕範圍"),
       AlertStatus.userPrompt, AlertSize.mid,
       Priority.LOW, VisualAlert.steerRequired, AudibleAlert.promptRepeat, 1.),
   },
@@ -542,7 +542,7 @@ EVENTS: Dict[int, Dict[str, Union[Alert, AlertCallbackType]]] = {
 
   EventName.speedLimitActive: {
     ET.WARNING: Alert(
-      "Cruise set to speed limit",
+      "定速設定至道路速限",
       "",
       AlertStatus.normal, AlertSize.small,
       Priority.LOW, VisualAlert.none, AudibleAlert.none, 2.),
@@ -852,8 +852,8 @@ EVENTS: Dict[int, Dict[str, Union[Alert, AlertCallbackType]]] = {
   # When the car is driving faster than most cars in the training data, the model outputs can be unpredictable.
   EventName.speedTooHigh: {
     ET.WARNING: Alert(
-      _("Speed Too High"),
-      _("Model uncertain at this speed"),
+      _("速度太快"),
+      _("自駕系統不支援"),
       AlertStatus.userPrompt, AlertSize.mid,
       Priority.HIGH, VisualAlert.steerRequired, AudibleAlert.promptRepeat, 4.),
     ET.NO_ENTRY: NoEntryAlert(_("Slow down to engage")),
