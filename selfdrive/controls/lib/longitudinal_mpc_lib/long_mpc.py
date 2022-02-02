@@ -340,7 +340,7 @@ class LongitudinalMpc():
       # At slow speeds more time, decrease time up to 60mph
       # in mph ~= 5     10   15   20  25     30    35     40  45     50    55     60  65     70    75     80  85     90
       x_vel = [0, 2.25, 4.5, 6.75, 9, 11.25, 13.5, 15.75, 18, 20.25, 22.5, 24.75, 27, 29.25, 31.5, 33.75, 36, 38.25, 40.5]
-      y_dist = [1.23, 1.25, 1.27, 1.27, 1.27, 1.25, 1.23, 1.21, 1.19, 1.15, 1.1, 1.0, 1.05, 1.1, 1.1, 1.15, 1.2, 1.25, 1.3]
+      y_dist = [1.2, 1.23, 1.25, 1.27, 1.28, 1.26, 1.24, 1.22, 1.2, 1.15, 1.1, 1.05, 1.0, 1.1, 1.15, 1.2, 1.25, 1.3, 1.35]
       self.desired_TF = np.interp(carstate.vEgo, x_vel, y_dist)
     elif carstate.distanceLines == 2: # Relaxed
       self.desired_TF = 1.45
