@@ -338,8 +338,8 @@ class LongitudinalMpc():
   def update_TF(self, carstate):
     if carstate.distanceLines == 1: # Traffic
       # At slow speeds more time, decrease time up to 60mph
-      # in mph ~= 5     10   15   20  25     30    35     40  45     50    55     60      70    75     80  85     90
-      x_vel = [0,   2.25,  4.5,  6.75,  9,   11.25, 13.5, 15.75, 18, 20.25, 22.5, 24.75, 27, 29.25, 31.5, 33.75, 36, 38.25, 40.5]
+      # in kph ~= 0    10    20     30     40     50     60     70     80      90    100    110    120    130    140    150
+      x_vel = [0,   2.788,  5.56,  8.333,  11.11, 13.89, 16.67, 19.44, 22.22, 25.0, 27.78, 30.56, 33.33, 36.11, 38.89, 41.67]
       y_dist = [1.23, 1.23, 1.25, 1.28, 1.3, 1.3,  1.25,  1.2, 1.17, 1.33,  1.2,  1.1,  1.1, 1.2,  1.25,  1.3, 1.31, 1.33,  1.33]
       self.desired_TF = np.interp(carstate.vEgo, x_vel, y_dist)
     elif carstate.distanceLines == 2: # Relaxed
