@@ -49,7 +49,7 @@ T_IDXS_LST = [index_function(idx, max_val=MAX_T, max_idx=N+1) for idx in range(N
 T_IDXS = np.array(T_IDXS_LST)
 T_DIFFS = np.diff(T_IDXS, prepend=[0.])
 MIN_ACCEL = -3.5
-T_FOLLOW = 1.45
+T_FOLLOW = 1.8
 COMFORT_BRAKE = 2.5
 STOP_DISTANCE = 5.5
 
@@ -246,7 +246,7 @@ class LongitudinalMpc():
   def get_cost_multipliers(self):
     v_ego = self.x0[1]
     v_ego_bps = [0, 10]
-    TFs = [1.0, 1.25, T_FOLLOW]
+    TFs = [1.0, 1.5, T_FOLLOW]
     # KRKeegan adjustments to costs for different TFs
     # these were calculated using the test_longitudial.py deceleration tests
     x_ego_tf = interp(self.desired_TF, TFs, [2., 1.3, 1.])
@@ -344,7 +344,7 @@ class LongitudinalMpc():
       self.desired_TF = np.interp(carstate.vEgo, x_vel, y_dist)
     elif carstate.distanceLines == 2: # Relaxed
       x_vel = [0.0, 2.788,  5.56,  8.333,  11.11, 13.89, 19.44, 27.78, 41.67]  # velocities
-      y_dist = [1.27, 1.27, 1.29,   1.32,   1.38,  1.38,  1.38,  1.619, 1.8]
+      y_dist = [1.3, 1.3, 1.3,   1.35,   1.42,  1.43,  1.43,  1.619, 1.8]
       self.desired_TF = np.interp(carstate.vEgo, x_vel, y_dist)
       #self.desired_TF = 1.7
     else:
