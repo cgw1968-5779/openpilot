@@ -75,14 +75,14 @@ def set_lat_tune(tune, name):
 
   elif name == LatTunes.INDI_RAV4_TSS2:
     tune.init('indi')
-    tune.indi.innerLoopGainBP = [0]
-    tune.indi.innerLoopGainV = [15]
-    tune.indi.outerLoopGainBP = [0]
-    tune.indi.outerLoopGainV = [14.8]
+    tune.indi.innerLoopGainBP = [5, 8, 16, 20, 30]
+    tune.indi.innerLoopGainV = [6, 11.6, 13, 15, 15]
+    tune.indi.outerLoopGainBP = [5, 8, 16, 20, 30]
+    tune.indi.outerLoopGainV = [5.675, 11.5, 12.85, 14.7, 14.6]
     tune.indi.timeConstantBP = [16.7, 20, 25, 30]
     tune.indi.timeConstantV = [0.8, 2.0, 2.8]
-    tune.indi.actuatorEffectivenessBP = [1, 8, 16.7, 16.71, 20]
-    tune.indi.actuatorEffectivenessV = [1, 2, 3, 3, 3]
+    tune.indi.actuatorEffectivenessBP = [20, 30]
+    tune.indi.actuatorEffectivenessV = [2, 5]
     #tune.indi.timeConstantBP = [4.15, 8.3, 11.1, 13.9, 16.7, 20, 25, 30]
     #tune.indi.timeConstantV = [0.1, 0.2, 0.3, 0.4, 0.5, 0.8, 2.0, 2.8]
 
