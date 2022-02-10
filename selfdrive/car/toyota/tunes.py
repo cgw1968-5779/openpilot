@@ -64,29 +64,27 @@ def set_lat_tune(tune, name):
 
   elif name == LatTunes.INDI_PRIUS_TSS2:
     tune.init('indi')
-    tune.indi.innerLoopGainBP = [5, 8, 11.1, 16, 20, 30]
-    tune.indi.innerLoopGainV = [6, 9, 11.6, 13, 15, 15]
-    tune.indi.outerLoopGainBP = [5, 8, 11.1, 16, 20, 30]
-    tune.indi.outerLoopGainV = [5.67, 8.67, 11.3, 12.7, 14.85, 14.9]
-    #tune.indi.timeConstantBP = [16.7, 20, 30]
-    #tune.indi.timeConstantV = [0.8, 1.2, 1.8]
+    tune.indi.innerLoopGainBP = [5, 11.1, 16, 20, 30]
+    tune.indi.innerLoopGainV = [6, 11.6, 13, 15, 15]
+    tune.indi.outerLoopGainBP = [5, 11.1, 16, 20, 30]
+    tune.indi.outerLoopGainV = [5.67, 11.37, 12.7, 14.75, 14.8]
     tune.indi.actuatorEffectivenessBP = [20, 30]
-    tune.indi.actuatorEffectivenessV = [2, 15]
+    tune.indi.actuatorEffectivenessV = [2, 3]
     tune.indi.timeConstantBP = [4.15, 8.3, 11.1, 13.9, 16.7, 20, 25, 30]
-    tune.indi.timeConstantV = [0.1, 0.2, 0.3, 0.4, 0.5, 0.8, 2.0, 2.8]
+    tune.indi.timeConstantV = [0.1, 0.2, 0.3, 0.4, 0.5, 0.8, 1.2, 1.8]
 
   elif name == LatTunes.INDI_RAV4_TSS2:
     tune.init('indi')
-    tune.indi.innerLoopGainBP = [5, 8, 11.1, 16, 20, 30]
-    tune.indi.innerLoopGainV = [6, 9, 11.6, 13, 15, 15]
-    tune.indi.outerLoopGainBP = [5, 8, 11.1, 16, 20, 30]
-    tune.indi.outerLoopGainV = [5.67, 8.67, 11.3, 12.7, 14.85, 14.9]
+    tune.indi.innerLoopGainBP = [5, 11.1, 16, 20, 30]
+    tune.indi.innerLoopGainV = [6, 11.6, 13, 15, 15]
+    tune.indi.outerLoopGainBP = [5, 11.1, 16, 20, 30]
+    tune.indi.outerLoopGainV = [5.67, 11.37, 12.7, 14.75, 14.8]
     #tune.indi.timeConstantBP = [16.7, 20, 30]
     #tune.indi.timeConstantV = [0.8, 1.2, 1.8]
     tune.indi.actuatorEffectivenessBP = [20, 30]
     tune.indi.actuatorEffectivenessV = [2, 15]
     tune.indi.timeConstantBP = [4.15, 8.3, 11.1, 13.9, 16.7, 20, 25, 30]
-    tune.indi.timeConstantV = [0.1, 0.2, 0.3, 0.4, 0.5, 0.8, 2.0, 2.8]
+    tune.indi.timeConstantV = [0.1, 0.2, 0.3, 0.4, 0.5, 0.8, 1.2, 1.8]
 
   elif name == LatTunes.LQR_RAV4:
     tune.init('lqr')
