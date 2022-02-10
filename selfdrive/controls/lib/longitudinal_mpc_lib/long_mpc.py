@@ -50,8 +50,8 @@ T_IDXS = np.array(T_IDXS_LST)
 T_DIFFS = np.diff(T_IDXS, prepend=[0.])
 MIN_ACCEL = -3.5
 T_FOLLOW = 1.8
-COMFORT_BRAKE = 2.0
-STOP_DISTANCE = 5.5
+COMFORT_BRAKE = 1.5
+STOP_DISTANCE = 6.0
 
 def get_stopped_equivalence_factor(v_lead, v_ego, t_follow=T_FOLLOW):
   # KRKeegan this offset rapidly decreases the following distance when the lead pulls
