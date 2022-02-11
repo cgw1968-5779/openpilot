@@ -150,7 +150,7 @@ class CarInterface(CarInterfaceBase):
       tire_stiffness_factor = 0.7933
       ret.mass = 3585. * CV.LB_TO_KG + STD_CARGO_KG  # Average between ICE and Hybrid
       set_lat_tune(ret.lateralTuning, LatTunes.INDI_RAV4_TSS2)
-      ret.steerActuatorDelay = 0.3
+      ret.steerActuatorDelay = 0
       ret.steerRateCost = 0.5
       ret.steerLimitTimer = 0.5
 
