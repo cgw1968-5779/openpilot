@@ -79,12 +79,12 @@ def set_lat_tune(tune, name):
     tune.indi.innerLoopGainV = [6, 11.6, 13, 15, 15]
     tune.indi.outerLoopGainBP = [5, 11.1, 16, 20, 30]
     tune.indi.outerLoopGainV = [5.65, 11.35, 12.65, 14.8, 14.98]
-    #tune.indi.timeConstantBP = [16.7, 20, 30]
-    #tune.indi.timeConstantV = [0.8, 1.2, 1.8]
+    tune.indi.timeConstantBP = [16.7, 20, 30]
+    tune.indi.timeConstantV = [0.7, 1.2, 1.8]
     tune.indi.actuatorEffectivenessBP = [20, 30]
-    tune.indi.actuatorEffectivenessV = [2, 15]
-    tune.indi.timeConstantBP = [4.15, 8.3, 11.1, 13.9, 16.7, 20, 25, 30]
-    tune.indi.timeConstantV = [0.1, 0.2, 0.3, 0.4, 0.5, 0.8, 1.2, 1.8]
+    tune.indi.actuatorEffectivenessV = [5, 15]
+    #tune.indi.timeConstantBP = [4.15, 8.3, 11.1, 13.9, 16.7, 20, 25, 30]
+    #tune.indi.timeConstantV = [0.1, 0.2, 0.3, 0.4, 0.5, 0.8, 1.2, 1.8]
 
   elif name == LatTunes.LQR_RAV4:
     tune.init('lqr')
