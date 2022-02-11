@@ -339,7 +339,7 @@ class LongitudinalMpc():
     if carstate.distanceLines == 1: # Traffic
       # in kph ~= 0     10      20      30      40      45      50      60     90    150
       x_vel = [0,   2.788,    5.56,    8.333,  11.11,  12.5,   13.89,  16.67, 25.0,  41.67]
-      y_dist = [1.23, 1.2345, 1.25,  1.28,   1.32,   1.3257, 1.32,   1.29,   1.1,   1.3]
+      y_dist = [1.23, 1.23, 1.25,  1.28,   1.31,   1.3158, 1.31,   1.28,   1.1,   1.3]
       self.desired_TF = np.interp(carstate.vEgo, x_vel, y_dist)
     elif carstate.distanceLines == 2: # Relaxed
       x_vel = [0.0, 2.788,  5.56,  8.333,  11.11, 13.89, 19.44, 25.0, 41.67]
