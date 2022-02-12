@@ -15,10 +15,10 @@ _PARAMS_UPDATE_PERIOD = 2.  # secs. Time between parameter updates.
 _TEMP_INACTIVE_GUARD_PERIOD = 1.  # secs. Time to wait after activation before considering temp deactivation signal.
 
 # Lookup table for speed limit percent offset depending on speed.
-_LIMIT_PERC_OFFSET_V = [0.0,  .0256, .1,    0.0,   0.0,   .02,   .2,   0.0,   0.0,   .1,    .1429, .01,  .125,  0,     0,     .1,   .01,  .1,  .0092, .091,  .083]
-_LIMIT_PERC_OFFSET_BP = [0.0, 10.83, 11.11, 11.39, 13.33, 13.61, 13.9, 14.17, 16.39, 16.67, 19.4,  21.94, 22.2, 22.78, 24.72, 25.0, 27.5, 27.8, 30.28, 30.6, 33.3333] 
-                        # 0,  40,    44,    41,    48,    50,    60,   51,    59,    66,    80,    80,    90,   81,    89,    99,   100,  110,  110,   120,  130 kph
-                        # 0,  39,    40,    41,    48,    49,    50,   51,    59,    60,    70,    79,    80,   81,    89,    90,   99,   100,  109,   110,  120 kph
+_LIMIT_PERC_OFFSET_V = [0.0,  .0256, .1,    0.0,   0.0,   .02,   .2,   0.0,   0.0,   .1,    .1429, 0.,    .01,  .125,  0,     0,     .1,   .01,  .1,  .0092, .091,  .083]
+_LIMIT_PERC_OFFSET_BP = [0.0, 10.83, 11.11, 11.39, 13.33, 13.61, 13.9, 14.17, 16.39, 16.67, 19.4,  19.72, 21.94, 22.2, 22.78, 24.72, 25.0, 27.5, 27.8, 30.28, 30.6, 33.3333] 
+                        # 0,  40,    44,    41,    48,    50,    60,   51,    59,    66,    80,    71,    80,    90,   81,    89,    99,   100,  110,  110,   120,  130 kph
+                        # 0,  39,    40,    41,    48,    49,    50,   51,    59,    60,    70,    71,    79,    80,   81,    89,    90,   99,   100,  109,   110,  120 kph
 
 SpeedLimitControlState = log.LongitudinalPlan.SpeedLimitControlState
 EventName = car.CarEvent.EventName
