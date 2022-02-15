@@ -50,7 +50,7 @@ T_IDXS = np.array(T_IDXS_LST)
 T_DIFFS = np.diff(T_IDXS, prepend=[0.])
 MIN_ACCEL = -3.5
 T_FOLLOW = 1.45
-COMFORT_BRAKE = 2.3
+COMFORT_BRAKE = 2.2
 STOP_DISTANCE = 5.5
 
 def get_stopped_equivalence_factor(v_lead, v_ego, t_follow=T_FOLLOW):
@@ -337,9 +337,9 @@ class LongitudinalMpc():
 
   def update_TF(self, carstate):
     if carstate.distanceLines == 1: # Traffic
-      # in kph ~= 0     10      20      30      40      45      50      60     90    150
-      x_vel = [0,   2.788,    5.56,    8.333,  11.11,  12.5,   13.89,  16.67, 25.0,  41.67]
-      y_dist = [1.37, 1.37, 1.37, 1.37,  1.36,   1.33, 1.3,   1.27,   1.1,   1.3]
+      # in kph ~= 0    5     10      20      30      40      45      50      60     90    150
+      x_vel = [0,  1.394,  2.788,    5.56,    8.333,  11.11,  12.5,   13.89,  16.67, 25.0,  41.67]
+      y_dist = [1.34, 1.35, 1.37,    1.37, 1.37,  1.36,   1.33, 1.3,   1.27,   1.1,   1.3]
       self.desired_TF = np.interp(carstate.vEgo, x_vel, y_dist)
     elif carstate.distanceLines == 2: # Relaxed
       x_vel = [0.0, 2.788,  5.56,  8.333,  11.11, 13.89, 19.44, 25.0, 41.67]
