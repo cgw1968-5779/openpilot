@@ -348,7 +348,7 @@ class LongitudinalMpc():
       #self.desired_TF = 1.7
     else:
       x_vel = [0.0, 2.788,  5.56,  8.333,  11.11, 13.89, 19.44, 25.0, 41.67]
-      y_dist = [1.38,   1.44, 1.44,  1.44, 1.45,  1.5,   1.8,   2.0,    2.3]
+      y_dist = [1.4,   1.4, 1.4,  1.4, 1.45,  1.5,   1.8,   2.0,    2.3]
       #y_dist = [1.38,  1.4,  1.4,   1.4,  1.47,  1.55,  1.64,  1.8,    2.2]
       self.desired_TF = np.interp(carstate.vEgo, x_vel, y_dist)
       #self.desired_TF = T_FOLLOW
