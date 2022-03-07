@@ -64,10 +64,10 @@ def set_lat_tune(tune, name):
 
   elif name == LatTunes.INDI_PRIUS_TSS2:
     tune.init('indi')
-    tune.indi.innerLoopGainBP = [1, 8.3, 9, 11.1, 16, 20, 30]
-    tune.indi.innerLoopGainV = [3.4, 5.4, 6, 8.6, 12.4, 13, 15]
-    tune.indi.outerLoopGainBP = [1, 8.3, 9, 11.1, 16, 20, 30]
-    tune.indi.outerLoopGainV = [3.15, 5.2, 5.85, 8.47, 12.32, 12.95, 14.98]
+    tune.indi.innerLoopGainBP = [8.3, 8.4, 11.1, 12.5, 13.9, 16.7, 20, 30]
+    tune.indi.innerLoopGainV = [13.6, 5.4, 6, 7, 8.6, 10, 12.4, 13, 15]
+    tune.indi.outerLoopGainBP = [8.3, 8.4, 11.1, 12.5, 13.9, 16.7, 20, 30]
+    tune.indi.outerLoopGainV = [10, 5.1, 5.76, 6.785, 8.405, 9.87, 12.31, 12.95, 14.999]
     tune.indi.timeConstantBP = [1, 15, 20, 30]
     tune.indi.timeConstantV = [0.1, 0.43, 0.8, 1.6]
     tune.indi.actuatorEffectivenessBP = [5, 16.7, 30]
@@ -78,13 +78,11 @@ def set_lat_tune(tune, name):
     tune.indi.innerLoopGainBP = [8.3, 8.4, 11.1, 12.5, 13.9, 16.7, 20, 30]
     tune.indi.innerLoopGainV = [13.6, 5.4, 6, 7, 8.6, 10, 12.4, 13, 15]
     tune.indi.outerLoopGainBP = [8.3, 8.4, 11.1, 12.5, 13.9, 16.7, 20, 30]
-    tune.indi.outerLoopGainV = [10, 5.1, 5.76, 6.785, 8.405, 9.87, 12.31, 12.95, 14.98]
+    tune.indi.outerLoopGainV = [10, 5.1, 5.76, 6.785, 8.405, 9.87, 12.31, 12.95, 14.999]
     tune.indi.timeConstantBP = [1, 15, 20, 30]
     tune.indi.timeConstantV = [0.1, 0.43, 0.8, 1.6]
     tune.indi.actuatorEffectivenessBP = [5, 16.7, 30]
     tune.indi.actuatorEffectivenessV = [15, 15, 12.5]
-    #tune.indi.timeConstantBP = [4.15, 8.3, 11.1, 13.9, 16.7, 20, 25, 30]
-    #tune.indi.timeConstantV = [0.1, 0.2, 0.3, 0.4, 0.5, 0.8, 1.2, 1.8]
 
   elif name == LatTunes.LQR_RAV4:
     tune.init('lqr')
