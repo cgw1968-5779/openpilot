@@ -515,7 +515,7 @@ EVENTS: Dict[int, Dict[str, Union[Alert, AlertCallbackType]]] = {
       _("接管控制"),
       _("彎道超出自駕範圍"),
       AlertStatus.userPrompt, AlertSize.mid,
-      Priority.LOW, VisualAlert.steerRequired, AudibleAlert.promptRepeat, 0.),
+      Priority.LOW, VisualAlert.steerRequired, AudibleAlert.none, 0.),
   },
 
   # Thrown when the fan is driven at >50% but is not rotating
