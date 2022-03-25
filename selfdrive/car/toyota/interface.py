@@ -151,7 +151,7 @@ class CarInterface(CarInterfaceBase):
       ret.mass = 3585. * CV.LB_TO_KG + STD_CARGO_KG  # Average between ICE and Hybrid
       set_lat_tune(ret.lateralTuning, LatTunes.INDI_RAV4_TSS2)
       ret.steerActuatorDelay = 0
-      ret.steerRateCost = 1.15
+      ret.steerRateCost = 1.1
       ret.steerLimitTimer = 0.35
 
       # 2019+ Rav4 TSS2 uses two different steering racks and specific tuning seems to be necessary.
