@@ -38,7 +38,7 @@ def set_long_tune(tune, name):
     #tune.kiBP = [0., 3., 5., 12., 20., 27.]
     #tune.kiV = [.3, .27, .24, .22, .17, .05]
     tune.kiBP = [0., 5., 12., 20., 27.]
-    tune.kiV = [.285, .26, .24, .17, .07]
+    tune.kiV = [.285, .265, .24, .17, .07]
   # Default longitudinal tune
   elif name == LongTunes.TSS:
     tune.deadzoneBP = [0., 9.]
@@ -81,8 +81,8 @@ def set_lat_tune(tune, name):
     tune.indi.innerLoopGainV = [5.2,    7.8,    8.8,   10,    12.8,  15]
     tune.indi.outerLoopGainBP = [8.3,   12.10,  13.9,  16.7,  20,    30]
     tune.indi.outerLoopGainV = [5.099,  7.701, 8.6162, 9.8383, 12.795, 14.999]
-    tune.indi.timeConstantBP = [8.33, 13.9, 17,  20, 20.01, 23.88, 23.89,  30,  40]
-    tune.indi.timeConstantV = [0.2427, 0.3123, 0,359, 0.55, 0.8, 1.1, 1.2, 2.1, 2.6]
+    tune.indi.timeConstantBP = [8.33,  11.1,  13.9,   17,   20,  20.01, 23.88, 23.89,  30,  40]
+    tune.indi.timeConstantV = [0.2427, 0.2785, 0.3123, 0,359, 0.55, 0.8, 1.1, 1.2, 2.1, 2.6]
     #tune.indi.timeConstantV = [0.15, 0.2425, 0.4, 0,57, 0.9, 1.3, 1.5, 1.9,  2.4]
     tune.indi.actuatorEffectivenessBP = [10, 11, 11.1, 25, 33]
     tune.indi.actuatorEffectivenessV = [15, 15, 15, 14, 12.5]
