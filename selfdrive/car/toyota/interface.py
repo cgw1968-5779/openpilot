@@ -287,7 +287,7 @@ class CarInterface(CarInterfaceBase):
       ret.steerRatio = 14.3
       tire_stiffness_factor = 0.7933
       ret.mass = 3585. * CV.LB_TO_KG + STD_CARGO_KG # Average between ICE and Hybrid
-      ret.lateralTuning.init('indi') 
+      ret.lateralTuning.init('indi')
       ret.lateralTuning.indi.innerLoopGainBP = [5.0, 8.3,   11.1,  12.10,  13.9,  16.7,  17.5,  17.51, 20,    30]
       ret.lateralTuning.indi.innerLoopGainV = [3.13, 5.2,   6.66,  7.8,    8.8,   10,    10.5,  10.5,  12.8,  15]
       ret.lateralTuning.indi.outerLoopGainBP = [5.0, 8.3,   11.1,  12.10,  13.9,  16.7,  17.5,  17.51, 20,     
