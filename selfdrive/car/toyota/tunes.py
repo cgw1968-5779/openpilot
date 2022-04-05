@@ -25,6 +25,7 @@ class LatTunes(Enum):
   PID_M = 14
   PID_N = 15
   INDI_PRIUS_TSS2 = 16
+  INDI_RAV4_TSS2 = 17
 
 ###### LONG ######
 def set_long_tune(tune, name):
@@ -34,8 +35,10 @@ def set_long_tune(tune, name):
     tune.deadzoneV = [.0, .14]
     tune.kpBP = [0., 5., 20.]
     tune.kpV = [1.3, 1.0, 0.7]
+    #tune.kiBP = [0., 3., 5., 12., 20., 27.]
+    #tune.kiV = [.3, .27, .24, .22, .17, .05]
     tune.kiBP = [0., 5., 12., 20., 27.]
-    tune.kiV = [.35, .23, .20, .17, .1]
+    tune.kiV = [.242, .24, .235, .17, .07]
   # Default longitudinal tune
   elif name == LongTunes.TSS:
     tune.deadzoneBP = [0., 9.]
@@ -71,6 +74,18 @@ def set_lat_tune(tune, name):
     tune.indi.timeConstantV = [2.0, 2.2]
     tune.indi.actuatorEffectivenessBP = [20, 24]
     tune.indi.actuatorEffectivenessV = [2, 3]
+
+  elif name == LatTunes.INDI_RAV4_TSS2:
+    tune.init('indi')
+    tune.indi.innerLoopGainBP = [5.0, 8.3,   12.10,  13.9,  16.7,  17.5,  17.51, 20,    30]
+    tune.indi.innerLoopGainV = [3.13, 5.2,    7.8,    8.8,   10,    10.5,  10.5,  12.8,  15]
+    tune.indi.outerLoopGainBP = [5.0, 8.3,   12.10,  13.9,  16.7,  17.5,  17.51, 20,    30]
+    tune.indi.outerLoopGainV = [2.9275, 5.099,  7.7085, 8.61, 9.81, 10.35, 10.496, 12.798, 14.999]
+    tune.indi.timeConstantBP = [5.0,  8.33,  11.1,  13.9,   16.7,   17.5, 18,  20,  22.5, 23.88, 23.89,  30,  40]
+    tune.indi.timeConstantV = [0.1461, 0.2427, 0.27877, 0.3118, 0,3295, 0.358, 0.525, 0.6250, 0.85, 1.1, 1.2, 2.3, 2.6]
+    #tune.indi.timeConstantV = [0.15, 0.24275, 0.4, 0,57, 0.9, 1.3, 1.5, 1.9,  2.4]
+    tune.indi.actuatorEffectivenessBP = [10, 11, 11.1, 25, 33]
+    tune.indi.actuatorEffectivenessV = [15, 15, 15, 11, 11]
 
   elif name == LatTunes.LQR_RAV4:
     tune.init('lqr')
