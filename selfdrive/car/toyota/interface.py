@@ -152,7 +152,7 @@ class CarInterface(CarInterfaceBase):
       set_lat_tune(ret.lateralTuning, LatTunes.INDI_RAV4_TSS2)
       ret.steerActuatorDelay = 0
       ret.steerRateCost = 1.25
-      ret.steerLimitTimer = 0.35
+      ret.steerLimitTimer = 1.0
 
       # 2019+ Rav4 TSS2 uses two different steering racks and specific tuning seems to be necessary.
       # See https://github.com/commaai/openpilot/pull/21429#issuecomment-873652891
