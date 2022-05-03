@@ -77,12 +77,12 @@ def set_lat_tune(tune, name):
 
   elif name == LatTunes.INDI_RAV4_TSS2:
     tune.init('indi')
-    tune.indi.innerLoopGainBP = [6.0, 8.3,   12.10,  13.9,  16.7,  20,    30]
-    tune.indi.innerLoopGainV = [4.0, 5.2,    7.9,    8.8,   10,    12.8,  15]
-    tune.indi.outerLoopGainBP = [6.0, 8.3,   12.10,  13.9,  16.7,  20,    30]
-    tune.indi.outerLoopGainV = [3.78, 4.98,  7.8015, 8.61625, 9.83828, 12.3, 14.999]
+    tune.indi.innerLoopGainBP = [6.0, 8.3,   12.10,  13.9,  16.7,  20,    25,    30]
+    tune.indi.innerLoopGainV = [4.0, 5.2,    7.9,    8.8,   10,    12.8,  14,    15]
+    tune.indi.outerLoopGainBP = [6.0, 8.3,   12.10,  13.9,  16.7,  20,    25,    30]
+    tune.indi.outerLoopGainV = [3.78, 4.98,  7.8015, 8.61625, 9.83828, 12.3, 13.88, 14.999]
     tune.indi.timeConstantBP = [8.33,  11.1,  13.9,   17,   20,  22.5, 23.88, 23.89,  30,  40]
-    tune.indi.timeConstantV = [0.2427, 0.2785, 0.31225, 0,35867, 0.5460, 0.85, 1.1, 1.2, 2.1, 2.6]
+    tune.indi.timeConstantV = [0.2427, 0.2785, 0.31225, 0,35867, 0.5460, 0.85, 1.1, 1.2, 2.6, 3.2]
     #tune.indi.timeConstantV = [0.15, 0.2425, 0.4, 0,57, 0.9, 1.3, 1.5, 1.9,  2.4]
     tune.indi.actuatorEffectivenessBP = [10, 11, 11.1, 25, 33]
     tune.indi.actuatorEffectivenessV = [15, 15, 15, 15, 15]
