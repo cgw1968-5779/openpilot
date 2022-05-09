@@ -35,7 +35,7 @@ V_EGO_COST = 0.
 A_EGO_COST = 0.
 J_EGO_COST = 5.0
 A_CHANGE_COST = .5
-DANGER_ZONE_COST = 100.
+DANGER_ZONE_COST = 80.
 CRASH_DISTANCE = .5
 LIMIT_COST = 1e6
 
@@ -50,8 +50,8 @@ T_IDXS = np.array(T_IDXS_LST)
 T_DIFFS = np.diff(T_IDXS, prepend=[0.])
 MIN_ACCEL = -3.5
 T_FOLLOW = 1.45
-COMFORT_BRAKE = 2.5
-STOP_DISTANCE = 5.5
+COMFORT_BRAKE = 2.0
+STOP_DISTANCE = 5.75
 
 def get_stopped_equivalence_factor(v_lead, v_ego, t_follow=T_FOLLOW):
   # KRKeegan this offset rapidly decreases the following distance when the lead pulls
@@ -335,19 +335,28 @@ class LongitudinalMpc:
 
   def update_TF(self, carstate):
     if carstate.distanceLines == 1: # Traffic
-      # At slow speeds more time, decrease time up to 60mph
-      # in kph ~= 0    10    20     30     40     50     60     90    150
-      x_vel = [0,   2.788,  5.56,  8.333,  11.11, 13.89, 16.67, 25.0, 41.67]
-      y_dist = [1.24, 1.24, 1.27,  1.29,   1.35,  1.35,   1.35,  1.1,  1.3]
+      # in kph ~= 0     20     40      60      90     150
+      x_vel = [0,    5.56,    11.11,   13.89,  25.0,  41.67]
+      y_dist = [1.2,  1.3,   1.3,    1.2,    1.2,   1.3]
+      # in kph ~= 0    20      30      40      45      50      60      90     150
+      #x_vel = [0,     5.56,   8.333,  11.11,  12.5,   13.89,  16.67,  25.0,  41.67]
+      #y_dist = [1.34, 1.35,   1.36,   1.37,   1.36,   1.3,    1.22,   1.14,  1.4]
       self.desired_TF = np.interp(carstate.vEgo, x_vel, y_dist)
     elif carstate.distanceLines == 2: # Relaxed
-      x_vel = [0.0, 2.788,  5.56,  8.333,  11.11, 13.89, 19.44, 27.78, 41.67]  # velocities
-      y_dist = [1.27, 1.27, 1.29,   1.32,   1.38,  1.38,  1.38,  1.619, 1.8]
+      # in kph ~= 0     20     40      60      90     150
+      x_vel = [0,    5.56,    11.11,   13.89,  25.0,  41.67]
+      y_dist = [1.2,   1.35,   1.43,    1.43,   1.5,   1.8]
+      #x_vel = [0,     5.56,   8.333,  11.11,  12.5,   13.89,  16.67,  25.0,  41.67]
+      #y_dist = [1.4,  1.4,    1.41,   1.43,   1.446,  1.467,  1.48,   1.6,  1.8]
       self.desired_TF = np.interp(carstate.vEgo, x_vel, y_dist)
       #self.desired_TF = 1.7
     else:
-      x_vel = [0, 2.25, 4.5, 6.75, 9, 11.25, 13.5, 15.75, 18, 20.25, 22.5, 24.75, 27, 29.25, 31.5, 33.75, 36, 38.25, 40.5]
-      y_dist = [1.25, 1.24, 1.23, 1.22, 1.21, 1.20, 1.18, 1.16, 1.13, 1.11, 1.09, 1.07, 1.05, 1.05, 1.05, 1.05, 1.05, 1.05, 1.05]
+      # in kph ~= 0     20     40      60      90     150
+      x_vel = [0,    5.56,    11.11,   13.89,  25.0,  41.67]
+      y_dist = [1.2,   1.5,    1.8,    2.0,    2.2,   2.3]
+      #x_vel = [0,     5.56,   8.333,  11.11,  12.5,   13.89,  16.67,  25.0,  41.67]
+      #y_dist = [1.42, 1.42,   1.42,   1.42,   1.46,   1.5,    1.8,    2.0,   2.3]
+      #y_dist = [1.4, 1.4,    1.4,    1.4,    1.47,   1.55,   1.64,   1.8,   2.2]
       self.desired_TF = np.interp(carstate.vEgo, x_vel, y_dist)
       #self.desired_TF = T_FOLLOW
 
