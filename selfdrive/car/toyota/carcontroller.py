@@ -59,7 +59,7 @@ class CarController():
       apply_steer = 0
       apply_steer_req = 0
     else:
-       apply_steer_req = 1
+      apply_steer_req = 1
 
     # TODO: probably can delete this. CS.pcm_acc_status uses a different signal
     # than CS.cruiseState.enabled. confirm they're not meaningfully different
