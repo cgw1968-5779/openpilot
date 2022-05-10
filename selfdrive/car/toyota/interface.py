@@ -99,7 +99,7 @@ class CarInterface(CarInterfaceBase):
       ret.steerRatio = 16.0
       tire_stiffness_factor = 0.8
       ret.mass = 4700. * CV.LB_TO_KG + STD_CARGO_KG  # 4260 + 4-5 people
-      set_lat_tune(ret.lateralTuning, LatTunes.PID_G)
+      set_lat_tune(ret.lateralTuning, LatTunes.TORQUE, MAX_TORQUE=2.002003, FRICTION=0.094278)
 
     elif candidate in (CAR.HIGHLANDER, CAR.HIGHLANDERH):
       stop_and_go = True
@@ -107,7 +107,7 @@ class CarInterface(CarInterfaceBase):
       ret.steerRatio = 16.0
       tire_stiffness_factor = 0.8
       ret.mass = 4607. * CV.LB_TO_KG + STD_CARGO_KG  # mean between normal and hybrid limited
-      set_lat_tune(ret.lateralTuning, LatTunes.PID_G)
+      set_lat_tune(ret.lateralTuning, LatTunes.TORQUE, MAX_TORQUE=1.867355, FRICTION=0.074390)
 
     elif candidate in (CAR.AVALON, CAR.AVALON_2019, CAR.AVALONH_2019, CAR.AVALON_TSS2):
       ret.wheelbase = 2.82
