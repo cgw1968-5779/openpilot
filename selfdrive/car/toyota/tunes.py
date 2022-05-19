@@ -55,7 +55,7 @@ def set_long_tune(tune, name):
 
 
 ###### LAT ######
-def set_lat_tune(tune, name, MAX_TORQUE=2.5, FRICTION=.1):
+def set_lat_tune(tune, name, MAX_TORQUE=2.512628, FRICTION=0.053784):
   if name == LatTunes.TORQUE:
     tune.init('torque')
     tune.torque.useSteeringAngle = True
