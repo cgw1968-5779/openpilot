@@ -47,30 +47,30 @@ confs = [
   {'name': 'dp_last_modified', 'default': str(floor(time.time())), 'type': 'Text', 'conf_type': ['param']},
 
   # lateral - alc
-  {'name': 'dp_lateral_mode', 'default': 1, 'type': 'UInt8', 'min': 0, 'max': 2, 'conf_type': ['param', 'struct']},
+  {'name': 'dp_lateral_mode', 'default': 2, 'type': 'UInt8', 'min': 0, 'max': 2, 'conf_type': ['param', 'struct']},
   # {'name': 'dp_signal_off_delay', 'default': 3., 'type': 'Float32', 'min': 0., 'max': 10., 'depends': [{'name': 'dp_lateral_mode', 'vals': [0]}], 'conf_type': ['param', 'struct']},
-  {'name': 'dp_lc_min_mph', 'default': 30, 'type': 'UInt8', 'min': 0, 'max': 255, 'depends': [{'name': 'dp_lateral_mode', 'vals': [1, 2]}], 'conf_type': ['param', 'struct']},
-  {'name': 'dp_lc_auto_min_mph', 'default': 40, 'type': 'UInt8', 'min': 0, 'max': 255, 'depends': [{'name': 'dp_lateral_mode', 'vals': [2]}], 'conf_type': ['param', 'struct']},
-  {'name': 'dp_lc_auto_delay', 'default': 3., 'type': 'Float32', 'min': 0., 'max': 10., 'depends': [{'name': 'dp_lateral_mode', 'vals': [2]}], 'conf_type': ['param', 'struct']},
+  {'name': 'dp_lc_min_mph', 'default': 1, 'type': 'UInt8', 'min': 0, 'max': 255, 'depends': [{'name': 'dp_lateral_mode', 'vals': [1, 2]}], 'conf_type': ['param', 'struct']},
+  {'name': 'dp_lc_auto_min_mph', 'default': 47, 'type': 'UInt8', 'min': 0, 'max': 255, 'depends': [{'name': 'dp_lateral_mode', 'vals': [2]}], 'conf_type': ['param', 'struct']},
+  {'name': 'dp_lc_auto_delay', 'default': 0.3, 'type': 'Float32', 'min': 0., 'max': 10., 'depends': [{'name': 'dp_lateral_mode', 'vals': [2]}], 'conf_type': ['param', 'struct']},
 
   #ui
   {'name': 'dp_ip_addr', 'default': '', 'type': 'Text', 'conf_type': ['struct']},
   {'name': 'dp_quiet_drive', 'default': False, 'type': 'Boolean', 'conf_type': ['param']},
-  {'name': 'dp_ui_top', 'default': False, 'type': 'Bool', 'conf_type': ['param', 'struct']},
-  {'name': 'dp_ui_side', 'default': False, 'type': 'Bool', 'conf_type': ['param', 'struct']},
+  {'name': 'dp_ui_top', 'default': True, 'type': 'Bool', 'conf_type': ['param', 'struct']},
+  {'name': 'dp_ui_side', 'default': True, 'type': 'Bool', 'conf_type': ['param', 'struct']},
   {'name': 'dp_ui_volume', 'default': -5, 'type': 'Int8', 'min': -5, 'max': 100, 'conf_type': ['param', 'struct']},
   {'name': 'dp_ui_brightness', 'default': 0, 'type': 'UInt8', 'min': 0, 'max': 100, 'conf_type': ['param', 'struct']},
   {'name': 'dp_ui_display_mode', 'default': 0, 'type': 'UInt8', 'min': 0, 'max': 1, 'conf_type': ['param', 'struct']},
 
   #toyota
   {'name': 'dp_toyota_sng', 'default': False, 'type': 'Bool', 'conf_type': ['param', 'struct']},
-  {'name': 'dp_accel_profile_ctrl', 'default': False, 'type': 'Bool', 'conf_type': ['param', 'struct']},
+  {'name': 'dp_accel_profile_ctrl', 'default': True, 'type': 'Bool', 'conf_type': ['param', 'struct']},
   {'name': 'dp_accel_profile', 'default': 0, 'type': 'UInt8', 'min': 0, 'max': 2, 'depends': [{'name': 'dp_accel_profile_ctrl', 'vals': [True]}], 'conf_type': ['param', 'struct']},
-  {'name': 'dp_toyota_ap_btn_link', 'default': False, 'type': 'Bool', 'conf_type': ['param']},
+  {'name': 'dp_toyota_ap_btn_link', 'default': True, 'type': 'Bool', 'conf_type': ['param']},
   {'name': 'dp_toyota_cruise_override', 'default': False, 'type': 'Bool', 'conf_type': ['param', 'struct']},
 
-  {'name': 'dp_use_lanelines', 'default': False, 'type': 'Bool', 'conf_type': ['param', 'struct']},
-  {'name': 'dp_mapd', 'default': False, 'type': 'Bool', 'conf_type': ['param', 'struct']},
+  {'name': 'dp_use_lanelines', 'default': True, 'type': 'Bool', 'conf_type': ['param', 'struct']},
+  {'name': 'dp_mapd', 'default': True, 'type': 'Bool', 'conf_type': ['param', 'struct']},
 
   # # dashcam related
   # {'name': 'dp_dashcamd', 'default': False, 'type': 'Bool', 'conf_type': ['param', 'struct']},
