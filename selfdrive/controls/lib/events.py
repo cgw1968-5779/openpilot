@@ -450,7 +450,7 @@ EVENTS: Dict[int, Dict[str, Union[Alert, AlertCallbackType]]] = {
 
   EventName.steerTempUnavailableSilent: {
     ET.WARNING: Alert(
-      _("Steering Temporarily Unavailable"),
+      _(""),
       "",
       AlertStatus.normal, AlertSize.small,
       Priority.LOW, VisualAlert.none, AudibleAlert.none, 0.),
@@ -558,8 +558,8 @@ EVENTS: Dict[int, Dict[str, Union[Alert, AlertCallbackType]]] = {
 
   EventName.steerSaturated: {
     ET.WARNING: Alert(
-      _("Take Control"),
-      _("Turn Exceeds Steering Limit"),
+      _(""),
+      _(""),
       AlertStatus.normal, AlertSize.mid,
       Priority.LOW, VisualAlert.none, AudibleAlert.none, 0.),
   },
@@ -596,7 +596,7 @@ EVENTS: Dict[int, Dict[str, Union[Alert, AlertCallbackType]]] = {
 
   EventName.speedLimitActive: {
     ET.WARNING: Alert(
-      "Cruise set to speed limit",
+      "速度已設定為道路速限",
       "",
       AlertStatus.normal, AlertSize.small,
       Priority.LOW, VisualAlert.none, AudibleAlert.none, 2.),
