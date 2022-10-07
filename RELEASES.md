@@ -1,3 +1,16 @@
+dragonpilot 0.8.13-2
+========================
+* ADDED: TORQUE controller. (Toyota only)
+* NOTE: LQR TOGGLE IS NO LOGGER FUNCTIONAL. WILL SOON BE RELPACED WITH TORQUE TOGGLE.
+*NEOS 20: improved reliability
+
+dragonpilot 0.8.13-1
+========================
+* Based on openpilot 0.8.13 devel.
+* ADDED: Support for SDSU. Can now control distance with the button on the steering wheel. (Thanks to @CT9212)
+* FIXED: DLP fix. (Thank to @Hikari1023)
+* Bug fixes.
+
 Version 0.8.13 (2022-02-18)
 ========================
  * Improved driver monitoring
