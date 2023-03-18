@@ -251,17 +251,10 @@ class CarInterface(CarInterfaceBase):
     tune.deadzoneBP = [0., 9.]
     tune.deadzoneV = [.0, .15]
     if candidate in TSS2_CAR or ret.enableGasInterceptor:
-
-      tune.kpBP = [0., 5., 20., 30.]
-      tune.kpV = [1.3, 1.0, 0.7, 0.1]
-      #really smooth (make it toggleable)
-      #tune.kiBP = [0., 0.07, 5, 8, 11., 18., 20., 24., 33.]
-      #tune.kiV = [.001, .01, .1, .18, .21, .22, .23, .22, .001]
-      #okay ish
-      #tune.kiBP = [0., 11., 17., 20., 24., 30., 33., 40.]
-      #tune.kiV = [.001, .21, .22, .23, .22, .1, .001, .0001]
-      tune.kiBP = [0.,   3.3,  5,   11.1,  19.4,   30.,  40.]
-      tune.kiV =  [.30,  .345, .24, .198,  .176,   .02,  .005]
+      tune.kpBP = [0., 5., 20.]
+      tune.kpV = [1.3, 1.0, 0.7]
+      tune.kiBP = [0., 5., 12., 20., 27., 40.]
+      tune.kiV = [.35, .23, .20, .17, .1, .005]
       if candidate in TSS2_CAR:
         #ret.vEgoStopping = 0.3  # car is near 0.1 to 0.2 when car starts requesting stopping accel
         ret.vEgoStarting = 0.1 # needs to be > or == vEgoStopping
