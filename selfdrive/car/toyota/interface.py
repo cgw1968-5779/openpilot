@@ -124,9 +124,9 @@ class CarInterface(CarInterfaceBase):
       ret.lateralTuning.init('pid')
       ret.lateralTuning.pid.kiBP = [0.0]
       ret.lateralTuning.pid.kpBP = [0.0]
-      ret.lateralTuning.pid.kpV = [0.6]
-      ret.lateralTuning.pid.kiV = [0.1]
-      ret.lateralTuning.pid.kf = 0.00007818594
+      ret.lateralTuning.pid.kpV = [0.5796]
+      ret.lateralTuning.pid.kiV = [0.09995]
+      ret.lateralTuning.pid.kf = 0.00007818594019
 
       # 2019+ RAV4 TSS2 uses two different steering racks and specific tuning seems to be necessary.
       # See https://github.com/commaai/openpilot/pull/21429#issuecomment-873652891
@@ -245,14 +245,14 @@ class CarInterface(CarInterfaceBase):
       tune.kpBP = [0., 5., 20.]
       tune.kpV = [1.3, 1.0, 0.7]
       tune.kiBP = [0., 3., 4., 5., 12., 20., 23., 40.]
-      tune.kiV = [.08, .16, .26, .215, .20, .166, .1, .006]
+      tune.kiV = [.16, .16, .25, .216, .20, .166, .1, .006]
       if candidate in TSS2_CAR:
-        #ret.vEgoStopping = 0.3  # car is near 0.1 to 0.2 when car starts requesting stopping accel
-        ret.vEgoStarting = 0.1 # needs to be > or == vEgoStopping
-        #ret.stopAccel = -0.1  # Toyota requests -0.4 when stopped
-        ret.stoppingDecelRate = 0.04  # reach stopping target smoothly - seems to take 0.5 seconds to go from 0 to -0.4
-        #ret.longitudinalActuatorDelayLowerBound = 0.3
-        #ret.longitudinalActuatorDelayUpperBound = 0.3
+        ret.vEgoStopping = 0.1         # car is near 0.1 to 0.2 when car starts requesting stopping accel
+        ret.vEgoStarting = 0.1         # needs to be > or == vEgoStopping
+        ret.stopAccel = -0.4           # Toyota requests -0.4 when stopped
+        ret.stoppingDecelRate = 0.04   # reach stopping target smoothly
+        ret.longitudinalActuatorDelayLowerBound = 0.2
+        ret.longitudinalActuatorDelayUpperBound = 0.2
         ### stock ###
         #ret.vEgoStopping = 0.25
         #ret.vEgoStarting = 0.25
