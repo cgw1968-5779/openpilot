@@ -68,7 +68,7 @@ class LateralPlanner:
       self.dp_camera_offset = sm['dragonConf'].dpLateralCameraOffset
       self.dp_path_offset = sm['dragonConf'].dpLateralPathOffset
       if sm['controlsState'].dpLateralAltActive and sm['dragonConf'].dpLateralAltLanelines:
-        self.dp_lanelines_enable = True
+        self.dp_lanelines_enable = False
         self.dp_camera_offset = sm['dragonConf'].dpLateralAltCameraOffset
         self.dp_path_offset = sm['dragonConf'].dpLateralAltPathOffset
 
