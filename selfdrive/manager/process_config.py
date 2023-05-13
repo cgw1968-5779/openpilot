@@ -67,7 +67,7 @@ procs = [
   PythonProcess("thermald", "selfdrive.thermald.thermald", offroad=True),
   PythonProcess("tombstoned", "selfdrive.tombstoned", enabled=not PC, offroad=True),
   PythonProcess("updated", "selfdrive.updated", enabled=not PC, onroad=False, offroad=True),
-  PythonProcess("uploader", "system.loggerd.uploader", offroad=False),
+  #PythonProcess("uploader", "system.loggerd.uploader", offroad=False),
   PythonProcess("statsd", "selfdrive.statsd", offroad=True),
 
   # debug procs
