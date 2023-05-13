@@ -143,7 +143,7 @@ def manager_thread() -> None:
   # dp
   if TICI:
     params.put_bool('dp_dm', True)
-    params.put_bool('dp_jetson', False)
+    params.put_bool('dp_jetson', True)
   dp_nav = params.get_bool('dp_nav')
   dp_otisserv = dp_nav and params.get_bool('dp_otisserv')
   dp_jetson = params.get_bool('dp_jetson')
