@@ -50,9 +50,9 @@ confs = [
   # lateral - alc
   {'name': 'dp_lateral_mode', 'default': 2, 'type': 'UInt8', 'min': 0, 'max': 2, 'conf_type': ['param', 'struct']},
   # {'name': 'dp_signal_off_delay', 'default': 3., 'type': 'Float32', 'min': 0., 'max': 10., 'depends': [{'name': 'dp_lateral_mode', 'vals': [0]}], 'conf_type': ['param', 'struct']},
-  {'name': 'dp_lc_min_mph', 'default': 19, 'type': 'UInt8', 'min': 0, 'max': 255, 'depends': [{'name': 'dp_lateral_mode', 'vals': [1, 2]}], 'conf_type': ['param', 'struct']},
-  {'name': 'dp_lc_auto_min_mph', 'default': 43, 'type': 'UInt8', 'min': 0, 'max': 255, 'depends': [{'name': 'dp_lateral_mode', 'vals': [2]}], 'conf_type': ['param', 'struct']},
-  {'name': 'dp_lc_auto_delay', 'default': 3., 'type': 'Float32', 'min': 0., 'max': 10., 'depends': [{'name': 'dp_lateral_mode', 'vals': [2]}], 'conf_type': ['param', 'struct']},
+  {'name': 'dp_lc_min_mph', 'default': 18, 'type': 'UInt8', 'min': 0, 'max': 255, 'depends': [{'name': 'dp_lateral_mode', 'vals': [1, 2]}], 'conf_type': ['param', 'struct']},
+  {'name': 'dp_lc_auto_min_mph', 'default': 37, 'type': 'UInt8', 'min': 0, 'max': 255, 'depends': [{'name': 'dp_lateral_mode', 'vals': [2]}], 'conf_type': ['param', 'struct']},
+  {'name': 'dp_lc_auto_delay', 'default': 0.3, 'type': 'Float32', 'min': 0., 'max': 10., 'depends': [{'name': 'dp_lateral_mode', 'vals': [2]}], 'conf_type': ['param', 'struct']},
   {'name': 'dp_lateral_lanelines', 'default': True, 'type': 'Bool', 'conf_type': ['param', 'struct']},
   {'name': 'dp_lateral_camera_offset', 'default': 4 if TICI else -6, 'type': 'Int8', 'min': -100, 'max': 100, 'depends': [{'name': 'dp_lateral_lanelines', 'vals': [True]}], 'conf_type': ['param', 'struct']},
   {'name': 'dp_lateral_path_offset', 'default': 4 if TICI else 0, 'type': 'Int8', 'min': -100, 'max': 100, 'depends': [{'name': 'dp_lateral_lanelines', 'vals': [True]}], 'conf_type': ['param', 'struct']},
@@ -93,7 +93,7 @@ confs = [
   {'name': 'dp_dashcamd', 'default': False, 'type': 'Bool', 'conf_type': ['param', 'struct']},
   # # auto shutdown
   {'name': 'dp_auto_shutdown', 'default': True, 'type': 'Bool', 'conf_type': ['param']},
-  {'name': 'dp_auto_shutdown_in', 'default': 10, 'type': 'UInt16', 'min': 0, 'max': 600, 'depends': [{'name': 'dp_auto_shutdown', 'vals': [True]}], 'conf_type': ['param']},
+  {'name': 'dp_auto_shutdown_in', 'default': 20, 'type': 'UInt16', 'min': 0, 'max': 600, 'depends': [{'name': 'dp_auto_shutdown', 'vals': [True]}], 'conf_type': ['param']},
 
   {'name': 'dp_mazda_steer_alert', 'default': False, 'type': 'Bool', 'conf_type': ['param', 'struct']},
   {'name': 'dp_mazda_dashcam_bypass', 'default': False, 'type': 'Bool', 'conf_type': ['param']},
@@ -147,7 +147,7 @@ confs = [
   # {'name': 'dp_toyota_no_min_acc_limit', 'default': False, 'type': 'Bool', 'conf_type': ['param']},
   # {'name': 'dp_toyota_ldw', 'default': True, 'type': 'Bool', 'conf_type': ['param', 'struct']},
   {'name': 'dp_toyota_zss', 'default': False, 'type': 'Bool', 'conf_type': ['param']},
-  {'name': 'dp_toyota_change5speed', 'default': False, 'type': 'Bool', 'conf_type': ['param']},
+  {'name': 'dp_toyota_change5speed', 'default': True, 'type': 'Bool', 'conf_type': ['param']},
   # {'name': 'dp_toyota_fp_btn_link', 'default': False, 'type': 'Bool', 'conf_type': ['param']},
   # {'name': 'dp_toyota_ap_btn_link', 'default': False, 'type': 'Bool', 'conf_type': ['param']},
   # {'name': 'dp_toyota_disable_relay', 'default': False, 'type': 'Bool', 'conf_type': ['param']},
