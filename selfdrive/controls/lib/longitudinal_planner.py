@@ -25,7 +25,7 @@ A_CRUISE_MAX_VALS = [1.6, 1.2, 0.8, 0.6]
 A_CRUISE_MAX_BP = [0., 10.0, 25., 40.]
 
 # Lookup table for turns
-_A_TOTAL_MAX_V = [1.7, 3.2]
+_A_TOTAL_MAX_V = [1.9, 3.2]
 _A_TOTAL_MAX_BP = [20., 40.]
 
 #DP_FOLLOWING_DIST = {
@@ -40,10 +40,10 @@ DP_ACCEL_NORMAL = 1
 DP_ACCEL_SPORT = 2
 
 # accel profile by @arne182 modified by cgw
-_DP_CRUISE_MIN_V =       [-0.45,  -0.50,  -0.55, -0.60,  -0.65, -0.50, -0.45]
-_DP_CRUISE_MIN_V_ECO =   [-0.40,  -0.45,  -0.50, -0.55,  -0.60, -0.45, -0.40]
-_DP_CRUISE_MIN_V_SPORT = [-1.00,  -1.00,  -1.00, -1.00,  -1.00, -1.00, -1.00]
-_DP_CRUISE_MIN_BP =      [0.,     0.07,   3.1,   10.,   20.,    30.,   55.]
+_DP_CRUISE_MIN_V =       [-0.45,  -0.50,  -0.55, -0.60,  -0.70, -0.45]
+_DP_CRUISE_MIN_V_ECO =   [-0.40,  -0.45,  -0.50, -0.55,  -0.60, -0.40]
+_DP_CRUISE_MIN_V_SPORT = [-1.00,  -1.00,  -1.00, -1.00,  -1.00, -1.00]
+_DP_CRUISE_MIN_BP =      [0.,     0.07,   3.1,   10.,   20.,   55.]
 
 _DP_CRUISE_MAX_V =       [3.5, 3.4, 2.1, 1.6, 1.1, 0.91, 0.69, 0.45, 0.34, 0.13]
 _DP_CRUISE_MAX_V_ECO =   [3.0, 1.8, 1.3, 1.0, 0.71, 0.59, 0.45, 0.36, 0.28, 0.09]
