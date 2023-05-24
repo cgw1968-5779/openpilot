@@ -246,7 +246,7 @@ class CarInterface(CarInterfaceBase):
     if candidate in TSS2_CAR or ret.enableGasInterceptor:
       tune.kpBP = [0., 5., 20., 30.]
       tune.kpV = [1.3, 1.0, 0.7, 0.1]
-      tune.kiBP = [0.,  6.0, 12., 20.,  23.,  40]
+      tune.kiBP = [0.,  5.0, 12., 20.,  23.,  40]
       tune.kiV = [.23, .208, .20, .17,  .085, .0027]
       if candidate in TSS2_CAR:
         ret.vEgoStopping = 0.1  # car is near 0.1 to 0.2 when car starts requesting stopping accel
