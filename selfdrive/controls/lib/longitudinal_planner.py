@@ -41,8 +41,8 @@ DP_ACCEL_NORMAL = 1
 DP_ACCEL_SPORT = 2
 
 # accel profile by @arne182 modified by cgw
-_DP_CRUISE_MIN_V =       [-0.55, -0.90, -0.90, -0.90, -0.80,  -0.70]
-_DP_CRUISE_MIN_V_ECO =   [-0.50, -0.80, -0.80, -0.80, -0.70,  -0.60]
+_DP_CRUISE_MIN_V =       [-0.90, -0.90, -0.90, -0.90, -0.80,  -0.70]
+_DP_CRUISE_MIN_V_ECO =   [-0.80, -0.80, -0.80, -0.80, -0.70,  -0.60]
 _DP_CRUISE_MIN_V_SPORT = [-1.00, -1.00, -1.00, -1.00, -0.80,  -0.80]
 _DP_CRUISE_MIN_BP =      [0.,    8.3,   14,    20.,   30.,   55.]
 
@@ -256,7 +256,7 @@ class LongitudinalPlanner:
         desired_tf = np.interp(v_ego, x_vel, y_dist)
       elif self.dp_following_profile == 2:
         x_vel =  [1.0,  2.0,   5.5,   13.89,  19.7,   25.0,   41.67]
-        y_dist = [1.00, 1.10,  1.10,  1.18,   1.19,   1.224,  1.23]
+        y_dist = [0.85, 0.90,  1.00,  1.10,   1.19,   1.224,  1.23]
         desired_tf = np.interp(v_ego, x_vel, y_dist)
     return desired_tf
 
