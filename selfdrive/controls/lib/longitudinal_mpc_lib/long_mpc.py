@@ -54,7 +54,7 @@ T_DIFFS = np.diff(T_IDXS, prepend=[0.])
 MIN_ACCEL = -3.5
 MAX_ACCEL = 2.0
 T_FOLLOW = 1.45
-COMFORT_BRAKE = 2.5
+COMFORT_BRAKE = 2.6
 STOP_DISTANCE = 5.3
 
 def get_stopped_equivalence_factor(v_lead, v_ego):
