@@ -18,7 +18,7 @@ confs = [
   {'name': 'dp_api_custom', 'default': False, 'type': 'Bool', 'conf_type': ['param']},
   {'name': 'dp_api_custom_url', 'default': 'https://api.retropilot.org', 'type': 'Text', 'depends': [{'name': 'dp_api_custom', 'vals': [True]}], 'conf_type': ['param']},
 
-  {'name': 'dp_atl', 'default': 0, 'type': 'UInt8', 'conf_type': ['param', 'struct'], 'update_once': True},
+  {'name': 'dp_atl', 'default': 2, 'type': 'UInt8', 'conf_type': ['param', 'struct'], 'update_once': True},
 
   {'name': 'dp_locale', 'default': 'en-US', 'type': 'Text', 'conf_type': ['param', 'struct'], 'update_once': True},
   {'name': 'dp_jetson', 'default': True, 'type': 'Bool', 'conf_type': ['param']},
@@ -113,7 +113,7 @@ confs = [
   # {'name': 'dp_lane_less_mode', 'default': 2, 'type': 'UInt8', 'min': 0, 'max': 2, 'depends': [{'name': 'dp_lane_less_mode_ctrl', 'vals': [True]}], 'conf_type': ['param', 'struct']},
   # # long ctrl
   # {'name': 'dp_allow_gas', 'default': False, 'type': 'Bool', 'depends': [{'name': 'dp_atl', 'vals': [False]}], 'conf_type': ['param', 'struct']},
-  {'name': 'dp_following_profile_ctrl', 'default': False, 'type': 'Bool', 'conf_type': ['param', 'struct']},
+  {'name': 'dp_following_profile_ctrl', 'default': True, 'type': 'Bool', 'conf_type': ['param', 'struct']},
   {'name': 'dp_following_profile', 'default': 0, 'type': 'UInt8', 'min': 0, 'max': 2, 'depends': [{'name': 'dp_following_profile_ctrl', 'vals': [True]}], 'conf_type': ['param', 'struct']},
   {'name': 'dp_lateral_tune', 'default': 0, 'type': 'UInt8', 'conf_type': ['param']},
   {'name': 'dp_lateral_torque_live_tune', 'default': False, 'type': 'Bool', 'conf_type': ['param']},
@@ -135,7 +135,7 @@ confs = [
   # {'name': 'dp_ui_brightness', 'default': 0, 'type': 'UInt8', 'min': 0, 'max': 100, 'conf_type': ['param', 'struct']},
   # {'name': 'dp_ui_volume', 'default': -5, 'type': 'Int8', 'min': -5, 'max': 100, 'conf_type': ['param', 'struct']},
   # # toyota
-  {'name': 'dp_toyota_rav4_tss2_tune', 'default': True, 'type': 'Bool', 'conf_type': ['param']},
+  {'name': 'dp_toyota_rav4_tss2_tune', 'default': False, 'type': 'Bool', 'conf_type': ['param']},
   {'name': 'dp_toyota_prius_bad_angle_tune', 'default': False, 'type': 'Bool', 'conf_type': ['param']},
   {'name': 'dp_e2e_conditional', 'default': False, 'type': 'Bool', 'conf_type': ['param', 'struct']},
   {'name': 'dp_e2e_conditional_at_speed', 'default': 60, 'type': 'UInt8', 'min': 30, 'max': 80, 'depends': [{'name': 'dp_e2e_conditional', 'vals': [True]}], 'conf_type': ['param', 'struct']},
