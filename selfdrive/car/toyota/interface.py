@@ -254,14 +254,14 @@ class CarInterface(CarInterfaceBase):
       tune.kpBP = [0., 5., 20.]
       tune.kpV = [1.3, 1.0, 0.7]
       tune.kiBP = [0.,   2.,   3.,    4.,    5.,   12.,   20.,  27.,  40.]
-      tune.kiV = [.35,  .311,  .291,  .271,  .248, .205, .171, .093, .001]
+      tune.kiV = [.35,  .311,  .291,  .271,  .248, .208, .171, .093, .001]
       #tune.kiBP = [0., 5., 12., 20., 27.] stock
       #tune.kiV = [.35, .23, .20, .17, .1] stock
       if candidate in TSS2_CAR:
         ret.vEgoStopping = 0.25  # car is near 0.1 to 0.2 when car starts requesting stopping accel
         ret.vEgoStarting = 0.25 # needs to be > or == vEgoStopping
         ret.stopAccel = -0.42  # Toyota requests -0.4 when stopped
-        ret.stoppingDecelRate = 0.041  # reach stopping target smoothly - seems to take 0.5 seconds to go from 0 to -0.4
+        ret.stoppingDecelRate = 0.01  # reach stopping target smoothly - seems to take 0.5 seconds to go from 0 to -0.4
         #ret.longitudinalActuatorDelayLowerBound = 0.2
         #ret.longitudinalActuatorDelayUpperBound = 0.2
 
