@@ -27,8 +27,8 @@ A_CRUISE_MAX_VALS = [1.6, 1.2, 0.8, 0.6]
 A_CRUISE_MAX_BP = [0., 10.0, 25., 40.]
 
 # Lookup table for turns
-_A_TOTAL_MAX_V = [1.7, 3.2]
-_A_TOTAL_MAX_BP = [20., 40.]
+_A_TOTAL_MAX_V = [1.7, 2.0, 3.4]
+_A_TOTAL_MAX_BP = [16., 20., 40.]
 
 
 def get_max_accel(v_ego):
