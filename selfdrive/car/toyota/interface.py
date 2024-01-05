@@ -277,7 +277,7 @@ class CarInterface(CarInterfaceBase):
         ret.vEgoStopping = 0.1 if dp_toyota_enhanced_long_tune else 0.25 # car is near 0.1 to 0.2 when car starts requesting stopping accel
         ret.vEgoStarting = 0.1 if dp_toyota_enhanced_long_tune else 0.25 # needs to be > or == vEgoStopping
         ret.stopAccel = -0.40  if dp_toyota_enhanced_long_tune else -2.0 # Toyota requests -0.4 when stopped
-        ret.stoppingDecelRate = 0.3 if dp_toyota_enhanced_long_tune else 0.3 # reach stopping target smoothly - seems to take 0.5 seconds to go from 0 to -0.4
+        ret.stoppingDecelRate = 0.35 if dp_toyota_enhanced_long_tune else 0.3 # reach stopping target smoothly - seems to take 0.5 seconds to go from 0 to -0.4
         #ret.longitudinalActuatorDelayLowerBound = 1.5 if dp_toyota_enhanced_long_tune else 1.5
         #ret.longitudinalActuatorDelayUpperBound = 1.5 if dp_toyota_enhanced_long_tune else 1.5
     else:
