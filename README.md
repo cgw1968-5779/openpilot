@@ -1,4 +1,4 @@
-# Legacypilot
+# Legacypilot 
 
 This software includes contributions from [dragonpilot](https://github.com/dragonpilot-community/dragonpilot/tree/beta2) and [openpilot](https://github.com/commaai/openpilot).
 
