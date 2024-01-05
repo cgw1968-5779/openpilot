@@ -270,14 +270,14 @@ class CarInterface(CarInterfaceBase):
       tune.kpBP = [0., 5., 20.]
       tune.kpV = [1.3, 1.0, 0.7] if dp_toyota_enhanced_long_tune else [1.8, 1.0, 0.7]
       tune.kiBP = [ 0.,  .2,   5.,   8.,  12.,  20.,  28.,  40.] if dp_toyota_enhanced_long_tune else [0., 5., 12., 20., 27.]
-      tune.kiV =  [.33, .30,  .22,  .213,  .19,  .17,  .10, .001] if dp_toyota_enhanced_long_tune else [.35, .23, .20, .17, .1]
+      tune.kiV =  [.35, .31,  .23,  .213,  .19,  .17,  .10, .001] if dp_toyota_enhanced_long_tune else [.35, .23, .20, .17, .1]
       #tune.kiBP = [0.,   1.,   2.,   5.,   12.,  20.,   23.,  30.,  40.] if dp_toyota_enhanced_long_tune else [0., 5., 12., 20., 27.]
       #tune.kiV = [.33,   .33,  .313, .245,  .215, .17,  .10,  .01,  .001]  if dp_toyota_enhanced_long_tune else [.35, .23, .20, .17, .1]
       if candidate in TSS2_CAR:
         ret.vEgoStopping = 0.1 if dp_toyota_enhanced_long_tune else 0.25 # car is near 0.1 to 0.2 when car starts requesting stopping accel
         ret.vEgoStarting = 0.1 if dp_toyota_enhanced_long_tune else 0.25 # needs to be > or == vEgoStopping
         ret.stopAccel = -0.40  if dp_toyota_enhanced_long_tune else -2.0 # Toyota requests -0.4 when stopped
-        ret.stoppingDecelRate = 0.4 if dp_toyota_enhanced_long_tune else 0.3 # reach stopping target smoothly - seems to take 0.5 seconds to go from 0 to -0.4
+        ret.stoppingDecelRate = 0.1 if dp_toyota_enhanced_long_tune else 0.3 # reach stopping target smoothly - seems to take 0.5 seconds to go from 0 to -0.4
         #ret.longitudinalActuatorDelayLowerBound = 1.5 if dp_toyota_enhanced_long_tune else 1.5
         #ret.longitudinalActuatorDelayUpperBound = 1.5 if dp_toyota_enhanced_long_tune else 1.5
     else:
