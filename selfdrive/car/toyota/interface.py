@@ -255,8 +255,8 @@ class CarInterface(CarInterfaceBase):
       tune.kpV = [1.3, 1.0, 0.7]
       #tune.kiBP = [0., 3.,  4.,  5.,   12., 20.,   24.,  40.]
       #tune.kiV = [.08, .16, .26, .22, .20, .168, .103, .006]
-      tune.kiBP = [0.,  5.,   12., 20.,   28.,  40.]
-      tune.kiV = [.35, .228, .20, .178, .10, .003]
+      tune.kiBP = [0.,  5., 12., 20.,   28.,  40.]
+      tune.kiV = [.35, .24, .20, .178, .10, .003]
       if candidate in TSS2_CAR:
         ret.vEgoStopping = 0.1  # car is near 0.1 to 0.2 when car starts requesting stopping accel
         ret.vEgoStarting = 0.1 # needs to be > or == vEgoStopping
