@@ -275,7 +275,7 @@ class CarInterface(CarInterfaceBase):
       tune.kpBP = [0., 5., 20.]
       tune.kpV = [1.3, 1.0, 0.7]
       tune.kiBP = [ 0.,  1.,   2.,   12.,  20.,  27.,  40.] if dp_toyota_enhanced_long_tune else [0., 5., 12., 20., 27.]
-      tune.kiV =  [.33,  .33,  .295, .23, .195, .10, .01] if dp_toyota_enhanced_long_tune else [.35, .23, .20, .17, .1]
+      tune.kiV =  [.33,  .33,  .28, .23, .195, .10, .01] if dp_toyota_enhanced_long_tune else [.35, .23, .20, .17, .1]
       if candidate in TSS2_CAR:
         ret.vEgoStopping = 0.1 if dp_toyota_enhanced_long_tune else 0.25 # car is near 0.1 to 0.2 when car starts requesting stopping accel
         ret.vEgoStarting = 0.1 if dp_toyota_enhanced_long_tune else 0.25 # needs to be > or == vEgoStopping
