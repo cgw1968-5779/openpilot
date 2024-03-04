@@ -69,7 +69,13 @@ class CarState(CarStateBase):
     self._right_blindspot_d2 = 0
     self._right_blindspot_counter = 0
 
+    # disptance btn for personality
+    self.dp_long_personality_btn = params.get_bool('dp_long_personality_btn')
+    self.read_distance_lines = 0
+    self.read_distance_lines_init = False
+    self.distance = 0
 
+  
   def update(self, cp, cp_cam):
     ret = car.CarState.new_message()
 
@@ -189,6 +195,20 @@ class CarState(CarStateBase):
         self.acc_type = cp_acc.vl["ACC_CONTROL"]["ACC_TYPE"]
       ret.stockFcw = bool(cp_acc.vl["PCS_HUD"]["FCW"])
 
+    #DP: distance btn to control personality.
+    if self.dp_long_personality_btn:
+      if not self.read_distance_lines_init or self.read_distance_lines != cp.vl["PCM_CRUISE_SM"]['DISTANCE_LINES']:
+        self.read_distance_lines_init = True
+        self.read_distance_lines = cp.vl["PCM_CRUISE_SM"]['DISTANCE_LINES']
+        Params().put("LongitudinalPersonality", str(int(max(self.read_distance_lines - 1, 0)))) # Skipping one profile toyota mid is weird.
+
+    if self.CP.carFingerprint in (TSS2_CAR - RADAR_ACC_CAR):
+      self.distance = 1 if cp_cam.vl["ACC_CONTROL"]["DISTANCE"] == 1 else 0
+    elif self.CP.carFingerprint in RADAR_ACC_CAR:
+      self.distance = 1 if cp.vl["ACC_CONTROL"]["DISTANCE"] == 1 else 0
+    elif self.CP.flags & ToyotaFlags.SMART_DSU:
+      self.distance = 1 if cp.vl["SDSU"]["FD_BUTTON"] == 1 else 0
+      
     # some TSS2 cars have low speed lockout permanently set, so ignore on those cars
     # these cars are identified by an ACC_TYPE value of 2.
     # TODO: it is possible to avoid the lockout and gain stop and go if you
@@ -311,6 +331,9 @@ class CarState(CarStateBase):
       messages += [
         ("PRE_COLLISION", 33),
       ]
+
+    if CP.flags & ToyotaFlags.SMART_DSU.value:
+      messages.append(("SDSU", 33))
 
     params = Params()
     if params.get_bool('dp_toyota_zss'):
