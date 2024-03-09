@@ -200,7 +200,7 @@ class CarState(CarStateBase):
       if not self.read_distance_lines_init or self.read_distance_lines != cp.vl["PCM_CRUISE_SM"]['DISTANCE_LINES']:
         self.read_distance_lines_init = True
         self.read_distance_lines = cp.vl["PCM_CRUISE_SM"]['DISTANCE_LINES']
-        self.Params().put("LongitudinalPersonality", str(int(max(self.read_distance_lines - 1, 0)))) # Skipping one profile toyota mid is weird.
+        Params().put("LongitudinalPersonality", str(int(max(self.read_distance_lines - 1, 0)))) # Skipping one profile toyota mid is weird.
 
     if self.CP.carFingerprint in (TSS2_CAR - RADAR_ACC_CAR):
       self.distance = 1 if cp_cam.vl["ACC_CONTROL"]["DISTANCE"] == 1 else 0
