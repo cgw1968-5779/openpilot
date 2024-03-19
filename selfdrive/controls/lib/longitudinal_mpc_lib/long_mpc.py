@@ -79,14 +79,14 @@ def get_T_FOLLOW(personality=log.LongitudinalPersonality.standard):
 
 def get_dynamic_follow(v_ego, personality=log.LongitudinalPersonality.standard):
   if personality==log.LongitudinalPersonality.relaxed:
-    x_vel =  [0.0,  3.0,  8.33,  13.90,  20,    25,    40]
-    y_dist = [1.2,  1.25, 1.45,  1.45,   1.60,  1.85,  2.0]
+    x_vel =  [0.0,  3.0,  3.01,  8.33,  8.34,  13.88, 13.89,  19.99, 20,    25,    40]
+    y_dist = [1.2,  1.2,  1.25,  1.25,  1.35,  1.35,  1.50,   1.50,  1.65,  1.85,  2.0]
   elif personality==log.LongitudinalPersonality.standard:
-    x_vel =  [0.0,  3.0,  8.33,  13.90,  20,    25,    40]
-    y_dist = [1.10, 1.10, 1.35,  1.35,   1.40,  1.45,  1.5]
+    x_vel =  [0.0,  3.0,  3.01,  8.33,  8.34,  13.88, 13.89,  19.99, 20,    25,    40]
+    y_dist = [1.10, 1.10, 1.20,  1.20,  1.25,  1.25,  1.35,   1.35,  1.45,  1.45,  1.5]
   elif personality==log.LongitudinalPersonality.aggressive:
-    x_vel =  [0.0,  3.0,  13.89,  20,    25,    40]
-    y_dist = [0.95, 0.95, 1.25,   1.25,  1.25, 1.2]
+    x_vel =  [0.0,  3.0,  3.01,  8.33,  8.34,  13.88, 13.89,  19.99, 20,    25,    40]
+    y_dist = [0.95, 0.95, 1.05,  1.05,  1.15,  1.15,  1.20,   1.20,  1.25,  1.25,  1.2]
   else:
     raise NotImplementedError("Dynamic Follow personality not supported")
   return np.interp(v_ego, x_vel, y_dist)
