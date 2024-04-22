@@ -258,7 +258,7 @@ class CarInterface(CarInterfaceBase):
     # on stock Toyota this is -2.5
     ret.stopAccel = -2.5
     tune = ret.longitudinalTuning
-    tune.deadzoneBP = [0., 5., 20., 30.]
+    tune.deadzoneBP = [0., 4., 20., 30.]
     tune.deadzoneV = [0., 0., .06, .15]
     ret.stoppingDecelRate = 0.17  # This is okay for TSS-P
     if candidate in TSS2_CAR:
