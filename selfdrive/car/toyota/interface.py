@@ -267,11 +267,11 @@ class CarInterface(CarInterfaceBase):
       ret.vEgoStarting = 0.25
       ret.stoppingDecelRate = 0.009  # reach stopping target smoothly
     tune.kpBP = [0., 5.]
-    tune.kpV = [0.8, 1.]
+    tune.kpV = [0.7, 1.]
     tune.kiBP = [0., 5.]
     tune.kiV = [0.3, 1.]
 
-    return ret
+    return ret call
 
   @staticmethod
   def init(CP, logcan, sendcan):
