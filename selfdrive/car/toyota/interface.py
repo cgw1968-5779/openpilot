@@ -271,7 +271,7 @@ class CarInterface(CarInterfaceBase):
     tune.kiBP = [0., 5.]
     tune.kiV = [0.3, 1.]
 
-    return ret call
+    return ret
 
   @staticmethod
   def init(CP, logcan, sendcan):
