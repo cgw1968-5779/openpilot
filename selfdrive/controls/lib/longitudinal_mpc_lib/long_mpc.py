@@ -79,8 +79,8 @@ def get_T_FOLLOW(personality=log.LongitudinalPersonality.standard):
 
 def get_dynamic_follow(v_ego, personality=log.LongitudinalPersonality.standard):
   if personality==log.LongitudinalPersonality.relaxed:
-    x_vel =  [0.0,  3.3,    13.89,  13.90,  20,    25,    33.,   40]
-    y_dist = [0.70, 0.70,   0.90,   1.0,    1.0,   1.1,   1.1,   1.2]
+    x_vel =  [0.0,  3.3,  3.4,  8.33,  8.34,   13.89,  13.90,  20,    25,    33.,   40]
+    y_dist = [0.70, 0.70, 0.76, 0.76,  0.83,   0.83,   1.0,    1.0,   1.1,   1.1,   1.2]
   elif personality==log.LongitudinalPersonality.standard:
     x_vel =  [0.0,  3.3,    13.89,  13.90,  20,    25,    33.,   40]
     y_dist = [0.70, 0.70,   0.90,   1.0,    1.0,   1.1,   1.1,   1.2]
