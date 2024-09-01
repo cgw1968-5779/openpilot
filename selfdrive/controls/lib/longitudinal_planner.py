@@ -41,9 +41,9 @@ DP_ACCEL_NORMAL = 1
 DP_ACCEL_SPORT = 2
 
 # accel profile by @arne182 modified by cgw
-_DP_CRUISE_MIN_V =       [-0.82, -0.86, -0.86, -0.95, -0.95, -0.95]
-_DP_CRUISE_MIN_V_ECO =   [-0.80, -0.84, -0.84, -0.86, -0.93, -0.90]
-_DP_CRUISE_MIN_V_SPORT = [-0.84, -0.88, -0.88, -0.92, -0.98, -0.98]
+_DP_CRUISE_MIN_V =       [-1.00, -1.00, -1.00, -1.00, -1.00, -1.00]
+_DP_CRUISE_MIN_V_ECO =   [-1.00, -1.00, -1.00, -1.00, -1.00, -1.00]
+_DP_CRUISE_MIN_V_SPORT = [-1.00, -1.00, -1.00, -1.00, -1.00, -1.00]
 _DP_CRUISE_MIN_BP =      [0.,    8.3,   12,    20.,   30.,   55.]
 
 _DP_CRUISE_MAX_V =       [3.5, 3.5, 3.5, 3.2, 1.9, 1.0, 0.68, 0.45, 0.35, 0.14]
