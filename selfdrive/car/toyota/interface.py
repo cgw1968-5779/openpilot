@@ -263,7 +263,7 @@ class CarInterface(CarInterfaceBase):
         ret.vEgoStopping = 0.01 # car is near 0.1 to 0.2 when car starts requesting stopping accel
         ret.vEgoStarting = 0.01  # needs to be > or == vEgoStopping
         ret.stopAccel = -0.40  # Toyota requests -0.4 when stopped
-        ret.stoppingDecelRate = 0.015  # reach stopping target smoothly - seems to take 0.5 seconds to go from 0 to -0.4
+        ret.stoppingDecelRate = 0.05  # reach stopping target smoothly - seems to take 0.5 seconds to go from 0 to -0.4
         #ret.longitudinalActuatorDelayLowerBound = 0.2
         #ret.longitudinalActuatorDelayUpperBound = 0.2
 
