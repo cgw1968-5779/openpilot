@@ -252,7 +252,7 @@ class CarInterface(CarInterfaceBase):
     tune.deadzoneV = [.0, .15]
     if candidate in TSS2_CAR or ret.enableGasInterceptor:
       tune.kpBP = [0., 5., 20.]
-      tune.kpV = [2.0, 1.0, 0.7]
+      tune.kpV = [1.8, 1.3, 0.8]
       tune.kiBP = [0.,   5.,   12.,   20.,  27.,  40.]
       tune.kiV = [.35,   .2286,  .2086,  .1716, .10, .06]
       #tune.kiBP = [0.,   2.,   3.,    4.,    5.,   12.,   20.,  27.,  40.]
