@@ -253,8 +253,8 @@ class CarInterface(CarInterfaceBase):
     if candidate in TSS2_CAR or ret.enableGasInterceptor:
       tune.kpBP = [0., 5., 20.]
       tune.kpV = [1.5, 1.3, 1.0]
-      tune.kiBP = [0.,   5.,   12.,   20.,  27.,  40.]
-      tune.kiV = [.3386,   .2286,  .20,  .18, .10, .06]
+      tune.kiBP = [0.,   5.,   14.,   20.,  27.,  40.]
+      tune.kiV = [.3386,   .2286,  .19,  .18, .10, .06]
       #tune.kiBP = [0.,   2.,   3.,    4.,    5.,   12.,   20.,  27.,  40.]
       #tune.kiV = [.35,  .307,  .285,  .263,  .238, .208, .171, .093, .001]
       #tune.kiBP = [0., 5., 12., 20., 27.] stock
