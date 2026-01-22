@@ -331,8 +331,9 @@ class CarState(CarStateBase, CarStateExt):
   def get_can_parsers(CP, CP_SP):
     pt_messages = [
       ("BLINKERS_STATE", float('nan')),
+      # Debug signal for long-press button
+      ("DEBUG", "ALLOW_LONG_PRESS"),
     ]
-
     cam_messages = [
       ("RSA1", 0),
       ("RSA2", 0),
