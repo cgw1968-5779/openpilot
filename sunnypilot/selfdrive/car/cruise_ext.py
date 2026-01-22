@@ -25,6 +25,11 @@ V_CRUISE_MIN = 8
 V_CRUISE_MAX = 145
 V_CRUISE_UNSET = 255
 
+# FORCE_SHORTPRESS_PLUSMINUS: Force +/-5 short-press speed increments only; disable long-press behavior
+# Target: Corolla Cross 2026 Taiwan - ECU behavior differs from older models, allow_long_press tweak ineffective
+# TODO: Consider model-specific implementation once Corolla Cross 2026 fingerprint is confirmed
+FORCE_SHORTPRESS_PLUSMINUS = True
+
 
 def update_manual_button_timers(CS: car.CarState, button_timers: dict[car.CarState.ButtonEvent.Type, int]) -> None:
   # increment timer for buttons still pressed
@@ -70,6 +75,13 @@ class VCruiseHelperSP:
     self.long_increment = self.params.get("CustomAccLongPressIncrement", return_default=True)
 
   def update_v_cruise_delta(self, long_press: bool, v_cruise_delta: float) -> tuple[bool, float]:
+    # Corolla Cross 2026 Taiwan: Force short-press behavior when FORCE_SHORTPRESS_PLUSMINUS is enabled
+    # This overrides long_press behavior completely, treating all presses as short-press +/-5
+    if FORCE_SHORTPRESS_PLUSMINUS:
+      # Always use short-press increment (x5), ignore long_press flag
+      v_cruise_delta = v_cruise_delta * 5
+      return True, v_cruise_delta  # Return True to enable rounding to nearest 5
+
     if not self.custom_acc_enabled:
       v_cruise_delta = v_cruise_delta * (5 if long_press else 1)
       return long_press, v_cruise_delta

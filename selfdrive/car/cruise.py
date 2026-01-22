@@ -3,7 +3,7 @@ import numpy as np
 
 from cereal import car
 from openpilot.common.constants import CV
-from openpilot.sunnypilot.selfdrive.car.cruise_ext import VCruiseHelperSP
+from openpilot.sunnypilot.selfdrive.car.cruise_ext import VCruiseHelperSP, FORCE_SHORTPRESS_PLUSMINUS
 
 
 # WARNING: this value was determined based on the model's training distribution,
@@ -80,18 +80,30 @@ class VCruiseHelper(VCruiseHelperSP):
 
     v_cruise_delta = 1. if is_metric else IMPERIAL_INCREMENT
 
-    for b in CS.buttonEvents:
-      if b.type.raw in self.button_timers and not b.pressed:
-        if self.button_timers[b.type.raw] > CRUISE_LONG_PRESS:
-          return  # end long press
-        button_type = b.type.raw
-        break
-    else:
-      for k, timer in self.button_timers.items():
-        if timer and timer % CRUISE_LONG_PRESS == 0:
-          button_type = k
-          long_press = True
+    # Corolla Cross 2026 Taiwan: Disable long-press detection when FORCE_SHORTPRESS_PLUSMINUS is enabled
+    # This ensures all button presses are treated as short presses with +/-5 increments
+    if FORCE_SHORTPRESS_PLUSMINUS:
+      # Only handle button release events (single press), ignore hold/long-press
+      for b in CS.buttonEvents:
+        if b.type.raw in self.button_timers and not b.pressed:
+          # Ignore if button was held too long (would have been a long press)
+          # Just treat as single short press regardless
+          button_type = b.type.raw
           break
+    else:
+      # Original behavior: detect long-press and handle repeated increments
+      for b in CS.buttonEvents:
+        if b.type.raw in self.button_timers and not b.pressed:
+          if self.button_timers[b.type.raw] > CRUISE_LONG_PRESS:
+            return  # end long press
+          button_type = b.type.raw
+          break
+      else:
+        for k, timer in self.button_timers.items():
+          if timer and timer % CRUISE_LONG_PRESS == 0:
+            button_type = k
+            long_press = True
+            break
 
     if button_type is None:
       return
