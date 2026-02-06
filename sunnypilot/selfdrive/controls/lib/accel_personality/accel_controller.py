@@ -27,7 +27,7 @@ MIN_ACCEL_PROFILES = {
   AccelPersonality.normal: [-0.01, -0.01, -0.008, -0.36, -1.2, -1.3],
   AccelPersonality.sport:  [-0.01, -0.01, -0.009, -0.38, -1.3, -1.4],
 }
-MIN_ACCEL_BREAKPOINTS =    [0.,     3.,     6,      12.,    14.,  25]
+MIN_ACCEL_BREAKPOINTS =    [0.,     1.,     6,      12.,    14.,  25]
 
 
 DECEL_SMOOTH_ALPHA = 0.20  # Very aggressive smoothing for decel (lower = smoother)
