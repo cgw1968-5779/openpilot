@@ -23,9 +23,9 @@ MAX_ACCEL_BREAKPOINTS =      [0.,   3.,   5.,   8.,   12.,  18.,  24.,  32.,  42
 
 # Braking Profiles
 MIN_ACCEL_PROFILES = {
-  AccelPersonality.eco:    [-0.01, -0.01, -0.030, -0.36, -1.2, -1.2],
-  AccelPersonality.normal: [-0.01, -0.01, -0.015, -0.37, -1.2, -1.3],
-  AccelPersonality.sport:  [-0.01, -0.01, -0.009, -0.37, -1.3, -1.4],
+  AccelPersonality.eco:    [-0.004, -0.004, -0.030, -0.36, -1.2, -1.2],
+  AccelPersonality.normal: [-0.005, -0.005, -0.015, -0.37, -1.2, -1.3],
+  AccelPersonality.sport:  [-0.006, -0.006, -0.009, -0.37, -1.3, -1.4],
 }
 MIN_ACCEL_BREAKPOINTS =    [0.,     1.,     6,      12.,    14.,  25]
 
