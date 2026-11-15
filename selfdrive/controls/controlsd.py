@@ -13,6 +13,7 @@ from opendbc.car.car_helpers import interfaces
 from opendbc.car.vehicle_model import VehicleModel
 from opendbc.safety import ALTERNATIVE_EXPERIENCE
 from openpilot.selfdrive.controls.lib.drive_helpers import clip_curvature
+from dragonpilot.selfdrive.controls.lib.creep_stop import pcm_from_ext
 from dragonpilot.selfdrive.controls.lib.curve_bias import apply_curve_outward_bias
 from dragonpilot.selfdrive.controls.lib.lane_centering import LaneCentering, apply_lane_centering as centre_lane
 from dragonpilot.selfdrive.controls.lib.lane_change_rate import LaneChangeRate
@@ -133,6 +134,7 @@ class Controls:
     # accel PID loop
     pid_accel_limits = self.CI.get_pid_accel_limits(self.CP, CS.vEgo, CS.vCruise * CV.KPH_TO_MS)
     self.LoC.lead = self.exp_stop_line.lead(self.sm, CS.vEgo, self.sm['radarState'].leadOne if self.sm.alive['radarState'] and self.sm.valid['radarState'] else None)  # dragonpilot hook
+    self.LoC.pcm = pcm_from_ext(self.sm['carStateExt'] if self.sm.alive['carStateExt'] else None)  # dragonpilot hook (creep stop)
     actuators.accel = float(self.LoC.update(CC.longActive, CS, long_plan.aTarget, long_plan.shouldStop, pid_accel_limits))
 
     # Steering PID loop and lateral MPC

@@ -17,6 +17,10 @@ struct ControlsStateExt @0x81c2f05a394cf4af {
 struct CarStateExt @0xaedffd8f31e7b55d {
   # dp - ALKA: lkasOn state from carstate (mirrors panda's lkas_on)
   lkasOn @0 :Bool;
+  # dp - creep stop (dppb 2026-11-15): Toyota PCM_CRUISE ACCEL_NET / NEUTRAL_FORCE as the car reports them
+  pcmValid @1 :Bool;
+  pcmAccelNet @2 :Float32;      # m/s^2, the PCM's own net request
+  pcmNeutralForce @3 :Float32;  # N, the drive force without any request (creep)
 }
 
 struct ModelExt @0xf35cc4560bbf6ec2 {

@@ -21,6 +21,7 @@ if "TICI_DOS" in os.environ:
   from openpilot.selfdrive.pandad_tici import can_capnp_to_list, can_list_to_can_capnp
 else:
   from openpilot.selfdrive.pandad import can_capnp_to_list, can_list_to_can_capnp
+from dragonpilot.selfdrive.controls.lib.creep_stop import set_pcm_ext
 from openpilot.selfdrive.car.cruise import VCruiseHelper
 from opendbc.safety import ALTERNATIVE_EXPERIENCE
 
@@ -253,6 +254,7 @@ class Car:
     cs_ext = messaging.new_message('carStateExt')
     cs_ext.valid = CS.canValid
     cs_ext.carStateExt.lkasOn = getattr(self.CI.CS, 'lkas_on', False)
+    set_pcm_ext(cs_ext.carStateExt, self.CI.CS)  # dragonpilot hook (creep stop)
     self.pm.send('carStateExt', cs_ext)
 
     if RD is not None:
