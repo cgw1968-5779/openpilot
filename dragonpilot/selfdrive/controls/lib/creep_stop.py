@@ -59,7 +59,7 @@ CS_BRAKE_DROP = 0.15      # m/s^2: in the brake state aEgo is about this firmer 
 CS_REPLAN_GAP = 0.25      # m: only if the stop is then predicted this much short of CS_GAP is the force raised (safety)
 CS_END_T = 0.45           # s: predicted time to the stop at which the end eases (the PCM answers ~0.3 s late, so the
                           #   car stops on the eased request before the creep force can act on it)
-CS_END_NET = -0.40        # m/s^2: the request the end eases to (11:27 template ended at -0.36)
+CS_END_NET = -0.35        # m/s^2: the request the end eases to (owner 11-15: 0.05 lighter than -0.40; 11:27 template ended at -0.36)
 CS_END_RATE = 2.0         # m/s^3: easing rate
 CS_END_ROOM = 0.05        # m: room the eased end takes, given to the mid when the force is decided
 CS_HAND_B = 1.5           # m/s^2: stopping by CS_MUST_GAP needs more -> the planner
