@@ -21,20 +21,6 @@ KP 0.4 -> 0.5 (deadband, window, cap and rate unchanged). Same replay: 13:12:43 
 0.12, 13:19:32 0.11 -> 0.14, 13:24:42 0.12 -> 0.15, 13:26:13 0.08 -> 0.10; normal stops 11-05 09:22:55 / 11-08 08:32:50
 stay 0.04, the rest 0.01-0.06. relief = 0.5 x (overshoot - 0.3) is always smaller than the overshoot, so the car still
 decelerates at least as much as the planner asked.
-
-Owner 2026-11-15 (11:26 bookmark): "after a stop, creeping up with the gas to adjust the gap: when the gas is released
-the stop is still too heavy - it should be like the smooth 11:27 three-bookmark stop". 34 low-speed gas releases
-(Oct-Nov rlogs): the command we send is ~0..-0.5, but about 0.25 s after the release the PCM's own net request
-(PCM_CRUISE ACCEL_NET) sits a roughly constant amount below it - mostly -0.5..-1.3 behind a stopped close lead (11:26:13
-sent -0.08, ACCEL_NET -1.36, aEgo -1.55), ~0 or even positive with a moving / no lead - and stays there until the car
-stops. Within one release it adds to whatever we send (11:26:19: command -0.11..-0.52, extra steady ~-1.0).
-GasReleaseRelief (same idea as the relief above - the car brakes more than asked - extended to this case): after the
-driver releases the gas below GR_V_MAX, until standstill, the extra the PCM adds (ACCEL_NET - what we sent) is sent back
-on top, so the PCM delivers what the planner / stop end layers ask for, as in a stop without the gas. Never more than
-GR_MAX, up at most GR_UP; while the command asks for more than GR_URGENT (planner: short stop) it is withdrawn at
-GR_URGENT_DOWN; at standstill at GR_STILL_DOWN (the hold is the PCM's again). A positive extra is never followed.
-Replay of the 34 releases: 11:26:13 aEgo -1.55 -> -0.45, 11:26:19 -1.51 -> -0.86; releases with a moving lead or none
-(extra >= 0) unchanged. Not active in any stop without the gas.
 """
 import numpy as np
 
@@ -67,44 +53,4 @@ class BrakeOvershootRelief:
     if not active:
       self.relief = 0.0
     self.relief = float(np.clip(target, self.relief - self.step, self.relief + self.step))
-    return self.relief
-
-
-GR_V_MAX = 10. / 3.6   # m/s
-GR_DB = 0.1            # m/s^2: extra below this is left alone
-GR_MAX = 1.5           # m/s^2
-GR_UP = 6.0            # m/s^3
-GR_DOWN = 1.0          # m/s^3
-GR_URGENT = -1.0       # m/s^2
-GR_URGENT_DOWN = 2.0   # m/s^3
-GR_STILL_DOWN = 3.0    # m/s^3
-
-
-class GasReleaseRelief:
-  def __init__(self, dt: float):
-    self.dt = dt
-    self.relief = 0.0
-    self.armed = False  # the gas was pressed (engaged, slow) and this release has not reached standstill yet
-
-  def update(self, active: bool, gas: bool, standstill: bool, v_ego: float, accel_cmd: float, sent_prev: float,
-             accel_net: float) -> float:
-    if gas:
-      self.armed = v_ego < GR_V_MAX
-      self.relief = 0.0
-      return 0.0
-    if not active or v_ego >= GR_V_MAX:
-      self.armed = False
-    if not self.armed:
-      self.relief = 0.0
-      return 0.0
-    if standstill:
-      target, down = 0.0, GR_STILL_DOWN
-    elif accel_cmd < GR_URGENT:
-      target, down = 0.0, GR_URGENT_DOWN
-    else:
-      extra = accel_net - sent_prev  # what the PCM adds beyond what we sent (relief included)
-      target, down = float(np.clip(-extra - GR_DB, 0.0, GR_MAX)), GR_DOWN
-    self.relief = float(np.clip(target, self.relief - down * self.dt, self.relief + GR_UP * self.dt))
-    if standstill and self.relief == 0.0:
-      self.armed = False
     return self.relief

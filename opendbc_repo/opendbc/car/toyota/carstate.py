@@ -36,7 +36,6 @@ class CarState(CarStateBase):
     self.cluster_speed_hyst_gap = CV.KPH_TO_MS / 2.
     self.cluster_speed_hyst_gap = CLUSTER_HYST_GAP  # dragonpilot hook
     self.cluster_min_speed = CV.KPH_TO_MS / 2.
-    self.pcm_accel_net = 0.0  # dragonpilot hook (PCM_CRUISE ACCEL_NET: the PCM's own net request, for GasReleaseRelief)
 
     if CP.flags & ToyotaFlags.SECOC.value:
       self.shifter_values = can_define.dv["GEAR_PACKET_HYBRID"]["GEAR"]
@@ -106,7 +105,6 @@ class CarState(CarStateBase):
       can_gear = int(cp.vl["GEAR_PACKET_HYBRID"]["GEAR"])
     else:
       ret.gasPressed = cp.vl["PCM_CRUISE"]["GAS_RELEASED"] == 0
-      self.pcm_accel_net = cp.vl["PCM_CRUISE"]["ACCEL_NET"]  # dragonpilot hook
       can_gear = int(cp.vl["GEAR_PACKET"]["GEAR"])
       ret.driveMode = drive_mode_from_gear_packet(cp.vl["GEAR_PACKET"])  # dragonpilot hook
       if not self.CP.flags & ToyotaFlags.DISABLE_RADAR.value or self.dp_radar_filter:
