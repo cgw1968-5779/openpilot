@@ -82,7 +82,9 @@ LAUNCH_EXTRA = 0.5          # m beyond the gap we stopped at, so a lead creeping
 # 11-12 owner: "4 m is still too far, 3.5 m is right; and follow 0.5-1 m closer below 15 km/h" -> STOP_EXTRA 0 with the
 # stop end gaps 3.5 m. Real stops since 11-06 (37): median 4.08 m; sim 17 stops 3.85 -> 3.40 (real est ~3.6 m). The same
 # offset sets the following distance: steady following 3-15 km/h (7.7-11.0 m) comes 0.7 m closer, every speed alike.
-STOP_EXTRA = 0.0            # m (11-05..11-12: 0.7)
+# 11-15 owner: "try to bring the stop to 3.25 m" -> STOP_EXTRA -0.25 (the lead is given 0.25 m farther than measured)
+# with the stop end gaps 3.25 m. Real stops 11-15 (21 behind a stopped lead): median 3.64 m.
+STOP_EXTRA = -0.25          # m (11-12..11-15: 0.0; 11-05..11-12: 0.7)
 # 11-13 owner: "drop yesterday's closer following below 15 km/h; instead, below 30 km/h - except when the speed has been
 # coming down continuously from above 31 km/h - follow 1 m closer, with all the smooth-stop measures as before". The stop
 # target stays STOP_EXTRA (3.5 m stop end); only a MOVING lead gets a following offset, blended in with the lead's own
