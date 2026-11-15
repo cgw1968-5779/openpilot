@@ -100,6 +100,21 @@ LOW_V_OFF = 40.0 / 3.6      # m/s (11-13 first version: 31)
 LOW_RISE = 1.0              # m/s
 FOLLOW_VLEAD = (0.3, 4.0)   # m/s: lead at/below the first is stopped (stop target), at/above the second is moving
 FOLLOW_RATE = 0.25          # m/s: offset change rate
+# 11-15 owner: "at 10:32 the MPC kept its following distance while the lead braked, so it braked too hard" + "cut the
+# mid braking for a hard-braking lead to -2.54 (the 11:37 three-bookmark template peak command); go to -3.5 only when
+# -2.54 would still hit the lead". The MPC's accel floor (a runtime parameter, no new layer) is MID_MIN; it opens to
+# ACCEL_MIN while braking at MID_MIN (from the current accel after BRAKE_REACT, reached at MID_JERK) would bring us
+# within CRASH_GAP of a lead that keeps its current braking until it stops, and closes again once we have stopped or that gap is over CLEAR_GAP.
+# Fading the following time out while the lead brakes was tried too and dropped: it lightens the onset (10:32 sim -0.85
+# instead of -1.54 at 1.5 s), so the mid had to go to -3.5 anyway.
+MID_MIN = -2.54             # m/s^2
+MID_JERK = 1.8              # m/s^3 (11:37 template peak command rate)
+BRAKE_REACT = 0.5           # s
+CRASH_GAP = 0.5             # m
+CLEAR_GAP = 2.5             # m
+CHECK_TAU = 0.3             # 1/s^2: decay of the lead braking assumed by the check (MPC uses 1.5)
+CHECK_DT = 0.05             # s
+CHECK_T = np.arange(1, 201) * CHECK_DT  # 10 s
 
 def get_jerk_factor(personality=log.LongitudinalPersonality.standard):
   if personality==log.LongitudinalPersonality.relaxed:
@@ -264,6 +279,7 @@ class LongitudinalMpc:
     self.from_high = False
     self.low = False
     self.v_min = 0.0
+    self.mid_open = False
     self.solver = AcadosOcpSolverCython(MODEL_NAME, ACADOS_SOLVER_TYPE, N)
     self.cruise_profile = None  # dragonpilot hook (cruise_decel: the owner's set-0 speed curve, None = stock)
     self.reset()
@@ -398,6 +414,25 @@ class LongitudinalMpc:
       self.follow_offset = float(np.clip(target, self.follow_offset - step, self.follow_offset + step))
     return self.follow_offset
 
+  def mid_floor_gap(self, lead, v_ego):
+    # least gap to the lead if it keeps its braking and we brake at MID_MIN from now
+    if not lead.status:
+      return 1e3
+    a_l = min(float(np.clip(lead.aLeadK, -10., 5.)), 0.0) * np.exp(-CHECK_TAU * CHECK_T**2 / 2.)
+    x_l = lead.dRel + np.cumsum(CHECK_DT * np.clip(lead.vLead + np.cumsum(CHECK_DT * a_l), 0.0, 1e8))
+    a0 = min(float(self.x0[2]), 0.0)
+    a_e = np.where(CHECK_T < BRAKE_REACT, a0, np.maximum(a0 - MID_JERK * (CHECK_T - BRAKE_REACT), MID_MIN))
+    x_e = np.cumsum(CHECK_DT * np.clip(v_ego + np.cumsum(CHECK_DT * a_e), 0.0, 1e8))
+    return float(np.min(x_l - x_e))
+
+  def mid_floor(self, radarstate, v_ego):
+    gap = min(self.mid_floor_gap(radarstate.leadOne, v_ego), self.mid_floor_gap(radarstate.leadTwo, v_ego))
+    if gap < CRASH_GAP:
+      self.mid_open = True
+    elif v_ego < 0.1 or gap > CLEAR_GAP:
+      self.mid_open = False
+    return ACCEL_MIN if self.mid_open else MID_MIN
+
   def update(self, radarstate, v_cruise, personality=log.LongitudinalPersonality.standard):
     t_follow = get_T_FOLLOW(personality)
     v_ego = self.x0[1]
@@ -409,6 +444,7 @@ class LongitudinalMpc:
     follow = self.follow_gap(radarstate.leadOne, v_ego)  # dragonpilot hook
     lead_xv_0[:, 0] += follow
     lead_xv_1[:, 0] += follow
+    a_floor = self.mid_floor(radarstate, v_ego)  # dragonpilot hook
 
     # To estimate a safe distance from a moving lead, we calculate how much stopping
     # distance that lead needs as a minimum. We can add that to the current distance
@@ -432,7 +468,7 @@ class LongitudinalMpc:
       self.solver.set(i, "yref", self.yref[i])
     self.solver.set(N, "yref", self.yref[N][:COST_E_DIM])
 
-    self.params[:,0] = ACCEL_MIN
+    self.params[:,0] = a_floor
     self.params[:,1] = ACCEL_MAX
     self.params[:,2] = np.min(x_obstacles, axis=1)
     self.params[:,3] = np.copy(self.a_prev)
