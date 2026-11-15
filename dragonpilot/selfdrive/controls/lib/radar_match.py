@@ -23,3 +23,49 @@ def plausible_tracks(v_ego: float, lead, tracks: dict) -> dict:
   y_cam, v_cam = -float(lead.y[0]), float(lead.v[0])
   return {k: c for k, c in tracks.items()
           if not (c.dRel > FAR_D and abs(c.yRel - y_cam) > LAT_D and abs(c.vRel + v_ego - v_cam) > DV)}
+
+
+
+"""
+dragonpilot (dppb; owner 2026-11-16): a sudden switch to a much SLOWER radar track BEHIND the radar lead we have must be
+seen for JUMP_T first.
+
+Route 000001ba 13:36:19.69, 46 km/h: the lead was radar track 424 (28.2 m, 46 km/h). For ONE radarState frame the
+camera's lead was matched with stationary track 447 (34.9 m, 2.8 km/h, y -0.4 - a return 6.7 m BEYOND the car we were
+following; the stock vel_sane passed it at 9.5 < 10 m/s), the next frame was back on track 424. That one frame made the
+planner ask -1.60 and the car slowed at -0.83 for ~1 s - a phantom brake. Route 000001c5 20:45:39.54, 64 km/h: the
+same, track 1394 (58.6 m, 78 km/h) -> stationary track 1521 at 77.4 m for one frame, aTarget -2.64.
+
+Stationary tracks cannot simply be ignored: ~half of the 11-15 "radar stopped / camera moving" switches were real
+stopped cars the camera's speed caught up with only ~1 s later - but those are switches from the CAMERA's own lead (no
+radar track yet) to a radar track, and they are left exactly as stock. Only when the lead we have is a radar track
+that is still there, and the new one is another radar track more than JUMP_DD farther and more than JUMP_DV slower,
+the radar track we had is kept until the new one has been chosen JUMP_T in a row (3 model frames: at most 0.10 s held).
+A real slower object beyond the lead (the lead changing lanes in front of it) is used 0.10 s later.
+11-15 replay (all 280 segments, 321682 frames): leadOne held in 23 places, none longer than 0.10 s.
+"""
+JUMP_DD = 1.0         # m
+JUMP_DV = 5.0         # m/s
+JUMP_T = 0.15         # s
+JUMP_V_EGO = 5.0      # m/s
+
+
+class LeadJumpGuard:
+  def __init__(self, dt: float):
+    self.n_need = max(int(round(JUMP_T / dt)), 1)
+    self.out = None
+    self.cnt = 0
+
+  def update(self, v_ego: float, lead: dict, tracks: dict, lead_prob: float) -> dict:
+    prev, tid = self.out, (self.out or {}).get('radarTrackId', -1)
+    if (prev is not None and prev['status'] and prev.get('radar', False) and tid in tracks and v_ego > JUMP_V_EGO and
+        lead['status'] and lead.get('radar', False) and lead['radarTrackId'] != tid and
+        lead['dRel'] > tracks[tid].dRel + JUMP_DD and lead['vLead'] < tracks[tid].vLead - JUMP_DV):
+      self.cnt += 1
+      if self.cnt < self.n_need:
+        self.out = tracks[tid].get_RadarState(lead_prob)
+        return self.out
+    else:
+      self.cnt = 0
+    self.out = lead
+    return lead

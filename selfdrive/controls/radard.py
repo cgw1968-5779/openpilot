@@ -11,7 +11,7 @@ from openpilot.common.params import Params
 from openpilot.common.realtime import DT_MDL, Priority, config_realtime_process
 from openpilot.common.swaglog import cloudlog
 from openpilot.common.simple_kalman import KF1D
-from dragonpilot.selfdrive.controls.lib.radar_match import plausible_tracks  # dragonpilot hook
+from dragonpilot.selfdrive.controls.lib.radar_match import plausible_tracks, LeadJumpGuard  # dragonpilot hook
 
 
 # Default lead acceleration decay set to 50% at 1s
@@ -200,6 +200,7 @@ class RadarD:
     self.radar_state_valid = False
 
     self.ready = False
+    self.lead_guards = [LeadJumpGuard(DT_MDL) for _ in range(2)]  # dragonpilot hook
 
   def update(self, sm: messaging.SubMaster, rr: car.RadarData):
     self.ready = sm.seen['modelV2']
@@ -250,8 +251,9 @@ class RadarD:
         else:
           self.lead_prob_filters[i].update(lead_prob)
 
-      self.radar_state.leadOne = get_lead(self.v_ego, self.ready, self.tracks, leads_v3[0], model_v_ego, self.lead_prob_filters[0].x, low_speed_override=True)
-      self.radar_state.leadTwo = get_lead(self.v_ego, self.ready, self.tracks, leads_v3[1], model_v_ego, self.lead_prob_filters[1].x, low_speed_override=False)
+      leads = [get_lead(self.v_ego, self.ready, self.tracks, leads_v3[i], model_v_ego, self.lead_prob_filters[i].x, low_speed_override=(i == 0)) for i in range(2)]
+      leads = [self.lead_guards[i].update(self.v_ego, leads[i], self.tracks, self.lead_prob_filters[i].x) for i in range(2)]  # dragonpilot hook
+      self.radar_state.leadOne, self.radar_state.leadTwo = leads
 
   def publish(self, pm: messaging.PubMaster):
     assert self.radar_state is not None
