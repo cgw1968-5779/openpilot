@@ -9,6 +9,6 @@ def test_untouched_at_and_below_50_and_from_90_kmh_and_on_straights():
 
 
 def test_outward_in_55_85_kmh_curves_both_directions():
-  assert abs(F(0.004, 60 * CV.KPH_TO_MS) - 0.004 * 0.92) < 1e-9
-  assert abs(F(-0.004, 70 * CV.KPH_TO_MS) + 0.004 * 0.87) < 1e-9
+  assert abs(F(0.004, 60 * CV.KPH_TO_MS) - 0.004 * 0.91) < 1e-9
+  assert abs(F(-0.004, 70 * CV.KPH_TO_MS) + 0.004 * 0.86) < 1e-9
   assert abs(F(0.004, 80 * CV.KPH_TO_MS) - 0.004 * 0.94) < 1e-9

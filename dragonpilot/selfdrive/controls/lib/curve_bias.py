@@ -17,7 +17,7 @@ from openpilot.common.constants import CV
 
 CURVE_OUTWARD_DEADZONE = 0.0005  # 1/m (~radius 2000 m): straights and small lane corrections untouched
 CURVE_OUTWARD_V_BP = [v * CV.KPH_TO_MS for v in (50., 60., 70., 80., 90.)]   # m/s
-CURVE_OUTWARD_FRAC_V = [0.0, 0.08, 0.13, 0.06, 0.0]
+CURVE_OUTWARD_FRAC_V = [0.0, 0.09, 0.14, 0.06, 0.0]  # owner 2026-11-15: 60 / 70 km/h +0.01 (curves there still a little inside)
 
 
 def apply_curve_outward_bias(desired_curvature: float, v_ego: float) -> float:
