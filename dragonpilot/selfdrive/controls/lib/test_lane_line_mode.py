@@ -128,9 +128,10 @@ def test_centre_fits_made_once_per_model_frame(monkeypatch):
 
 
 def test_constant_command_history_is_the_old_arc():
-  from dragonpilot.selfdrive.controls.lib.lane_centering import LINE_PRED_T as PT
+  from dragonpilot.selfdrive.controls.lib.lane_centering import line_pred_t
   lc = LaneCentering(DT)
   v, k = 100 / 3.6, 1 / 900
+  PT = line_pred_t(v)
   for _ in range(200):
     lc._push_command(k)
   y, psi = lc.predicted_pose(v)

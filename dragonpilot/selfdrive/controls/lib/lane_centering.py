@@ -180,6 +180,18 @@ LINE_W_MAX = 0.85  # dpcr (owner 2026-11-05 "as strong as possible"): between tn
 # pursuit still available 100 % of fa frames >= 60 km/h (the fit needs xd further). Lookahead/gains/filter unchanged
 # (no added lag). First, minimal step; if it feels late or lags: back to 0.36 / tag dpcr-lat-good-20261105.
 LINE_PRED_T = 0.60          # s: dppb Altis, measured command -> actual yaw delay (route 19c; dpcr Cross 0.75)
+# dppb (owner 2026-11-15, route 000001c6 21:07 / 21:11, 92-104 km/h: "a little drift in highway curves, I helped it"):
+# the offset swung +-20 cm with a 6-10 s period and sat outward on the curve entries, the driver pushing inward. From
+# 85 km/h up the pose is predicted LINE_PRED_T_HIGH ahead (more lead on the pursuit = more damping of that slow
+# weave); below 85 km/h exactly as before. Closed-loop sim on 1c6 segs 14-37 (Altis lag 0.10 + 0.40 s), > 85 km/h:
+# 2-10 s weave straights 8.9 -> 8.4, curves 8.8 -> 8.4 cm; with LINE_OUT_FRAC_V 0 (below) curves outward > 10 cm
+# 18.0 -> 10.1 % of the time.
+LINE_PRED_T_HIGH = 0.80     # s
+LINE_PRED_V_BP = [85.0 / 3.6, 100.0 / 3.6]  # m/s: LINE_PRED_T -> LINE_PRED_T_HIGH
+
+
+def line_pred_t(v_ego: float) -> float:
+  return float(np.interp(v_ego, LINE_PRED_V_BP, [LINE_PRED_T, LINE_PRED_T_HIGH]))
 # dpcr (owner 2026-11-08 after 0.75 s: "it improved, try B too"): the pose after the delay comes from the commands
 # actually sent during the last LINE_PRED_T (they are still "in the pipe"), not from the arc of the last command:
 # heading psi_i = sum(k_j) v dt, lateral shift = sum(psi_i) v dt. A constant history gives the old arc exactly (and
@@ -193,7 +205,9 @@ LINE_PRED_T = 0.60          # s: dppb Altis, measured command -> actual yaw dela
 # LINE_OUT_K_BP (no step at the straight / curve edge). Closed loop it settles outward of the lane centre by about
 # (1/(1-frac) - 1) k L^2 / 2: at 100 km/h (L 47 m) with 0.08: R 2000 m ~6 cm, R 1000 m ~12 cm, R 500 m ~25 cm.
 LINE_OUT_V_BP = [85.0 / 3.6, 100.0 / 3.6]  # m/s
-LINE_OUT_FRAC_V = [0.0, 0.08]
+LINE_OUT_FRAC_V = [0.0, 0.0]   # dppb (owner 2026-11-15): 0.08 -> 0. The dpcr outward fraction (for the Cross cutting the inside) pushed
+                               # the Altis outward: route 1c6 > 85 km/h curves sat 0-6 cm outward (no inside cutting), the
+                               # driver pushing inward at 21:07 / 21:11. The code stays for dpcr parity.
 LINE_OUT_K_BP = [1e-4, 3e-4]               # 1/m: |lane-centre curvature| (centre fit) over which the fraction fades in;
                                            # not the pursuit's own curvature (it wiggles +-0.26e-3 on straights)
 LINE_W_RISE = 0.5           # 1/s: 2 s to take over
@@ -281,7 +295,7 @@ class LaneCentering:
     return g + (1.0 - g) * float(np.interp(v_ego, [LOW_STRAIGHT_V - 10.0 / 3.6, LOW_STRAIGHT_V], [0.0, 1.0]))
 
   def _push_command(self, k: float):
-    n = max(int(round(LINE_PRED_T / self.dt)), 1)
+    n = max(int(round(max(LINE_PRED_T, LINE_PRED_T_HIGH) / self.dt)), 1)   # the longest prediction; predicted_pose takes its tail
     if self.k_hist is None or len(self.k_hist) != n:
       self.k_hist = np.full(n, k, dtype=float)
       self.k_i = 0
@@ -291,10 +305,12 @@ class LaneCentering:
 
   def predicted_pose(self, v_ego: float) -> tuple[float, float]:
     """(lateral shift, heading) after LINE_PRED_T from the commands sent in the last LINE_PRED_T (positive = right)"""
+    pred_t = line_pred_t(v_ego)
     if self.k_hist is None:
-      xd = v_ego * LINE_PRED_T
+      xd = v_ego * pred_t
       return self.k_prev * xd * xd / 2.0, self.k_prev * xd
-    psi = np.cumsum(np.roll(self.k_hist, -self.k_i)) * (v_ego * self.dt)
+    n = min(max(int(round(pred_t / self.dt)), 1), len(self.k_hist))
+    psi = np.cumsum(np.roll(self.k_hist, -self.k_i)[-n:]) * (v_ego * self.dt)
     return float(np.sum(psi)) * v_ego * self.dt, float(psi[-1])
 
   def line_curvature(self, model_v2, v_ego: float) -> float | None:
@@ -305,7 +321,7 @@ class LaneCentering:
     if info is None or info[0] < LINE_MIN_PROB:
       return None
     look = min(max(v_ego * LINE_T_LOOK, LINE_L_RANGE[0]), LINE_L_RANGE[1])
-    xd = v_ego * LINE_PRED_T
+    xd = v_ego * line_pred_t(v_ego)
     nx, x_last, same_len = info[4:]
     if nx < 4 or x_last < xd + look + LINE_FIT_MARGIN or not same_len:
       return None
