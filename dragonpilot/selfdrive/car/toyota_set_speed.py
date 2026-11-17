@@ -19,6 +19,8 @@ Ported from sunnypilot tncr1 (selfdrive/car/cruise.py + sunnypilot cruise_ext.py
   press of - (held 1 s) from above 30 goes straight to 30 and stops there (to reach 0: release, then one short -);
   RES/+ from 0 always goes straight back to the PCM ceiling (the number on the dash), also while rolling.
   (Replaces the 11-05 long press "-10 every second down to 0".)
+- Owner 2026-11-17 (as on dppb): a long press of - (held 1 s) goes straight to the stop target 0 at ANY speed (was 30);
+  the PCM's own number stays the RES / + ceiling. The Cross set-0 decel curve is unchanged (owner: keep it for now).
 
 VCruiseHelper.update_v_cruise hands the whole update to ToyotaSoftwareSetSpeed.update() (one dragonpilot hook); the
 targets and button timers stay on the helper, so card.py publishes them unchanged.
@@ -37,7 +39,7 @@ V_CRUISE_MAX = 145
 V_CRUISE_UNSET = 255
 IMPERIAL_INCREMENT = round(CV.MPH_TO_KPH, 1)
 SHORT_PRESS_INCREMENT = 5
-LONG_PRESS_TO = 30.   # km/h on the dial: a long press of - from above goes straight here and stops (owner 2026-11-07)
+LONG_PRESS_TO = 0.    # km/h on the dial: a long press of - goes straight here (owner 2026-11-17: 0 at any speed; 11-07: 30)
 ZERO_FROM_DIAL = 30.  # km/h on the dial: a - press from here or below goes straight to 0 (owner 2026-11-07)
 
 # A physical short press is 450-520 ms on the bus; the PCM itself treats a longer hold as a long press and steps its
@@ -239,17 +241,20 @@ class ToyotaSoftwareSetSpeed:
       self.apply_dial_delta(h, delta_kph)
 
   def repeat_long_minus(self, h, CS, is_metric: bool) -> None:
-    """Once - has been held past a short press (1 s), the target goes straight to LONG_PRESS_TO (30 on the dial) and
-    stays there however long - stays held (owner 2026-11-07: "a long press jumps to 30 and stops; to go to 0, release
-    and short-press - once more"). Already at or below 30 (30-40 also lands on 30, as before): nothing. The release of
-    such a press is then ignored by short_presses."""
+    """Once - has been held past a short press (1 s), the target goes straight to the stop target 0 at any speed and
+    stays there however long - stays held (owner 2026-11-17, as on dppb; was 11-07: "a long press jumps to 30 and stops;
+    to go to 0, release and short-press - once more"). While overriding with the gas the target is never put below the
+    current speed. The release of such a press is then ignored by short_presses."""
     if h.button_timers[ButtonType.decelCruise] != TOYOTA_VIRTUAL_CRUISE_LONG_PRESS + 1:
       return
     if not h.button_change_states[ButtonType.decelCruise]["enabled"]:
       return
     ref = h.v_cruise_cluster_kph
-    if ref > LONG_PRESS_TO + 0.05:
-      self.apply_dial_delta(h, LONG_PRESS_TO - ref)
+    delta_kph = LONG_PRESS_TO - ref
+    if CS.gasPressed:
+      delta_kph = max(delta_kph, CS.vEgo * CV.MS_TO_KPH - h.v_cruise_kph)
+    if h.v_cruise_kph > 0. and delta_kph < 0.:
+      self.apply_dial_delta(h, delta_kph)
 
   def apply_dial_delta(self, h, delta_kph: float) -> None:
     """Apply a delta in DISPLAY (speedometer) space and keep the canonical target on the dial's calibration line."""

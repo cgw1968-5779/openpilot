@@ -138,8 +138,8 @@ class TestToyotaSoftwareCruise(unittest.TestCase):
     self.step(n=frames)
     self.step(events=[(button, False)])
 
-  def test_long_press_minus_jumps_to_30_and_stops(self):
-    # owner 2026-11-07: from 40-130 a long - goes straight to 30 and stays there however long it is held
+  def test_long_press_minus_goes_to_zero_and_stays(self):
+    # owner 2026-11-17 (as dppb): from any speed a long - goes straight to 0 and stays there however long it is held
     for pcm, dial in ((80., 86.), (120., 128.), (37., 40.)):
       self.setUp()
       self.pcm_kph, self.pcm_dial_kph = pcm, dial
@@ -149,24 +149,22 @@ class TestToyotaSoftwareCruise(unittest.TestCase):
       self.step(n=L - 5)
       self.assertEqual(self.helper.v_cruise_cluster_kph, dial)  # nothing before 1 s
       self.step(n=10)
-      self.assertEqual(self.helper.v_cruise_cluster_kph, 30.)
-      self.step(n=5 * L)  # still held: stays 30
-      self.assertEqual(self.helper.v_cruise_cluster_kph, 30.)
-      self.step(events=[(ButtonType.decelCruise, False)])  # the release adds nothing
-      self.assertEqual(self.helper.v_cruise_cluster_kph, 30.)
-      self.tap(ButtonType.decelCruise, hold_frames=3)  # then one short - : 0
       self.assertEqual(self.helper.v_cruise_kph, 0.)
+      self.step(n=5 * L)  # still held: stays 0
+      self.assertEqual(self.helper.v_cruise_kph, 0.)
+      self.step(events=[(ButtonType.decelCruise, False)])  # the release adds nothing
+      self.assertEqual(self.helper.v_cruise_kph, 0.)
+      self.tap(ButtonType.accelCruise)  # RES / + back to the PCM ceiling
+      self.assertGreater(self.helper.v_cruise_kph, 0.)
 
   def test_long_press_minus_at_30_or_35(self):
-    # 30-40 unchanged: 35 -> 30; at 30 a long press does nothing (0 only with a short press); at 0 stays 0
+    # 35 and 30: a long - goes to 0 as well; at 0 it stays 0
     self.engage_with_set()
     while self.helper.v_cruise_cluster_kph > 35.:
       self.tap(ButtonType.decelCruise, hold_frames=3)
     self.assertEqual(self.helper.v_cruise_cluster_kph, 35.)
-    for expect in (30., 30.):
-      self.long_press(ButtonType.decelCruise)
-      self.assertEqual(self.helper.v_cruise_cluster_kph, expect)
-    self.tap(ButtonType.decelCruise, hold_frames=3)
+    self.long_press(ButtonType.decelCruise)
+    self.assertEqual(self.helper.v_cruise_kph, 0.)
     self.long_press(ButtonType.decelCruise)
     self.assertEqual(self.helper.v_cruise_kph, 0.)
 
