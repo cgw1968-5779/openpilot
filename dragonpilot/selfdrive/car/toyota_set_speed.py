@@ -31,7 +31,8 @@ Ported from sunnypilot tncr1 (selfdrive/car/cruise.py + sunnypilot cruise_ext.py
   the press length), short presses above 30 no longer step openpilot's own number, and openpilot only owns what the
   PCM cannot do: the stop target 0 below its 30 minimum (short - with the PCM already at 30 -> 0; RES/+ from 0 -> the
   PCM number; - at 0 stays 0). A long - simply follows the PCM down to its 30 (the old "jump to 30 at 1 s" is gone:
-  it set 30 while the dash still showed e.g. 60).
+  it set 30 while the dash still showed e.g. 60). Owner 2026-11-17: a long - (held 1 s) now goes straight to the
+  stop target 0 at any speed (long_minus_to_zero); the dash keeps the PCM's own number as the RES ceiling.
 
 VCruiseHelper.update_v_cruise hands the whole update to ToyotaSoftwareSetSpeed.update() (one dragonpilot hook); the
 targets and button timers stay on the helper, so card.py publishes them unchanged.
@@ -147,6 +148,7 @@ class ToyotaSoftwareSetSpeed:
       elif _enabled and self.initialized(h):
         self.follow_pcm(h, CS, is_metric)
         self.short_presses(h, CS, is_metric)
+        self.long_minus_to_zero(h, CS)
         # tncr1 re-applies a zero delta every frame (its speed limit assist hook): keeps the canonical target inside
         # [30, 145] km/h and the displayed number on the dial line even when the PCM was SET below 30 canonical
         self.apply_dial_delta(h, 0.)
@@ -258,6 +260,19 @@ class ToyotaSoftwareSetSpeed:
         if target < h.v_cruise_kph:
           h.v_cruise_kph = round(target, 1)
           h.v_cruise_cluster_kph = toyota_dial_from_canonical(h.v_cruise_kph)
+
+  def long_minus_to_zero(self, h, CS) -> None:
+    """dppb (owner 2026-11-17): holding - for TOYOTA_VIRTUAL_CRUISE_LONG_PRESS (1 s) at ANY speed sets the stop target 0
+    at once (was: a long - only rode the PCM down to its 30 and a further short - went to 0). The PCM keeps stepping
+    its own dash number down while - is held; follow_pcm keeps the 0 through those steps, and that dash number stays
+    the RES / + ceiling. While overriding with the gas the target is never put below the current speed."""
+    t = h.button_timers.get(ButtonType.decelCruise, 0)
+    if t != TOYOTA_VIRTUAL_CRUISE_LONG_PRESS or not h.button_change_states[ButtonType.decelCruise]["enabled"]:
+      return
+    target = max(0., CS.vEgo * CV.MS_TO_KPH) if CS.gasPressed else 0.
+    if target < h.v_cruise_kph:
+      h.v_cruise_kph = round(target, 1)
+      h.v_cruise_cluster_kph = toyota_dial_from_canonical(h.v_cruise_kph)
 
   def apply_dial_delta(self, h, delta_kph: float) -> None:
     """Apply a delta in DISPLAY (speedometer) space and keep the canonical target on the dial's calibration line."""

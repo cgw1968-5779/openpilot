@@ -166,17 +166,24 @@ class TestToyotaSoftwareCruise(unittest.TestCase):
     self.step(n=frames)
     self.step(events=[(button, False)])
 
-  def test_long_press_minus_follows_the_pcm_down_to_30(self):
-    # owner 2026-11-08: the C3X shows the dash's number at every moment (step() checks it every frame); a long - simply
-    # rides the PCM down to its 30, then one short - goes to the stop target 0
+  def test_long_press_minus_goes_to_zero_at_any_speed(self):
+    # owner 2026-11-17: hold - for 1 s at any speed -> the stop target 0 at once; the dash keeps the PCM's own number
+    # (the RES ceiling), and RES goes back to it
     for pcm, dial in ((63., 68.), (120., 127.), (36., 40.)):
       self.setUp()
       self.pcm_kph, self.pcm_dial_kph = pcm, dial
       self.engage_with_set()
       self.long_press(ButtonType.decelCruise, frames=40 * PCM_REPEAT)
-      self.assertEqual(self.helper.v_cruise_cluster_kph, 30.)
-      self.tap(ButtonType.decelCruise, hold_frames=3)
       self.assertEqual(self.helper.v_cruise_kph, 0.)
+      self.tap(ButtonType.accelCruise)
+      self.assertAlmostEqual(self.helper.v_cruise_kph, pcm_ceiling_base_kph(self.cs(), True), delta=0.15)
+
+  def test_minus_held_under_one_second_still_mirrors_the_pcm(self):
+    self.pcm_kph, self.pcm_dial_kph = 103., 110.
+    self.engage_with_set()
+    self.tap(ButtonType.decelCruise, hold_frames=TOYOTA_VIRTUAL_CRUISE_LONG_PRESS - 5)
+    self.assertGreater(self.helper.v_cruise_kph, 0.)
+    self.assertEqual(self.helper.v_cruise_cluster_kph, self.pcm_dial_kph)
 
   def test_half_second_press_that_steps_the_pcm_twice(self):
     # route 19c (dppb fc084b1f) 11:48: a ~0.5 s - press moved the dash 110 -> 100 but the C3X only 110 -> 105
@@ -189,15 +196,13 @@ class TestToyotaSoftwareCruise(unittest.TestCase):
     self.assertEqual(self.helper.v_cruise_cluster_kph, 110.)
 
   def test_long_press_minus_at_30_or_35(self):
-    # 30-40 unchanged: 35 -> 30; at 30 a long press does nothing (0 only with a short press); at 0 stays 0
+    # 35 or 30: a long - goes to 0 as well; at 0 it stays 0
     self.engage_with_set()
     while self.helper.v_cruise_cluster_kph > 35.:
       self.tap(ButtonType.decelCruise, hold_frames=3)
     self.assertEqual(self.helper.v_cruise_cluster_kph, 35.)
-    for expect in (30., 30.):
-      self.long_press(ButtonType.decelCruise)
-      self.assertEqual(self.helper.v_cruise_cluster_kph, expect)
-    self.tap(ButtonType.decelCruise, hold_frames=3)
+    self.long_press(ButtonType.decelCruise)
+    self.assertEqual(self.helper.v_cruise_kph, 0.)
     self.long_press(ButtonType.decelCruise)
     self.assertEqual(self.helper.v_cruise_kph, 0.)
 
