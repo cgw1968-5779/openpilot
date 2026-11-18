@@ -121,6 +121,25 @@ CHECK_TAU = 0.3             # 1/s^2: decay of the lead braking assumed by the ch
 CHECK_DT = 0.05             # s
 CHECK_T = np.arange(1, 201) * CHECK_DT  # 10 s
 
+# 11-18 owner (route 000001d1): "the mid brake slows down a little early - keep the soft onset as it is, but when no hard
+# brake is needed start braking ~0.2-0.3 s later". While closing in on a slower lead that is still far, the lead obstacle
+# is moved out by APPROACH_DELAY_T * (vEgo - vLead): during an approach the gap shrinks at vEgo - vLead, so the MPC sees
+# the situation later and starts its own (unchanged, soft) build-up later, then makes up the room with a slightly firmer
+# mid. Zero when not closing in (steady following, T_FOLLOW unchanged); faded out as the real dRel drops from
+# APPROACH_FADE_D[1] to [0] (the mid's catch-up is done well before the end: stop distance kept); faded out as the brake
+# the lead needs from the real dRel goes from APPROACH_NEED[0] to [1] (a hard brake is never delayed; the owner's normal
+# firm mid is -2.0..-2.4, so a need below 2.0 is a normal stop). Not in the FCW check.
+# Sim (stopped lead seen from 120 m, 30-70 km/h; aggressive = the owner's setting): -0.3 reached 0.1-0.45 s later, -0.6
+# 0-0.45 s later, peak -2.00..-2.55 (was -2.00..-2.52), build-up rate unchanged; stop aggressive 3.69-4.04 m (was
+# 3.79-4.56), relaxed 4.15-4.41 (4.44-4.80), standard 3.50-3.85 (3.81-4.15). Lead braking, cut-in, sudden stopped leads,
+# steady following and the PRE=3 stop set identical (45/60 +0.07, 60/85 +0.19 m). Route 000001d1 replays (aggressive):
+# 21:01:57 -0.3 0.15 s later, peak -2.32 -> -2.50; 21:03:27 onset 0.21 s later.
+APPROACH_DELAY_T = 0.5           # s of closing-speed travel (MPC onset moves ~0.2-0.4 s: it also reacts to the lead appearing)
+APPROACH_FADE_D = [45.0, 90.0]   # m (real dRel): none closer than the first, full beyond the second
+APPROACH_NEED = [2.0, 3.0]       # m/s^2
+APPROACH_S0 = 4.0                # m: the standard stop gap
+APPROACH_LAG = 0.5               # s of travel before a firmer brake takes effect
+
 def get_jerk_factor(personality=log.LongitudinalPersonality.standard):
   if personality==log.LongitudinalPersonality.relaxed:
     return 1.0
@@ -438,6 +457,15 @@ class LongitudinalMpc:
       self.mid_open = False
     return ACCEL_MIN if self.mid_open else MID_MIN
 
+  @staticmethod
+  def approach_delay(lead, v_ego):
+    if not lead.status:
+      return 0.0
+    dv = max(v_ego - lead.vLead, 0.0)
+    need = max(-lead.aLeadK, 0.0) + dv**2 / (2. * max(lead.dRel - APPROACH_S0 - v_ego * APPROACH_LAG, 1.0))
+    w = float(np.interp(lead.dRel, APPROACH_FADE_D, [0.0, 1.0]) * np.interp(need, APPROACH_NEED, [1.0, 0.0]))
+    return APPROACH_DELAY_T * dv * w
+
   def update(self, radarstate, v_cruise, personality=log.LongitudinalPersonality.standard):
     t_follow = get_T_FOLLOW(personality)
     v_ego = self.x0[1]
@@ -456,6 +484,8 @@ class LongitudinalMpc:
     # and then treat that as a stopped car/obstacle at this new distance.
     lead_0_obstacle = lead_xv_0[:,0] + get_stopped_equivalence_factor(lead_xv_0[:,1])
     lead_1_obstacle = lead_xv_1[:,0] + get_stopped_equivalence_factor(lead_xv_1[:,1])
+    lead_0_obstacle += self.approach_delay(radarstate.leadOne, v_ego)  # dragonpilot hook
+    lead_1_obstacle += self.approach_delay(radarstate.leadTwo, v_ego)  # dragonpilot hook
 
     # Fake an obstacle for cruise, this ensures smooth acceleration to set speed
     # when the leads are no factor.
