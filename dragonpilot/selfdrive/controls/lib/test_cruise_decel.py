@@ -53,18 +53,16 @@ def test_normal_latches_one_decel():
   assert d2 == max(d1, (55 - 58) * KPH / cd.TAPER_T)
 
 
-def test_set_zero_follows_the_owner_line_1117():
-  # owner 2026-11-17: -0.5 at 80 km/h and up, linearly firmer to -1.5 at 30, -1.5 held to 10 km/h, then the smooth end
+def test_set_zero_follows_the_owner_template_1111():
+  # owner 2026-11-11: set 0 from mid / high speed slows like the 16:51 stop (52 km/h, firm -1.35 middle, eased end)
   c = cd.CruiseDecel()
-  for mode in (cd.ECO, cd.NORMAL, cd.SPORT):
-    d = {k: c.decel(mode, k * KPH, 0.0, FLAT_COAST) for k in (130, 100, 80, 55, 30, 20, 10, 6, 2, 0.01)}
-    assert d[130] == d[100] == d[80] == -0.50
-    assert abs(d[55] - (-0.50 + (-1.55 + 0.50) * 25 / 50)) < 1e-9   # linear 80 -> 30
-    assert d[30] == -1.55 and d[10] == -1.60 and d[30] >= d[20] >= d[10]  # held 30 -> 10 (drawn a little firmer: the MPC rounds it)
-    ks = (10, 6, 2, 0.01)
-    assert all(d[a] < d[b] for a, b in zip(ks, ks[1:]))               # eases monotonically to the stop
-    assert abs(d[0.01] - -0.30) < 0.01                                # the Altis end value
-    assert -1.65 < min(d.values())
+  d = {k: c.decel(cd.ECO, k * KPH, 0.0, FLAT_COAST) for k in (100, 90, 85, 80, 60, 40, 25, 20, 10, 5.4, 2.3, 0.01)}
+  assert d[80] == d[60] == d[40] == cd.SET0_DECEL_V[-1]           # the firm middle, held from 40 up to 80
+  assert d[100] == d[90] > d[85] > d[80]                          # 90 and up: the high-speed easing, blended 80-90
+  ks = (40, 25, 20, 10, 5.4, 2.3, 0.01)
+  assert all(d[a] <= d[b] for a, b in zip(ks, ks[1:]))            # eases monotonically to the stop
+  assert abs(d[0.01] - -0.30) < 0.01                              # the Altis end value
+  assert -1.5 < min(d.values())                                   # never near the old -2.2
 
 
 def test_set_zero_profile_follows_the_schedule_from_a_smooth_onset():

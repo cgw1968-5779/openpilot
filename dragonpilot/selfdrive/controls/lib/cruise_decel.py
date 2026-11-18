@@ -45,9 +45,6 @@ planner's cruise target becomes the speed one step of a SCHEDULED decel ahead (t
   -1.01 at 10, -0.78 at 6, -0.40 at 2, -0.22 sent at the stop, 15.0 s (template 16 s); from 30 / 40 / 60 / 80 km/h the
   same shape (peak -1.27 / -1.36 / -1.38 / -1.39); never firmer again after the peak. Every case other than set 0 is
   bit-identical (77-case regression).
-- set speed 0 by speed (owner 2026-11-17, replaces the 11-11 table; with the new long - to 0 it is used from any
-  speed): "-0.5 from 80 km/h up, growing linearly to -1.5 at 30, held -1.5 down to 10 km/h, then the smooth end".
-  Every drive mode; the onset still grows from the current accel at PROFILE_JERK.
 - the last second before the set speed: the decel shrinks in proportion to the gap left, and the target never goes
   below the set speed itself (lands without overshoot).
 
@@ -76,11 +73,10 @@ TAPER_T = 1.0                                            # s
 # 40 km/h -0.14/-0.14/-0.37/-0.43/-0.47 for -0.15/-0.15/-0.39/-0.45/-0.49; 1 s gave a third of it)
 LOOKAHEAD_T = 3.0                                        # s: cruise target = v_ego + decel * LOOKAHEAD_T
 SET0_TARGET_MAX = 1.0 / 3.6                              # m/s: a set speed below this is "set to 0"
-# set 0 (owner 2026-11-17, replaces the 11-11 template table): "-0.5 at 80 km/h and up, firmer linearly to -1.5 at 30,
-# held -1.5 down to 10 km/h, then a smooth stop with no jolt". The end below 10 km/h eases as the 11-11 template did.
-SET0_DECEL_KPH = [0., 2.0, 4.0, 6.0, 8.0, 10.0, 30.0, 80.0]
+SET0_DECEL_KPH = [0., 2.3, 3.7, 5.4, 10., 13., 16.6, 20., 25., 40.]  # km/h: the owner's 11-11 16:51 template (above)
 SET0_DECEL_BP = [x / 3.6 for x in SET0_DECEL_KPH]
-SET0_DECEL_V = [-0.30, -0.38, -0.70, -1.10, -1.45, -1.60, -1.55, -0.50]  # m/s^2, -0.50 held above 80 km/h
+SET0_DECEL_V = [-0.30, -0.42, -0.75, -1.10, -1.12, -1.22, -1.33, -1.41, -1.44, -1.46]  # m/s^2, held above 40 km/h (drawn ~0.1 firmer: the MPC rounds it)
+SET0_BLEND_BP = [80.0 / 3.6, 90.0 / 3.6]                 # m/s: the template up to 80 km/h -> the eco / high-speed value at 90
 PROFILE_DT = 0.05                                        # s: integration step of the set-0 speed curve
 PROFILE_JERK = 0.7                                        # m/s^3: the set-0 curve grows from the current accel no faster (template onset)
 PROFILE_TABLE_N = 161                                    # speeds 0 .. v0 at which the set-0 schedule is tabled per call
@@ -104,8 +100,18 @@ class CruiseDecel:
 
   @staticmethod
   def _set0_decel(v: np.ndarray, coast: float | None) -> np.ndarray:
-    """set-0 decel (m/s^2) at the speeds v (m/s, array): the owner's 11-17 line (same in every drive mode)."""
-    return np.interp(v, SET0_DECEL_BP, SET0_DECEL_V)
+    """set-0 decel (m/s^2) at the speeds v (m/s, array): the eco line (all modes, as for every target below
+    LOW_TARGET_MAX) blended into the SET0 schedule below 70 km/h, then the 80 km/h-and-up throttle easing."""
+    d = np.interp(v, ECO_DECEL_BP, ECO_DECEL_V)
+    if coast is not None:
+      w = np.interp(v, ECO_COAST_BLEND_BP, [0.0, 1.0])
+      low = np.interp(np.minimum(v, ECO_COAST_BLEND_BP[0]), ECO_DECEL_BP, ECO_DECEL_V)
+      d = (1.0 - w) * low + w * min(coast, ECO_COAST_FLAT)  # set speed 0 <= 30 km/h: never gentler than the flat
+    high = HIGH_FRAC * (coast if coast is not None else np.interp(v, ECO_DECEL_BP, ECO_DECEL_V))
+    w_high = np.interp(v, HIGH_BP, [0.0, 1.0])
+    d = (1.0 - w_high) * d + w_high * high
+    w0 = np.interp(v, SET0_BLEND_BP, [0.0, 1.0])
+    return (1.0 - w0) * np.interp(v, SET0_DECEL_BP, SET0_DECEL_V) + w0 * d  # the schedule's own end line is the landing
 
   def decel(self, drive_mode: int, v_ego: float, v_target: float, accel_coast: float | None) -> float:
     gap = v_target - v_ego  # < 0
