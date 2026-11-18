@@ -105,13 +105,18 @@ FOLLOW_RATE = 0.25          # m/s: offset change rate
 # -2.54 would still hit the lead". The MPC's accel floor (a runtime parameter, no new layer) is MID_MIN; it opens to
 # ACCEL_MIN while braking at MID_MIN (from the current accel after BRAKE_REACT, reached at MID_JERK) would bring us
 # within CRASH_GAP of a lead that keeps its current braking until it stops, and closes again once we have stopped or that gap is over CLEAR_GAP.
+# 11-18 owner: "open it once -2.54 would stop within 3 m" -> CRASH_GAP 0.5 -> 3.0 m (CLEAR_GAP 2.5 -> 5.0 m, same 2 m
+# hysteresis). With 0.5 m, sudden stopped leads at 40-60 km/h ended 0.8-2 m behind with a stop-go-stop; at 3 m they end
+# 3.4-4.1 m with one stop, and the 11-15 10:32 replay ends 1.7-2.2 m instead of 0.5-1.2 m. It now also closes only once the
+# plan itself no longer needs more than MID_MIN, so closing can never cut the braking (a 50 km/h / 55 m stop opened at the
+# onset and dropped -2.91 -> -2.54 in 0.25 s when it closed on the gap alone).
 # Fading the following time out while the lead brakes was tried too and dropped: it lightens the onset (10:32 sim -0.85
 # instead of -1.54 at 1.5 s), so the mid had to go to -3.5 anyway.
 MID_MIN = -2.54             # m/s^2
 MID_JERK = 1.8              # m/s^3 (11:37 template peak command rate)
 BRAKE_REACT = 0.5           # s
-CRASH_GAP = 0.5             # m
-CLEAR_GAP = 2.5             # m
+CRASH_GAP = 3.0             # m (11-15: 0.5)
+CLEAR_GAP = 5.0             # m (11-15: 2.5)
 CHECK_TAU = 0.3             # 1/s^2: decay of the lead braking assumed by the check (MPC uses 1.5)
 CHECK_DT = 0.05             # s
 CHECK_T = np.arange(1, 201) * CHECK_DT  # 10 s
@@ -429,7 +434,7 @@ class LongitudinalMpc:
     gap = min(self.mid_floor_gap(radarstate.leadOne, v_ego), self.mid_floor_gap(radarstate.leadTwo, v_ego))
     if gap < CRASH_GAP:
       self.mid_open = True
-    elif v_ego < 0.1 or gap > CLEAR_GAP:
+    elif v_ego < 0.1 or (gap > CLEAR_GAP and float(np.min(self.a_solution)) >= MID_MIN):
       self.mid_open = False
     return ACCEL_MIN if self.mid_open else MID_MIN
 

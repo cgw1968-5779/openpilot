@@ -9,7 +9,7 @@ from opendbc.car.interfaces import ACCEL_MIN
 
 
 def mpc(a=0.0):
-  m = SimpleNamespace(mid_open=False, x0=np.array([0.0, 0.0, a]))
+  m = SimpleNamespace(mid_open=False, x0=np.array([0.0, 0.0, a]), a_solution=np.zeros(33))
   m.mid_floor_gap = lambda ld, v: lm.LongitudinalMpc.mid_floor_gap(m, ld, v)
   return m
 
@@ -63,3 +63,21 @@ def test_open_closes_when_clear_or_stopped():
 
 def test_floor_is_never_below_accel_min():
   assert lm.MID_MIN > ACCEL_MIN
+
+
+def test_opens_when_mid_min_would_stop_within_3_m():
+  # 11-18 owner: open once -2.54 would stop within 3 m (was 0.5 m); 40 km/h, not yet braking, stopped car 38 m ahead
+  # (-2.54 after the reaction would stop ~1.1 m behind it)
+  m = mpc()
+  gap = m.mid_floor_gap(lead(38.0, 0.0), 40 / 3.6)
+  assert 0.5 < gap < lm.CRASH_GAP
+  assert floor(m, rs(lead(38.0, 0.0)), 40 / 3.6) == ACCEL_MIN
+
+
+def test_does_not_close_while_the_plan_still_brakes_past_mid_min():
+  m = mpc()
+  assert floor(m, rs(lead(30.0, 0.0)), 50 / 3.6) == ACCEL_MIN
+  m.a_solution = np.full(33, -2.9)
+  assert floor(m, rs(lead(30.0, 15.0)), 15.0) == ACCEL_MIN        # clear, but the plan is still at -2.9
+  m.a_solution = np.full(33, -2.0)
+  assert floor(m, rs(lead(30.0, 15.0)), 15.0) == lm.MID_MIN       # plan back above -2.54: close
