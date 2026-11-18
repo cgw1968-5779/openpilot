@@ -54,6 +54,9 @@ class LeadVehicle:
   y: float = 0.0
   sz: float = 0.0
 
+LEAD_DIST_FONT = 42  # dppb (owner 11-18): lead distance text size (dragonpilot 40, +2)
+
+
 @dataclass
 class DpUiLeadMode:
   off = 0
@@ -347,8 +350,8 @@ class ModelRenderer(Widget):
         # dppb (owner 11-18): only the distance to the lead, in metres - no speed, no time-to-collision; drawn ABOVE the
         # chevron (below it the text is cut off by the screen edge when stopping close behind the lead)
         dist_str = f"{lead.d_rel:.1f} m" if ui_state.is_metric else f"{lead.d_rel * 3.28084:.1f} ft"
-        text_y = max(lead.y - lead.sz / 10 - 12 - 40, 0.0)   # glow tip (sz/10 above the chevron tip), 12 px gap, 40 px font
-        self._dp_paint_centered_lead_text(dist_str, 40, lead.x, text_y)
+        text_y = max(lead.y - lead.sz / 10 - 12 - LEAD_DIST_FONT, 0.0)   # glow tip (sz/10 above the chevron tip), 12 px gap
+        self._dp_paint_centered_lead_text(dist_str, LEAD_DIST_FONT, lead.x, text_y)
 
   @staticmethod
   def _get_path_length_idx(pos_x_array: np.ndarray, path_distance: float) -> int:
