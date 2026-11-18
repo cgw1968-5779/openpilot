@@ -345,9 +345,11 @@ class ModelRenderer(Widget):
       rl.draw_triangle_fan(lead.chevron, len(lead.chevron), rl.Color(201, 34, 49, lead.fill_alpha))
 
       if ui_state.dp_ui_lead in [DpUiLeadMode.lead, DpUiLeadMode.all]:
-        # dppb (owner 11-18): only the distance to the lead, in metres - no speed, no time-to-collision
+        # dppb (owner 11-18): only the distance to the lead, in metres - no speed, no time-to-collision; drawn ABOVE the
+        # chevron (below it the text is cut off by the screen edge when stopping close behind the lead)
         dist_str = f"{lead.d_rel:.1f} m" if ui_state.is_metric else f"{lead.d_rel * 3.28084:.1f} ft"
-        self._dp_paint_centered_lead_text(dist_str, 40, lead.x, lead.y + lead.sz)
+        text_y = max(lead.y - lead.sz / 10 - 12 - 40, 0.0)   # glow tip (sz/10 above the chevron tip), 12 px gap, 40 px font
+        self._dp_paint_centered_lead_text(dist_str, 40, lead.x, text_y)
 
   @staticmethod
   def _get_path_length_idx(pos_x_array: np.ndarray, path_distance: float) -> int:
