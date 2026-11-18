@@ -43,13 +43,36 @@ def test_pcm_request_reaches_minus_030_at_the_stop():
   assert max(out for _, out, _ in rows) <= F.FE_CMD_MAX
 
 
-def test_held_again_once_at_rest():
+def test_firms_back_at_once_at_the_standstill_flag():
   fe, _, sent, extra = stop()
-  outs = [fe.update(-0.40, 0.0, cs(0.0, 0.0, standstill=True), True, (sent[-6] + extra, 0.0)) for _ in range(150)]
-  n_hold = int(F.FE_HOLD_T / DT_CTRL)
-  assert all(o >= -0.40 + 0.1 for o in outs[:n_hold - 1])     # the last centimetres on the eased brake
-  assert outs[-1] <= -0.40 + 1e-6                               # back to where it was before the ease
-  assert all(b <= a + 1e-9 for a, b in zip(outs[n_hold:], outs[n_hold + 1:]))
+  outs = [fe.update(-0.30, 0.0, cs(0.0, 0.0, standstill=True), True, (sent[-6] + extra, 0.0)) for _ in range(40)]
+  assert outs[0] < sent[-1]                                     # firming starts at the flag (no wait)
+  assert all(b <= a + 1e-9 for a, b in zip(outs, outs[1:]))
+  assert max(a - b for a, b in zip(outs, outs[1:])) <= F.FE_PARK_RATE * DT_CTRL + 1e-9
+  assert outs[-1] <= F.FE_PARK + 1e-6                           # at least the park level within ~0.1 s
+
+
+def test_pcm_request_not_left_lighter_than_minus_030():
+  # the PCM's extra shrinks after the ease (11-18 08:00 the request ended at -0.21): the command firms back to hold -0.30
+  fe = F.FinalEase(DT_CTRL)
+  sent, v = [-0.40] * 6, 0.9
+  extra = -0.35
+  for k in range(60):
+    if k == 20:
+      extra = -0.15
+    net = sent[-6] + extra
+    sent.append(fe.update(-0.40, -0.3, cs(v, -0.4), True, (net, 0.0)))
+  assert abs(sent[-6] + extra - F.FE_NET) < 0.03
+
+
+def test_only_one_ease_per_stop():
+  fe = F.FinalEase(DT_CTRL)
+  fe.update(-0.40, -0.3, cs(0.8, -0.4), True, (-0.6, 0.0))
+  for _ in range(40):
+    fe.update(-0.40, -0.3, cs(0.8, 0.3), True, (-0.6, 0.0))   # creeping on: handed back
+  for _ in range(100):
+    out = fe.update(-0.40, -0.3, cs(0.8, -0.4), True, (-0.6, 0.0))
+  assert out == -0.40 and fe.uses == 1
 
 
 def test_hands_back_when_the_car_creeps_on():
