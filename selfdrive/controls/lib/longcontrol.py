@@ -4,7 +4,6 @@ from openpilot.common.realtime import DT_CTRL
 from openpilot.selfdrive.controls.lib.drive_helpers import CONTROL_N
 from openpilot.common.pid import PIDController
 from dragonpilot.selfdrive.controls.lib.creep_stop import CreepStop
-from dragonpilot.selfdrive.controls.lib.final_ease import FinalEase
 from openpilot.selfdrive.modeld.constants import ModelConstants
 
 CONTROL_N_T_IDX = ModelConstants.T_IDXS[:CONTROL_N]
@@ -246,7 +245,6 @@ class LongControl:
     self.lead = None  # radarState.leadOne, set by controlsd every frame (None: no radarState)
     self.pcm = None  # (ACCEL_NET, NEUTRAL_FORCE) from carStateExt, set by controlsd every frame (None: not reported)
     self.creep_stop = CreepStop(DT_CTRL, CP.mass)
-    self.final_ease = FinalEase(DT_CTRL)
 
   def reset(self):
     self.pid.reset()
@@ -285,7 +283,6 @@ class LongControl:
     output_accel = self.end_stop_hold(output_accel)
     output_accel = self.engage_onset(output_accel, CS)
     output_accel = self.creep_stop.update(output_accel, CS, self.lead, a_target, active, self.pcm)  # dragonpilot hook (creep stop)
-    output_accel = self.final_ease.update(output_accel, a_target, CS, active, self.pcm, self.creep_stop)  # dragonpilot hook (final ease)
 
     self.last_output_accel = np.clip(output_accel, accel_limits[0], accel_limits[1])
     return self.last_output_accel
