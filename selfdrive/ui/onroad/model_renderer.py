@@ -148,8 +148,7 @@ class ModelRenderer(Widget):
       self._transform_dirty = False
 
     # dp - draw live tracks before everything
-    if ui_state.dp_ui_lead in [DpUiLeadMode.radar, DpUiLeadMode.all] and sm.valid['liveTracks']:
-      self._draw_live_tracks(sm)
+    # dppb (owner 11-18): the radar track labels (id / d / y / dv) are never drawn - only the lead distance is shown
 
     # Draw elements
     self._draw_lane_lines()
