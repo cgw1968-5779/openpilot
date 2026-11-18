@@ -823,3 +823,11 @@ msgstr "✓ 已訂閱"
 msgid "🔥 Firehose Mode 🔥"
 msgstr "🔥 Firehose 模式 🔥"
 
+
+#: openpilot/selfdrive/selfdrived/events.py (startup alert, shown via alert_renderer)
+msgid "Be ready to take over at any time"
+msgstr "隨時準備接手控制"
+
+#: openpilot/selfdrive/selfdrived/events.py (startup alert, shown via alert_renderer)
+msgid "Always keep hands on wheel and eyes on road"
+msgstr "雙手保持在方向盤上，眼睛注視路面"

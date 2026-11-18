@@ -10,6 +10,14 @@ from openpilot.system.ui.lib.text_measure import measure_text_cached
 from openpilot.system.ui.widgets import Widget
 from openpilot.system.ui.widgets.label import Label
 
+# dragonpilot: only the startup alert's two lines are translated (owner 2026-11-18: the welcome message in Chinese);
+# the safety alerts keep their original wording
+STARTUP_ALERT_TEXTS = ("Be ready to take over at any time", "Always keep hands on wheel and eyes on road")
+
+
+def _tr_startup(text: str) -> str:
+  return tr(text) if text in STARTUP_ALERT_TEXTS else text
+
 AlertSize = log.SelfdriveState.AlertSize
 AlertStatus = log.SelfdriveState.AlertStatus
 
@@ -112,7 +120,8 @@ class AlertRenderer(Widget):
       return None
 
     # Return current alert
-    return Alert(text1=ss.alertText1, text2=ss.alertText2, size=ss.alertSize.raw, status=ss.alertStatus.raw)
+    # dragonpilot hook: the startup (welcome) alert follows the UI language; every other alert text is unchanged
+    return Alert(text1=_tr_startup(ss.alertText1), text2=_tr_startup(ss.alertText2), size=ss.alertSize.raw, status=ss.alertStatus.raw)
 
   def _render(self, rect: rl.Rectangle):
     alert = self.get_alert(ui_state.sm)
