@@ -20,7 +20,8 @@ from FE_V_FEEL (v <= FE_V_FEEL + decel * FE_LAG; always at the wheel-speed floor
 request is walked to FE_NET: the command is FE_NET minus what the PCM adds beyond our command (ACCEL_NET - our command
 FE_NET_DELAY frames ago, the creep stop's fast loop), eased at most FE_UP and firmed back at most FE_DOWN so the request
 ends at FE_NET, not lighter (so the car feels the eased brake at about 0.5 km/h and comes to rest on it); never firmer
-than where it started, never firmer than the layers before it, at most FE_CMD_MAX.
+than where it started, never firmer than the layers before it, at most FE_CMD_MAX (11-18 late: -0.32, so in practice
+the command is -0.32 in the last instant; the PCM's request ends a little firmer than FE_NET).
 Without ACCEL_NET it never arms (a command eased without it lets the creep force push the car on).
 At the standstill flag the brake firms back at once at FE_PARK_RATE to FE_PARK (or the pre-ease level if firmer): the car
 answers ~0.3 s late, i.e. just after it has come to rest and before the creep force can push it on (11-18 08:00: with a
@@ -32,6 +33,8 @@ runs its own end, or when longitudinal control is not active. Above FE_V_TRIG_MA
 """
 from collections import deque
 
+from openpilot.common.swaglog import cloudlog
+
 import numpy as np
 
 FE_V_FEEL = 0.5 / 3.6       # m/s: the car should feel the eased brake from here to the stop (owner: e.g. 0.5 km/h)
@@ -41,7 +44,11 @@ FE_V_FLOOR = 0.6 / 3.6      # m/s: the wheel speeds read nothing below ~0.55-0.6
 FE_A_MIN = 0.15             # m/s^2: floor of the decel used for the prediction
 FE_SLOWING = -0.08          # m/s^2: the car must be decelerating at least this to trigger
 FE_NET = -0.30              # m/s^2: the PCM request the car comes to rest on (owner: -0.30 or lighter)
-FE_CMD_MAX = 0.10           # m/s^2: most positive command (the PCM added up to -0.40 beyond ours at the stop)
+FE_CMD_MAX = -0.32          # m/s^2: lightest command. 11-18 22:03:22 (route 000001d4, 0.10 here): the ease walked the
+                            #   command to -0.13 (the PCM added ~-0.17 of its own), the car was pushed on at the
+                            #   standstill flag (IMU +0.06 -> +0.22), rolled to 1.34 km/h and stopped again 0.25 m on
+                            #   (two-stage); 21:02:12 (no ease, sent -0.34) rolled on too. Owner: "if -0.30 is too loose,
+                            #   go to -0.32" -> the command in the last instant is -0.32 (from the -0.40 hold above it)
 FE_UP = 1.5                 # m/s^3: easing rate of the command
 FE_NET_DELAY = 5            # frames: our command -> ACCEL_NET
 FE_DOWN = 2.0               # m/s^3: the command firms back toward the goal at most this fast while moving (the PCM's
@@ -56,6 +63,13 @@ FE_REACCEL_A = 0.05         # m/s^2: speeding up again (after FE_LAG on) hands b
 FE_URGENT = -1.5            # m/s^2
 FE_RESET_V = 2.0 / 3.6      # m/s: a new stop can ease again above this
 FE_MAX_USES = 1             # eases per stop (11-18 08:00: a second ease after the creep pushed the car on made it stop-go-stop)
+# 11-18 late (owner): "if it still moves, add 0.01 and keep testing until it does not move". If the car moves on again
+# within FE_ROLL_T of the standstill flag while the planner does not ask to go and the gas is not pressed, the level of
+# the following eases firms by FE_STEP (-0.32 -> -0.33 -> ...), at most to FE_LEVEL_MIN (the -0.40 hold above the ease,
+# i.e. no ease any more). Kept for the drive (logged), the default is then set from the logs.
+FE_ROLL_T = 1.5             # s after the standstill flag
+FE_STEP = 0.01              # m/s^2
+FE_LEVEL_MIN = -0.40        # m/s^2
 
 
 class FinalEase:
@@ -69,6 +83,8 @@ class FinalEase:
     self.cmd = 0.0
     self.before = 0.0     # the command just before the ease (the hold firms back to it)
     self.sent = deque([0.0] * (FE_NET_DELAY + 1), maxlen=FE_NET_DELAY + 1)
+    self.level = FE_CMD_MAX  # lightest command of the ease, firmed by FE_STEP after each roll-on
+    self.hold_t = 0.0
 
   def _back(self, output_accel: float) -> float:
     # hand back without a sudden bite: the command firms toward the other layers' at most FE_REFIRM
@@ -96,7 +112,12 @@ class FinalEase:
       # standstill flagged: firm back at once to the park level (it reaches the car ~0.3 s later, after it has come to
       # rest, before the creep force can push it on); longcontrol's own hold firms only 0.3 m/s^3
       # then never lighter than it while at rest, until the planner asks to go (like the creep stop's hold)
+      self.hold_t += self.dt
       if not CS.standstill or a_target > 0.0:
+        if not CS.standstill and a_target <= 0.0 and self.hold_t <= FE_ROLL_T and self.level > FE_LEVEL_MIN:
+          # moved on by itself after the stop: the next eases are FE_STEP firmer
+          self.level = max(self.level - FE_STEP, FE_LEVEL_MIN)
+          cloudlog.warning(f"final_ease: rolled on {self.hold_t:.2f} s after the stop, level now {self.level:.2f}")
         self.hold = False
         return output_accel
       park = min(self.before, FE_PARK)
@@ -106,13 +127,14 @@ class FinalEase:
     if self.on:
       if CS.standstill:
         self.on, self.hold, self.done = False, True, True
+        self.hold_t = 0.0
         return self._update(output_accel, a_target, CS, active, pcm, creep_stop)
       self.t += self.dt
       if self.done or v > FE_V_ABORT or (self.t > FE_LAG and CS.aEgo > FE_REACCEL_A):
         self.done = True
         return self._back(output_accel)
       extra = min(pcm[0] - self.sent[0], 0.0)   # what the PCM adds beyond our command (never used to firm)
-      goal = min(FE_NET - extra, FE_CMD_MAX)
+      goal = min(FE_NET - extra, self.level)
       # toward the goal: eases at most FE_UP, firms back at most FE_DOWN only so the PCM's request does not end lighter
       # than FE_NET (never firmer than where it started, never firmer than the layers before it)
       self.cmd = float(np.clip(goal, self.cmd - FE_DOWN * self.dt, self.cmd + FE_UP * self.dt))

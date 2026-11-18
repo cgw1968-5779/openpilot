@@ -86,19 +86,25 @@ LAUNCH_EXTRA = 0.5          # m beyond the gap we stopped at, so a lead creeping
 # with the stop end gaps 3.25 m. Real stops 11-15 (21 behind a stopped lead): median 3.64 m.
 STOP_EXTRA = -0.25          # m (11-12..11-15: 0.0; 11-05..11-12: 0.7)
 # 11-18 owner (route 000001d4 22:03, a queue stopping and creeping): "when the lead creeps, follow it closely and stop
-# 3.5 m behind it" - we stopped at 4.1 m, then followed the creeping lead at 1-3 km/h and stopped at 6.0 and 5.9 m: the
-# launch offset faded (2 m/s once the lead stopped) and the MPC's own 6 m stop target (STOP_DISTANCE + STOP_EXTRA,
-# 5.75 m) took over, which a 1-3 km/h crawl hits exactly (the faster stops end ~3.5 m only through the stop end).
-# Below CREEP_KEEP_V the launch offset now never fades below CREEP_FLOOR (the MPC's stop target CREEP_GAP behind the
-# lead) while we or the lead move; while both are stopped it is held as it is (nothing creeps up to a stopped lead).
-# A launch also arms when we stopped farther than STOP_DISTANCE (up to CREEP_ARM_D), so a creep after a far stop
-# closes up to CREEP_GAP. From CREEP_KEEP_V up it fades as before (LAUNCH_FADE / LAUNCH_FADE_STOPPED).
+# 3.5 m behind it"; then: "fix WHY it goes back to the 6 m stop target". We stopped at 4.1 m, followed the creeping
+# lead at 1-3 km/h and stopped at 6.0 and 5.9 m. Root cause: the MPC's own stop target is STOP_DISTANCE (6 m, compiled
+# in) + STOP_EXTRA = 5.75 m behind the lead; the ~3.5 m stops from speed come from the stop end layers taking the car
+# ~2 m past it, and a 1-4 km/h crawl never goes through them, so it stops on the MPC's 5.75 m. The launch offset only
+# hid that for ~1 s after the lead had started.
+# So at crawl speed the MPC's own stop target is CREEP_GAP (creep_gap, independent of the launch): the lead obstacle
+# moves out by CREEP_FLOOR * creep_w while we are below CREEP_KEEP_V and the lead is slower than CREEP_LEAD_V (a queue)
+# and within CREEP_ARM_D. creep_w is 1 at our speed <= CREEP_W_V[0], 0 from CREEP_W_V[1] (faster stops already end
+# ~3.5 m through the stop end; the full target there ended at 2.1-2.9 m), and is latched (never raised) once the lead
+# has stopped, so it neither grows while we brake to the stop nor changes a normal stop from speed (w = 0 there); it
+# follows our speed again once the lead moves. While both are stopped it is held (nothing creeps up to a stopped lead).
+# Grows and fades at most CREEP_RATE (out of the queue conditions it fades out); 0 at once when the lead is lost.
 CREEP_GAP = 3.8             # m: MPC target; the aggressive stop ends ~0.3 m closer (owner: 3.5 m)
 CREEP_FLOOR = STOP_DISTANCE - (CREEP_GAP - STOP_EXTRA)  # m: 1.95
-CREEP_KEEP_V = 10.0 / 3.6   # m/s
-CREEP_ARM_D = 10.0          # m
-CREEP_W_V = [4.0 / 3.6, 8.0 / 3.6]  # m/s: the floor is full at our speed <= the first, none from the second; latched
-                                   # (never raised) once the lead stops, so it does not grow while we brake to the stop
+CREEP_KEEP_V = 10.0 / 3.6   # m/s: our speed
+CREEP_LEAD_V = 10.0 / 3.6   # m/s: the lead's speed
+CREEP_ARM_D = 12.0          # m
+CREEP_W_V = [3.5 / 3.6, 6.0 / 3.6]  # m/s (4 -> 8 km/h: a lead stopping fast at 5.6 km/h left us 3.15 / 2.90 m)
+CREEP_RATE = 1.0            # m/s
 # 11-13 owner: "drop yesterday's closer following below 15 km/h; instead, below 30 km/h - except when the speed has been
 # coming down continuously from above 31 km/h - follow 1 m closer, with all the smooth-stop measures as before". The stop
 # target stays STOP_EXTRA (3.5 m stop end); only a MOVING lead gets a following offset, blended in with the lead's own
@@ -317,6 +323,7 @@ class LongitudinalMpc:
     self.from_high = False
     self.low = False
     self.creep_w = 0.0
+    self.creep_offset = 0.0
     self.v_min = 0.0
     self.mid_open = False
     self.solver = AcadosOcpSolverCython(MODEL_NAME, ACADOS_SOLVER_TYPE, N)
@@ -423,23 +430,39 @@ class LongitudinalMpc:
       return 0.0
     if v_ego < LAUNCH_EGO_V and self.launch_offset == 0.0:
       self.launch_t = self.launch_t + self.dt if lead.vLead > LAUNCH_V else 0.0
-      if self.launch_t >= LAUNCH_T and lead.dRel < CREEP_ARM_D:
-        self.launch_offset = max(STOP_DISTANCE - (lead.dRel - STOP_EXTRA) + LAUNCH_EXTRA, CREEP_FLOOR)
-        self.creep_w = 1.0
+      if self.launch_t >= LAUNCH_T and lead.dRel - STOP_EXTRA < STOP_DISTANCE:
+        self.launch_offset = STOP_DISTANCE - (lead.dRel - STOP_EXTRA) + LAUNCH_EXTRA
     elif self.launch_offset > 0.0:
-      both_stopped = v_ego < LAUNCH_EGO_V and lead.vLead < LAUNCH_V
-      w_now = float(np.interp(v_ego, CREEP_W_V, [1.0, 0.0]))
-      self.creep_w = w_now if lead.vLead >= LAUNCH_V else min(self.creep_w, w_now)
-      if v_ego < CREEP_KEEP_V:
-        if not both_stopped:
-          fade = LAUNCH_FADE_STOPPED if lead.vLead < LAUNCH_V else (LAUNCH_FADE if v_ego >= LAUNCH_EGO_V else 0.0)
-          self.launch_offset = max(self.launch_offset - fade * self.dt, CREEP_FLOOR * self.creep_w, 0.0)
-      else:
-        fade = LAUNCH_FADE_STOPPED if lead.vLead < LAUNCH_V else LAUNCH_FADE
-        self.launch_offset = max(self.launch_offset - fade * self.dt, 0.0)
+      fade = LAUNCH_FADE_STOPPED if lead.vLead < LAUNCH_V else (LAUNCH_FADE if v_ego >= LAUNCH_EGO_V else 0.0)
+      self.launch_offset = max(self.launch_offset - fade * self.dt, 0.0)
       if self.launch_offset == 0.0:
         self.launch_t = 0.0
     return self.launch_offset
+
+  def queue_gap(self, lead, v_ego):
+    # the launch offset makes us follow a lead that starts at once; once that lead stops again in a queue the creep stop
+    # target alone decides (22:03-style creeps: the launch's "0.5 m closer than the last stop" stacked up, each stop
+    # ended closer - 3.50 -> 3.15 -> 2.90 m in the sim)
+    launch = self.launch_gap(lead, v_ego)
+    creep = self.creep_gap(lead, v_ego)
+    if creep > 0.0 and lead.status and lead.vLead < LAUNCH_V:
+      return creep
+    return max(launch, creep)
+
+  def creep_gap(self, lead, v_ego):
+    if not lead.status:
+      self.creep_w, self.creep_offset = 0.0, 0.0
+      return 0.0
+    if v_ego >= CREEP_KEEP_V or lead.vLead >= CREEP_LEAD_V or lead.dRel >= CREEP_ARM_D:
+      self.creep_w = 0.0
+      self.creep_offset = max(self.creep_offset - CREEP_RATE * self.dt, 0.0)  # out of the queue: fades, no step
+      return self.creep_offset
+    if v_ego < LAUNCH_EGO_V and lead.vLead < LAUNCH_V:
+      return self.creep_offset  # both stopped: held
+    w_now = float(np.interp(v_ego, CREEP_W_V, [1.0, 0.0]))
+    self.creep_w = w_now if lead.vLead >= LAUNCH_V else min(self.creep_w, w_now)
+    self.creep_offset = min(CREEP_FLOOR * self.creep_w, self.creep_offset + CREEP_RATE * self.dt)
+    return self.creep_offset
 
   def follow_gap(self, lead, v_ego):
     if v_ego > LOW_V_OFF:
@@ -497,7 +520,7 @@ class LongitudinalMpc:
 
     lead_xv_0 = self.process_lead(radarstate.leadOne)
     lead_xv_1 = self.process_lead(radarstate.leadTwo)
-    lead_xv_0[:, 0] += self.launch_gap(radarstate.leadOne, v_ego)
+    lead_xv_0[:, 0] += self.queue_gap(radarstate.leadOne, v_ego)  # dragonpilot hook
     follow = self.follow_gap(radarstate.leadOne, v_ego)  # dragonpilot hook
     lead_xv_0[:, 0] += follow
     lead_xv_1[:, 0] += follow
