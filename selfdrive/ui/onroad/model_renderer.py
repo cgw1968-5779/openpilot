@@ -345,22 +345,9 @@ class ModelRenderer(Widget):
       rl.draw_triangle_fan(lead.chevron, len(lead.chevron), rl.Color(201, 34, 49, lead.fill_alpha))
 
       if ui_state.dp_ui_lead in [DpUiLeadMode.lead, DpUiLeadMode.all]:
-        start_y = lead.y
-
-        car_state = ui_state.sm['carState']
-        # v
-        v = lead.v_rel + car_state.vEgo
-        v_str = f"{v * 3.6:.0f} kph" if ui_state.is_metric else f"{v * 2.237:.0f} mph"
-        # d_rel
+        # dppb (owner 11-18): only the distance to the lead, in metres - no speed, no time-to-collision
         dist_str = f"{lead.d_rel:.1f} m" if ui_state.is_metric else f"{lead.d_rel * 3.28084:.1f} ft"
-
-        self._dp_paint_centered_lead_text(f"{v_str} | {dist_str}", 40, lead.x, start_y + lead.sz)
-
-        # ttc
-        ttc = (lead.d_rel / car_state.vEgo) if car_state.vEgo > 0 else float("NaN")
-        if ttc < 5.:
-          ttc_str = f"{ttc:.1f}s"
-          self._dp_paint_centered_lead_text(ttc_str, 80, lead.x, start_y + lead.sz + 40)
+        self._dp_paint_centered_lead_text(dist_str, 40, lead.x, lead.y + lead.sz)
 
   @staticmethod
   def _get_path_length_idx(pos_x_array: np.ndarray, path_distance: float) -> int:
