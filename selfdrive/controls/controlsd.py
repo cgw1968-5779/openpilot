@@ -77,6 +77,7 @@ class Controls:
       self.pose_calibrator.feed_live_calib(self.sm['liveCalibration'])
     if self.sm.updated["livePose"]:
       device_pose = Pose.from_live_pose(self.sm['livePose'])
+      self.LoC.imu_ax = float(device_pose.acceleration.x)  # dragonpilot hook (stop control)
       self.calibrated_pose = self.pose_calibrator.build_calibrated_pose(device_pose)
 
   def state_control(self):

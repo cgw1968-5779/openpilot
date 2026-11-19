@@ -58,46 +58,29 @@ def test_far_lead_or_no_lead_untouched():
     assert step(m, lead(v=0.5, status=False)) == 0.0
 
 
-# 11-18 owner: at crawl speed the MPC's own stop target is ~3.5 m (22:03: 6.0 / 5.9 m on the 5.75 m MPC target)
-def cmpc():
-  return SimpleNamespace(dt=DT, creep_w=0.0, creep_offset=0.0)
+# 11-19 (stop control): the MPC's own stop target behind a stopped lead is STOP_GAP (it was 5.75 m: the crawl stops at ~6 m)
+def smpc():
+  return SimpleNamespace(dt=DT, stop_offset=0.0)
 
 
-def creep(m, ld, v_ego):
-  return lm.LongitudinalMpc.creep_gap(m, ld, v_ego)
+def shift(m, ld):
+  return lm.LongitudinalMpc.stop_shift(m, ld)
 
 
-def test_crawl_behind_a_queue_gets_the_creep_stop_target():
-  m = cmpc()
-  for _ in range(100):
-    creep(m, lead(d=6.0, v=0.8), 0.8)                       # following a creeping lead at ~3 km/h
-  assert abs(m.creep_offset - lm.CREEP_FLOOR) < 1e-9
-  assert abs((lm.STOP_DISTANCE + lm.STOP_EXTRA - lm.CREEP_FLOOR) - lm.CREEP_GAP) < 1e-9
-  for _ in range(100):
-    creep(m, lead(d=5.0, v=0.0), 0.5)                       # the lead stopped, we brake to the stop: kept
-  assert abs(m.creep_offset - lm.CREEP_FLOOR) < 1e-9
-  o = m.creep_offset
-  for _ in range(100):
-    creep(m, lead(d=3.6, v=0.0), 0.0)                       # both stopped: held
-  assert m.creep_offset == o
+def test_stopped_lead_moves_the_stop_target_to_the_stop_gap():
+  m = smpc()
+  for _ in range(60):
+    out = shift(m, lead(d=20.0, v=0.0))
+  assert abs(out - lm.STOP_SHIFT) < 1e-6
+  assert abs(lm.STOP_DISTANCE + lm.STOP_EXTRA - lm.STOP_SHIFT - lm.STOP_GAP) < 1e-6
 
 
-def test_normal_stop_from_speed_untouched():
-  m = cmpc()
-  v = 30 / 3.6
-  while v > 0.0:
-    assert creep(m, lead(d=4.0 + 2 * v, v=0.0), v) == 0.0   # the lead was stopped when we came below 10 km/h
-    v -= 0.1
-
-
-def test_faster_crawl_gets_less_and_lost_lead_none():
-  m = cmpc()
-  for _ in range(100):
-    creep(m, lead(d=8.0, v=1.3), 1.3)                       # ~4.7 km/h
-  assert 0.0 < m.creep_offset < lm.CREEP_FLOOR
-  for _ in range(100):
-    creep(m, lead(d=8.0, v=5.0), 5.0)                       # out of the queue: fades
-  assert m.creep_offset == 0.0
-  m = cmpc()
-  creep(m, lead(d=6.0, v=0.8), 0.8)
-  assert creep(m, lead(status=False), 0.8) == 0.0
+def test_stop_shift_is_rate_limited_and_gone_behind_a_moving_lead():
+  m = smpc()
+  assert 0.0 < shift(m, lead(v=0.0)) <= lm.STOP_SHIFT_RATE * DT + 1e-9
+  for _ in range(60):
+    shift(m, lead(v=0.0))
+  for _ in range(60):
+    out = shift(m, lead(v=lm.FOLLOW_VLEAD[1] + 1.0))
+  assert out == 0.0
+  assert shift(m, lead(status=False)) == 0.0
