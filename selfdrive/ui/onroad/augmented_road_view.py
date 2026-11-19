@@ -12,6 +12,7 @@ from openpilot.selfdrive.ui.onroad.cameraview import CameraView
 from openpilot.system.ui.lib.application import gui_app
 from openpilot.common.transformations.camera import DEVICE_CAMERAS, DeviceCameraConfig, view_frame_from_device_frame
 from openpilot.common.transformations.orientation import rot_from_euler
+from dragonpilot.selfdrive.ui.plate_finder import PlateOverlay
 
 OpState = log.SelfdriveState.OpenpilotState
 CALIBRATED = log.LiveCalibrationData.Status.calibrated
@@ -54,6 +55,7 @@ class AugmentedRoadView(CameraView):
     self._hud_renderer = HudRenderer()
     self.alert_renderer = AlertRenderer()
     self.driver_state_renderer = DriverStateRenderer()
+    self.plate_overlay = PlateOverlay()  # dragonpilot hook (lead plate box)
 
     # DP border indicator
     self._dp_indicator_show_left = False
@@ -100,6 +102,7 @@ class AugmentedRoadView(CameraView):
 
     # Draw all UI overlays
     self.model_renderer.render(self._content_rect)
+    self.plate_overlay.render(self._content_rect, self)  # dragonpilot hook (lead plate box)
     if not hide_hud:
       self._hud_renderer.render(self._content_rect)
     self.alert_renderer.render(self._content_rect)
