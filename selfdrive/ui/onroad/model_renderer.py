@@ -55,6 +55,8 @@ class LeadVehicle:
   sz: float = 0.0
 
 LEAD_DIST_FONT = 42  # dppb (owner 11-18): lead distance text size (dragonpilot 40, +2)
+LEAD_MARK_BOTTOM = 85  # px: the lead mark's tip stays at least this far above the bottom of the view (dppb 11-19)
+LEAD_MARK_SIDE = 100   # px: ... and this far from its sides
 
 
 @dataclass
@@ -186,7 +188,7 @@ class ModelRenderer(Widget):
 
         # Get z-coordinate from path at the lead vehicle position
         z = self._path.raw_points[idx, 2] if idx < len(self._path.raw_points) else 0.0
-        point = self._map_to_screen(d_rel, -y_rel, z + self._path_offset_z)
+        point = self._dp_map_lead_to_screen(d_rel, -y_rel, z + self._path_offset_z)  # dragonpilot hook (lead mark never lost)
         if point:
           self._lead_vehicles[i] = self._update_lead_vehicle(d_rel, v_rel, point, self._rect)
 
@@ -375,6 +377,21 @@ class ModelRenderer(Widget):
     if not (clip.x <= x <= clip.x + clip.width and clip.y <= y <= clip.y + clip.height):
       return None
 
+    return (x, y)
+
+  def _dp_map_lead_to_screen(self, in_x, in_y, in_z):
+    """dppb (owner 2026-11-19: "stopping close behind the lead the mark and its distance often vanish - keep them
+    however close"): the lead's point on the road projects below the bottom of the view once it is closer than ~7 m
+    on the road camera (f 2648 px: 1.22 m below the camera at 3.5 m is 920 px below the centre), and
+    _map_to_screen drops any point outside the view. The lead's mark is kept inside the view instead, whole (the
+    chevron is up to 71 px tall, drawn downward from this point)."""
+    pt = self._car_space_transform @ np.array([in_x, in_y, in_z])
+    r = self._rect
+    y_max = r.y + r.height - LEAD_MARK_BOTTOM
+    if pt[2] < 1e-6:
+      return (r.x + r.width / 2, y_max)
+    x = float(np.clip(pt[0] / pt[2], r.x + LEAD_MARK_SIDE, r.x + r.width - LEAD_MARK_SIDE))
+    y = float(np.clip(pt[1] / pt[2], r.y, y_max))
     return (x, y)
 
   def _map_line_to_polygon(self, line: np.ndarray, y_off: float, z_off: float, max_idx: int, max_distance: float, allow_invert: bool = True) -> np.ndarray:
