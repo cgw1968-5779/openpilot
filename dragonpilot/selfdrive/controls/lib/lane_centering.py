@@ -103,6 +103,7 @@ LANE_CENTER_WIDTH_CONF_PROB = 0.6  # both lines at least this to teach the width
 LANE_CENTER_WIDTH_TAU = 3.0        # s; filter of the lane width, fed only by confident frames
 LANE_CENTER_WIDTH_TOL = 0.7        # m; a width this far from the filtered one means one line is not the ego lane's
 LANE_CENTER_WIDTH_RANGE = (2.6, 4.6)  # m; outside this the pair is not the ego lane
+LANE_CENTER_WIDTH_RANGE_LOW = (2.4, 5.0)  # m, below LOW_STRAIGHT_V (dppb 11-19: the 11-18 21:09 curve is 4.1-4.7 m wide)
 LANE_CENTER_FIT_RANGE = 12.0       # m ahead used to fit the lane centre (offset + heading + curvature)
 LANE_CENTER_DEADBAND = 0.015       # m; Altis (tnpb3) value (Cross 0.03); no position correction inside this (0.03 -> 0.015, 2026-09-30: the driver felt the
                                    # ... -> 0.0075 2026-10-04: route 000000f2 10:34 at 82-88 km/h he felt the corrections again
@@ -144,7 +145,7 @@ LANE_CENTER_FILTER_TAU = 0.5       # s; low-pass on the measured offset and head
 # from the PD correction above (w = 0) to the line curvature (w = 1). Equivalent gains of the pursuit: 2 / T^2 = 0.89
 # m/s^2 per metre (KP above 0.35), 2 / T = 1.33 m/s^2 per m/s (KD 1.20), damping ratio 0.71. The model's action is the
 # fallback whenever the lines are not trusted (exits, merges, worn paint, lane changes): w falls back in 0.5 s.
-LINE_V_BP = [20.0 / 3.6, 25.0 / 3.6]  # m/s: line mode fades in with the PD centering (dppb 11-11: 20-25; 11-10 30-40, was 70-80)
+LINE_V_BP = [1.0 / 3.6, 3.0 / 3.6]  # m/s: line mode fades in (dppb 11-19: 1-3 km/h; 11-11 20-25 with the PD centering; 11-10 30-40, was 70-80)
 # 80-90 -> 70-80 km/h (owner 2026-10-27, route 000000ba): "at 100 km/h the highway is steady, at 90 it corrects left and
 # right more". Dash 90 is ~82 km/h true (dial = 1.068 x true + 2.5), where the line weight was only ~0.2: steering
 # angle jitter 0.31 deg at true 78-84 km/h vs 0.20 at 88-95 (lateral-accel jitter about equal; the same correction
@@ -159,7 +160,18 @@ LINE_T_LOOK = 1.7           # s of travel to the pursued point on the line centr
 # lookahead lowers the gains (2 / T^2 = 0.50 m/s^2 per m, 2 / T = 1.0 per m/s, was 0.89 / 1.33) and the sway with them.
 LINE_L_RANGE = (20.0, 65.0)  # m; lookahead limits (45 m capped 1.5 s at 108 km/h: at 100 km/h it was really 1.62 s)
 LINE_FIT_MARGIN = 10.0      # m beyond the lookahead included in the centre fit
+LINE_MAX_DIFF_ACCEL_LOW = 1.5  # m/s^2 below LINE_W_LOW_BP (dppb 11-19)
 LINE_MAX_DIFF_ACCEL = 1.0   # m/s^2; a line target this far from the model's is not trusted (a line of another lane)
+LINE_W_MAX_LOW = 1.0        # dppb 11-19: below LINE_W_LOW_BP the line centre carries the whole command (the model's low-speed swing stays out)
+LINE_W_LOW_BP = [60.0 / 3.6, 70.0 / 3.6]  # m/s: LINE_W_MAX_LOW -> LINE_W_MAX
+LINE_MIN_PROB_LOW = 0.6     # dppb 11-19: both near lines at least this below LINE_W_LOW_BP (LINE_MIN_PROB from there up)
+LINE_MAX_DIFF_K = 0.012     # 1/m: a line target this far from the model's is a turn the lines do not show (junction): the model's
+LINE_MIN_SPEED = 1.0 / 3.6  # m/s: the lines are measured from here (the PD correction still starts at LANE_CENTER_FADE_BP)
+# dppb 11-19 (owner: "steer from the lane lines up to 60 km/h; in the big 50-60 km/h curves the car runs to the inside"):
+# below LOW_STRAIGHT_V the centering works in curves too, except near the steering limit - the 11-11 takeover (59 km/h,
+# R 65 m, model 3.1-4.1 m/s^2, EPS tops out near 2.7) came from commanding LESS than the model there. So it fades out
+# with the lateral acceleration the model's curvature asks for, and nothing is taken off a curve that needs the limit.
+LOW_CURVE_ACCEL = [2.3, 2.8]  # m/s^2: full centering -> none (the Altis EPS tops out near 2.7)
 LINE_W_MAX = 0.85  # dpcr (owner 2026-11-05 "as strong as possible"): between tncr1 0.7 (owner: smooth) and 1.0 (owner 10-26: corrections too large)
 # 1.0 -> 0.7 (owner 2026-10-26, highway): smaller, more even corrections. At most 70 % of the line pursuit; the other
 # 30 % stays with the PD correction of the model's path, so each pursuit correction is cut to 0.7x and a jumpy line
@@ -211,6 +223,7 @@ LINE_OUT_FRAC_V = [0.0, 0.0]   # dppb (owner 2026-11-15): 0.08 -> 0. The dpcr ou
 LINE_OUT_K_BP = [1e-4, 3e-4]               # 1/m: |lane-centre curvature| (centre fit) over which the fraction fades in;
                                            # not the pursuit's own curvature (it wiggles +-0.26e-3 on straights)
 LINE_W_RISE = 0.5           # 1/s: 2 s to take over
+LINE_W_RISE_LOW = 1.5       # 1/s below LINE_W_LOW_BP (dppb 11-19: the lines drop out for a moment far more often there)
 LINE_W_FALL = 2.0           # 1/s: 0.5 s to hand back
 LINE_FILTER_TAU = 0.1       # s; low-pass on the line curvature (0.3 oscillated in the closed-loop sim with 0.5 s steering lag)
 # dppb (owner 2026-11-11, "on highway straights steadier, almost no correction - 85 % happy, can it go higher?", then
@@ -220,6 +233,16 @@ LINE_FILTER_TAU = 0.1       # s; low-pass on the line curvature (0.3 oscillated 
 # std 10.9 cm, curves 60 cm inside) and 0.3 s smoothing swayed earlier, so 0.2 is the cap.
 LINE_FILTER_TAU_HIGH = 0.2  # s, from 70 km/h
 LINE_FILTER_V_BP = [60.0 / 3.6, 70.0 / 3.6]  # m/s
+# dppb 11-19: with the command taken from the line centre ~1.7 s ahead the 55-64 km/h curves still ran 24-49 cm inside
+# (closed-loop sim of 11-18 21:09 / 21:16 / 21:33, line weight 0.94-1.0): the far lines themselves sit inside there.
+# What the near lines (the centre fit over LANE_CENTER_FIT_RANGE) say is left over is taken off slowly: an integral of
+# the near offset, as lateral acceleration, added to the line target; held through a short drop-out, eased out after.
+LINE_KI = 0.12              # m/s^2 per metre per second (0.20: curves 5 cm better, but 10 % of the time > 30 cm outward)
+LINE_I_LIMIT = 0.3          # m/s^2
+LINE_I_UNWIND = 6.0
+LINE_I_DECAY = 0.30         # m/s^2 per s once the lines are not trusted or the curve is over
+LINE_I_K_BP = [1.0e-3, 2.5e-3]            # 1/m: |lane-centre curvature| over which the trim works (R 1000 m -> 400 m)
+LINE_I_V_BP = [30.0 / 3.6, 40.0 / 3.6]    # m/s
 LINE_CENTRE_SHIFT = 0.05    # m, + = right: dppb holds the Altis's own position (tnpb CameraOffset -0.05, dppb today ~6 cm right)
 
 
@@ -239,6 +262,8 @@ class LaneCentering:
     self.valid = False
     self.last_meas: tuple[float, float] | None = None  # this frame's (offset, heading), for the low-speed trim
     self.line_w = 0.0  # line mode weight (0 = PD correction of the model, 1 = line centre curvature)
+    self.line_i = 0.0  # m/s^2: near-offset trim of the line target
+    self.v_ego = 0.0   # this cycle's speed (for measure())
     self.line_filter = FirstOrderFilter(0.0, LINE_FILTER_TAU, dt)
     self.line_valid = False
     self.output = 0.0  # what update() returned (correction blended with line mode)
@@ -283,15 +308,16 @@ class LaneCentering:
     self.correction = 0.0
     self.valid = False
     self.line_w = 0.0
+    self.line_i = 0.0
     self.line_valid = False
     self.output = 0.0
     self.k_hist = None
 
   def _straight_gate(self, v_ego: float) -> float:
-    """1 from LOW_STRAIGHT_V up; below it 1 on a straight and 0 in a curve (the curve stays with the model + curve_bias)"""
+    """1 from LOW_STRAIGHT_V up; below it 1 except in a curve near the steering limit (that one stays with the model)"""
     if v_ego >= LOW_STRAIGHT_V:
       return 1.0
-    g = float(np.interp(self.k_gate, LOW_STRAIGHT_K, [1.0, 0.0]))
+    g = float(np.interp(self.k_gate * v_ego ** 2, LOW_CURVE_ACCEL, [1.0, 0.0]))
     return g + (1.0 - g) * float(np.interp(v_ego, [LOW_STRAIGHT_V - 10.0 / 3.6, LOW_STRAIGHT_V], [0.0, 1.0]))
 
   def _push_command(self, k: float):
@@ -318,7 +344,7 @@ class LaneCentering:
     ahead predicted from the commands sent in the last LINE_PRED_T. None unless both near lines are confident and seen far enough; call only
     after measure() accepted the pair (width checks)."""
     info = self._frame_info(model_v2)
-    if info is None or info[0] < LINE_MIN_PROB:
+    if info is None or info[0] < float(np.interp(v_ego, LINE_W_LOW_BP, [LINE_MIN_PROB_LOW, LINE_MIN_PROB])):
       return None
     look = min(max(v_ego * LINE_T_LOOK, LINE_L_RANGE[0]), LINE_L_RANGE[1])
     xd = v_ego * line_pred_t(v_ego)
@@ -343,7 +369,21 @@ class LaneCentering:
     k_line = self.line_curvature(model_v2, v_ego) if meas_ok and not lane_changing else None
     if k_line is not None:
       k_line *= 1.0 - float(np.interp(v_ego, LINE_OUT_V_BP, LINE_OUT_FRAC_V)) * float(np.interp(self.lane_k, LINE_OUT_K_BP, [0.0, 1.0]))
-    trusted = k_line is not None and abs(k_line - model_curvature) * v_ego ** 2 <= LINE_MAX_DIFF_ACCEL
+      # only in a curve (that is where the far lines sit inside) and from LINE_I_V_BP up: on straights and at low
+      # speed it only added a slow weave (sim: 10-30 km/h straights' steering swing 0.9 -> 2.3e-3)
+      g_i = float(np.interp(self.lane_k, LINE_I_K_BP, [0.0, 1.0])) * float(np.interp(v_ego, LINE_I_V_BP, [0.0, 1.0])) * self._straight_gate(v_ego)
+      if self.last_meas is not None and g_i > 0.0 and v_ego < LOW_STRAIGHT_V:
+        # unwinds LINE_I_UNWIND x faster than it builds: once the car is back across the centre nothing keeps pushing
+        k_i = LINE_KI * (LINE_I_UNWIND if self.last_meas[0] * self.line_i < 0.0 else 1.0)
+        self.line_i = _clip(self.line_i + k_i * g_i * self.last_meas[0] * self.dt, -LINE_I_LIMIT, LINE_I_LIMIT)
+      elif g_i <= 0.0:
+        self.line_i = _clip(0.0, self.line_i - LINE_I_DECAY * self.dt, self.line_i + LINE_I_DECAY * self.dt)
+      k_line += self.line_i / max(v_ego, LINE_I_V_BP[0]) ** 2 * float(np.interp(v_ego, [LOW_STRAIGHT_V - 10.0 / 3.6, LOW_STRAIGHT_V], [1.0, 0.0]))
+    else:
+      self.line_i = _clip(0.0, self.line_i - LINE_I_DECAY * self.dt, self.line_i + LINE_I_DECAY * self.dt)
+    max_diff = float(np.interp(v_ego, LINE_W_LOW_BP, [LINE_MAX_DIFF_ACCEL_LOW, LINE_MAX_DIFF_ACCEL]))
+    trusted = k_line is not None and abs(k_line - model_curvature) * v_ego ** 2 <= max_diff and \
+      abs(k_line - model_curvature) <= LINE_MAX_DIFF_K
     self.line_filter.update_alpha(float(np.interp(v_ego, LINE_FILTER_V_BP, [LINE_FILTER_TAU, LINE_FILTER_TAU_HIGH])))
     if trusted:
       if not self.line_valid and self.line_w <= 0.0:
@@ -355,8 +395,9 @@ class LaneCentering:
         self.line_filter.x = model_curvature
       self.line_filter.update(model_curvature)
     self.line_valid = trusted
-    w_target = LINE_W_MAX * float(np.interp(v_ego, LINE_V_BP, LINE_V_W)) * self._straight_gate(v_ego) if trusted else 0.0
-    rate = LINE_W_RISE if w_target > self.line_w else LINE_W_FALL
+    w_max = float(np.interp(v_ego, LINE_W_LOW_BP, [LINE_W_MAX_LOW, LINE_W_MAX]))
+    w_target = w_max * float(np.interp(v_ego, LINE_V_BP, LINE_V_W)) * self._straight_gate(v_ego) if trusted else 0.0
+    rate = float(np.interp(v_ego, LINE_W_LOW_BP, [LINE_W_RISE_LOW, LINE_W_RISE])) if w_target > self.line_w else LINE_W_FALL
     self.line_w = _clip(w_target, self.line_w - rate * self.dt, self.line_w + rate * self.dt)
     return (1.0 - self.line_w) * self.correction + self.line_w * (self.line_filter.x - model_curvature)
 
@@ -394,7 +435,8 @@ class LaneCentering:
     p_lo, p_hi, width, meas = info[:4]
     if p_hi < LANE_CENTER_MIN_LINE_PROB or p_lo < LANE_CENTER_MIN_OTHER_PROB:
       return None
-    if not (LANE_CENTER_WIDTH_RANGE[0] <= width <= LANE_CENTER_WIDTH_RANGE[1]):
+    w_range = LANE_CENTER_WIDTH_RANGE_LOW if self.v_ego < LOW_STRAIGHT_V else LANE_CENTER_WIDTH_RANGE
+    if not (w_range[0] <= width <= w_range[1]):
       return None
     if self.width_filter.x > 0.0 and abs(width - self.width_filter.x) > LANE_CENTER_WIDTH_TOL:
       return None  # one of the two lines is not this lane's (a lost outer line placed somewhere else)
@@ -415,11 +457,12 @@ class LaneCentering:
     # past the centre after the change. Like lost lines: the correction winds down at the jerk limit and the integral
     # restarts at 0 once the change is over. Closed-loop sim (route e0, 3 changes): offset peak in the 8 s after a change
     # 44 -> 24 cm, correction peak 0.32 -> 0.10 m/s^2.
+    self.v_ego = v_ego
     low = float(np.interp(v_ego, LOW_V_BP, [1.0, 0.0]))  # 1 below 50 km/h, 0 from 70 (old values exactly)
     self.shift = LINE_CENTRE_SHIFT + low * (LOW_SHIFT - LINE_CENTRE_SHIFT)
     self.k_gate = max(self.lane_k, abs(model_curvature) if model_curvature is not None else 0.0)
     gate = self._straight_gate(v_ego)
-    meas = self.measure(model_v2) if active and not steering_pressed and not lane_changing and v_ego > LANE_CENTER_MIN_SPEED else None
+    meas = self.measure(model_v2) if active and not steering_pressed and not lane_changing and v_ego > LINE_MIN_SPEED else None
     self.last_meas = meas
     tau = blend(LANE_CENTER_FILTER_TAU, STRAIGHT_CENTER_TAU, straight)
     self.offset_filter.update_alpha(tau)
@@ -433,7 +476,7 @@ class LaneCentering:
       self.heading_filter.x = 0.0
       # below 70 km/h a short drop-out keeps the integral (what the model keeps pulling has not gone away); a driver
       # input, a lane change, lateral off, 70 km/h and up or a long drop-out end it as before
-      hold = low > 0.0 and active and not steering_pressed and not lane_changing and v_ego > LANE_CENTER_MIN_SPEED
+      hold = low > 0.0 and active and not steering_pressed and not lane_changing and v_ego > LINE_MIN_SPEED
       self.lost_t = self.lost_t + self.dt if hold else 1e9
       if not hold:
         self.integral = 0.0
@@ -454,7 +497,8 @@ class LaneCentering:
 
     kp = LANE_CENTER_KP + low * (LOW_KP - LANE_CENTER_KP)
     ki = LANE_CENTER_KI + low * (LOW_KI - LANE_CENTER_KI)
-    self.integral = _clip(self.integral + ki * error * gate * self.dt, -LANE_CENTER_I_LIMIT, LANE_CENTER_I_LIMIT)
+    if v_ego > LANE_CENTER_MIN_SPEED:   # the PD correction's own speed range (the line mode measures from LINE_MIN_SPEED)
+      self.integral = _clip(self.integral + ki * error * gate * self.dt, -LANE_CENTER_I_LIMIT, LANE_CENTER_I_LIMIT)
     lat_accel = kp * error + LANE_CENTER_KD * lateral_speed + self.integral
     lat_accel = _clip(lat_accel, -LANE_CENTER_MAX_LAT_ACCEL, LANE_CENTER_MAX_LAT_ACCEL)
     target = _clip(lat_accel / max(v_ego, LANE_CENTER_MIN_SPEED) ** 2, -LANE_CENTER_MAX_CURV, LANE_CENTER_MAX_CURV)

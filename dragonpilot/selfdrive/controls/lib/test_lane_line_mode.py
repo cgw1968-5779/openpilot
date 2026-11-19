@@ -50,7 +50,7 @@ def test_takes_over_with_confident_lines_and_pursues_the_centre():
   assert lc.line_w == LINE_W_MAX
   look = v * LINE_T_LOOK
   # dpcr: pursuit from the pose LINE_PRED_T ahead on the arc of the last command (the car already turning right)
-  xd, k = v * LINE_PRED_T, lc.k_prev
+  xd, k = v * lane_centering.line_pred_t(v), lc.k_prev   # 100 km/h: LINE_PRED_T_HIGH (dppb 11-15)
   dy = 0.2 - k * xd ** 2 / 2 - k * xd * look
   pursuit = 2 * dy / (look ** 2 + dy ** 2)  # steers right, pure pursuit
   assert 0.0 < pursuit < 2 * 0.2 / (look ** 2 + 0.04)  # less than from the current pose: no overshoot push
@@ -74,20 +74,47 @@ def test_no_outward_fraction_at_or_below_85_kph():
   assert abs(out - (LINE_W_MAX * (1 / 1000 - 1 / 800) + (1 - LINE_W_MAX) * lc.correction)) < 2e-5
 
 
-def test_no_line_mode_below_20_kph_or_without_model_curvature():
-  lc = LaneCentering(DT)  # dppb 2026-11-11: fades in 20 -> 25 km/h (11-10 30 -> 40, was 70 -> 80)
-  _run(lc, _model(offset=0.2), 19 / 3.6, 0.0, 3.0)
+def test_line_mode_from_walking_speed_and_not_without_model_curvature():
+  # dppb 2026-11-19 (owner: "below 30 km/h hold the centre, no swaying"; then "up to 60"): fades in 1 -> 3 km/h
+  # (11-11 20 -> 25, 11-10 30 -> 40, was 70 -> 80) and carries the whole command below 60 km/h
+  from dragonpilot.selfdrive.controls.lib.lane_centering import LINE_W_MAX_LOW
+  lc = LaneCentering(DT)
+  _run(lc, _model(offset=0.2), 0.8 / 3.6, 0.0, 3.0)
   assert lc.line_w == 0.0
   lc_half = LaneCentering(DT)
-  _run(lc_half, _model(offset=0.2), 22.5 / 3.6, 0.0, 3.0)
-  assert abs(lc_half.line_w - 0.5 * LINE_W_MAX) < 1e-6
-  lc_full = LaneCentering(DT)
-  _run(lc_full, _model(offset=0.2), 27 / 3.6, 0.0, 3.0)
-  assert lc_full.line_w == LINE_W_MAX
+  _run(lc_half, _model(offset=0.2), 2.0 / 3.6, 0.0, 3.0)
+  assert abs(lc_half.line_w - 0.5 * LINE_W_MAX_LOW) < 1e-6
+  for kph in (5, 15, 27, 45, 58):
+    lc_full = LaneCentering(DT)
+    _run(lc_full, _model(offset=0.2), kph / 3.6, 0.0, 3.0)
+    assert lc_full.line_w == LINE_W_MAX_LOW == 1.0, kph
   lc2 = LaneCentering(DT)
   for _ in range(300):
     out = lc2.update(_model(offset=0.2), 100 / 3.6, True, False)
   assert lc2.line_w == 0.0 and out == lc2.correction
+
+
+def test_low_speed_model_swing_stays_out_of_the_command():
+  # 11-19 16:55 (30 -> 1 km/h on a straight lane): the model's action swung -5.6 / +1.8 / -3.2 / +6.4 e-3 while the
+  # lines did not move. With the lines trusted the command is the line centre's, whatever the model asks
+  lc = LaneCentering(DT)
+  v = 15 / 3.6
+  _run(lc, _model(), v, 0.0, 2.0)
+  for k_model in (-5.6e-3, 1.8e-3, -3.2e-3, 6.4e-3):
+    out = _run(lc, _model(), v, k_model, 1.0)
+    assert lc.line_w == 1.0
+    assert abs(k_model + out) < 0.5e-3, (k_model, out)       # command = model + out ~ 0 (straight lane, car centred)
+
+
+def test_low_speed_turn_the_lines_do_not_show_goes_back_to_the_model():
+  # a junction: the model turns (R 30 m) while the lines ahead run straight -> the model's command, within 0.5 s
+  from dragonpilot.selfdrive.controls.lib.lane_centering import LINE_MAX_DIFF_K
+  lc = LaneCentering(DT)
+  v = 15 / 3.6
+  _run(lc, _model(), v, 0.0, 2.0)
+  assert lc.line_w == 1.0
+  out = _run(lc, _model(), v, 1 / 30, 0.6)
+  assert 1 / 30 > LINE_MAX_DIFF_K and lc.line_w == 0.0 and abs(out) < 1e-3
 
 
 def test_hands_back_on_weak_lines_lane_change_or_far_target():
@@ -182,18 +209,41 @@ def test_low_speed_integral_held_through_a_short_line_drop_out():
     assert lc.integral == 0.0
 
 
-def test_low_speed_straights_only():
-  # dppb 2026-11-11: below 70 km/h the centering acts on straights only; curves stay with the model + curve_bias
-  v = 50 / 3.6
-  straight = LaneCentering(DT)
-  _run(straight, _model(offset=0.2), v, 0.0, 4.0)
-  assert straight.line_w == LINE_W_MAX and straight.correction != 0.0
+def test_curves_below_70_kph_are_centred_too_except_near_the_steering_limit():
+  # dppb 2026-11-19 (owner: "the big 50-60 km/h curves run to the inside; steer from the lines up to 60"): the 11-11
+  # straights-only gate is replaced by a steering-limit gate - the 11-11 takeover (59 km/h, R 65 m, 3.1-4.1 m/s^2) came
+  # from commanding less than the model where the EPS was already at its limit (~2.7 m/s^2)
+  from dragonpilot.selfdrive.controls.lib.lane_centering import LINE_W_MAX_LOW, LOW_CURVE_ACCEL
+  v = 55 / 3.6
   curve = LaneCentering(DT)
-  _run(curve, _model(offset=0.2, curv=1 / 300), v, 1 / 300, 4.0)   # R 300 m: past LOW_STRAIGHT_K
-  assert curve.line_w == 0.0 and curve.correction == 0.0 and curve.integral == 0.0
-  model_curve = LaneCentering(DT)
-  _run(model_curve, _model(offset=0.2), v, 1 / 300, 4.0)            # weak / straight lines but the model turns
-  assert model_curve.line_w == 0.0 and model_curve.correction == 0.0
+  _run(curve, _model(offset=0.2, curv=1 / 300), v, 1 / 300, 4.0)       # R 300 m, 0.78 m/s^2
+  assert curve.line_w == LINE_W_MAX_LOW and curve._straight_gate(v) == 1.0
+  tight = LaneCentering(DT)
+  k = LOW_CURVE_ACCEL[1] / v ** 2 * 1.05                                # the model asks more than the limit gate
+  _run(tight, _model(offset=0.2, curv=k), v, k, 4.0)
+  assert tight.line_w == 0.0 and tight.correction == 0.0 and tight.line_i == 0.0
   fast = LaneCentering(DT)
-  _run(fast, _model(offset=0.0, curv=1 / 1000), 100 / 3.6, 1 / 1000, 4.0)   # above 70 km/h: curves as before
-  assert fast.line_w == LINE_W_MAX
+  _run(fast, _model(offset=0.0, curv=1 / 1000), 100 / 3.6, 1 / 1000, 4.0)   # above 70 km/h: as before
+  assert fast.line_w == LINE_W_MAX and fast.line_i == 0.0
+
+
+def test_curve_trim_takes_off_what_the_near_lines_say_is_left_over():
+  # with the far lines pursued the 55-64 km/h curves still ran 24-49 cm inside (sim of 11-18 21:09 / 21:16 / 21:33):
+  # a slow integral of the near offset is added to the line target - in a curve, from 30-40 km/h, bounded, and it
+  # unwinds faster than it builds
+  from dragonpilot.selfdrive.controls.lib.lane_centering import LINE_I_LIMIT
+  v = 55 / 3.6
+  lc = LaneCentering(DT)
+  _run(lc, _model(offset=0.3, curv=1 / 250), v, 1 / 250, 3.0)          # car 0.3 m LEFT of the centre in a right curve
+  built = lc.line_i
+  assert 0.0 < built <= LINE_I_LIMIT                                     # pushes right
+  _run(lc, _model(offset=0.3, curv=1 / 250), v, 1 / 250, 20.0)
+  assert lc.line_i == LINE_I_LIMIT
+  _run(lc, _model(offset=-0.3, curv=1 / 250), v, 1 / 250, 1.0)         # back across the centre: unwinds 6 x faster
+  assert LINE_I_LIMIT - lc.line_i > 3.0 * (built / 3.0)                # in 1 s more than 3 x what 1 s built
+  straight = LaneCentering(DT)
+  _run(straight, _model(offset=0.3), v, 0.0, 5.0)
+  assert straight.line_i == 0.0                                          # not on a straight
+  slow = LaneCentering(DT)
+  _run(slow, _model(offset=0.3, curv=1 / 250), 25 / 3.6, 1 / 250, 5.0)
+  assert slow.line_i == 0.0                                              # not below 30 km/h
