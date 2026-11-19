@@ -7,7 +7,7 @@ a rigid object of known size (Taiwan car / truck plate 380 x 160 mm) - on 152 re
 agreed with the radar distance within +-0.17 m for cars and moved 1 px from frame to frame, so it is the candidate
 for a second, radar-independent distance; this overlay is how the owner sees what the finder has got.
 
-The device has no OpenCV, so the finder is numpy only (about 11 ms per frame on a PC, run 5 times a second in a
+The device has no OpenCV, so the finder is numpy only (4 ms per frame on a PC, about 45 ms on the device, run 4 times a second in a
 thread of the UI process, on its own road camera stream - the screen may be showing the wide camera):
  - where: around the radar lead (leadOne within PF_MAX_D), +-PF_HALF_W to the side, from the road up to PF_TOP;
  - expected size: the plate's width at the radar distance (camera PF_CAM_OFFSET behind what the radar measures to);
@@ -35,7 +35,7 @@ TARGET_W = 56                          # px: the search runs on an image shrunk 
 
 def _integral(a):
   s = np.zeros((a.shape[0] + 1, a.shape[1] + 1), dtype=np.float64)
-  np.cumsum(np.cumsum(a, axis=0, dtype=np.float64), axis=1, out=s[1:, 1:])
+  np.cumsum(np.cumsum(a, axis=0, dtype=np.float64), axis=1, out=s[1:, 1:])  # float64: sums of a 400 x 250 window
   return s
 
 
@@ -56,7 +56,12 @@ def find_plate(y, roi, w0, uv=None):
   if h_ < 24 or w_ < 48:
     return None
   sub = y[Y0:Y0 + h_ * k, X0:X0 + w_ * k]
-  img = sub.reshape(h_, k, w_, k).mean(axis=(1, 3)) if k > 1 else sub.astype(np.float64)
+  # k x k block sums as strided integer adds (the device is ~10 x slower than a PC: no float image of the full window)
+  acc = np.zeros((h_, w_), dtype=np.uint16)
+  for i in range(k):
+    for j in range(k):
+      acc += sub[i::k, j::k]
+  img = acc.astype(np.float32) / (k * k)
   gx = np.zeros_like(img)
   gx[:, 1:-1] = np.abs(img[:, 2:] - img[:, :-2])
   ii_g = _integral(gx)
@@ -172,7 +177,7 @@ PF_MIN_D = 0.8           # m: ... and farther than this
 PF_CAM_OFFSET = 1.75     # m: camera to what the radar measures to, plus the plate's recess (fitted on the recorded stops)
 PF_HALF_W = 1.1          # m to each side of the lead's centre
 PF_TOP = 1.35            # m above the road
-PF_PERIOD = 0.2          # s between frames
+PF_PERIOD = 0.25         # s between frames
 PF_KEEP = 0.5            # s the box stays after the last find
 PF_SAME = 0.35           # of the plate width: a find this close to the last one is the same plate
 PF_SMOOTH = 0.6          # weight of the new find
