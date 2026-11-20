@@ -106,6 +106,28 @@ VIRTUAL_PASSED = 0.3    # m: an experimental virtual stop-line lead this close t
 A_LEAD_GO = 0.3         # m/s^2: a latched lead that accelerates this much is moving again
 
 
+# dppb (Altis), owner 2026-11-20 after the end was set to -0.32: "if it is going to stop too close, add a little force at
+# 10 to 5 km/h". On the end line the room left (to STOP_GAP) is compared with the distance the line itself still needs
+# from this speed (the Altis's real delivery, SHORT_LAG s of travel first). Only when the room is short by more than
+# SHORT_DEAD is the line scaled up by that ratio - between 10 and 5 km/h, at most SHORT_MAX, built at SHORT_RATE; it
+# fades out from 5 to 3 km/h, so the last 3 km/h and the -0.32 end are the plain line. A stop that fits is unchanged.
+SHORT_V = [3.0 / 3.6, 5.0 / 3.6, 10.0 / 3.6, 12.0 / 3.6]
+SHORT_W = [0.0, 1.0, 1.0, 0.0]
+SHORT_DEAD = 0.08       # ratio: room within 8 % of what the line needs = fits
+SHORT_MAX = 0.35        # m/s^2: "a little"
+SHORT_RATE = 0.6        # m/s^3 in and out
+SHORT_LAG = 0.3         # s
+
+
+def _short_extra(v_ego, d_rel, goal):
+  w = float(np.interp(v_ego, SHORT_V, SHORT_W))
+  if w <= 0.0 or SHORT_MAX <= 0.0:
+    return 0.0
+  room = max(d_rel - STOP_GAP - v_ego * SHORT_LAG, 0.3)
+  k = end_distance(v_ego) / room
+  return w * min(max(k - 1.0 - SHORT_DEAD, 0.0) * -goal, SHORT_MAX)
+
+
 def _stop_point(lead, latched):
   """the distance at which a slow lead braking to a stop will stand still, or None"""
   a = -float(getattr(lead, 'aLeadK', 0.0))
@@ -156,6 +178,7 @@ class StopApproach:
     self.dt = dt
     self.phase = None  # None (MPC), 'wait', 'brake', 'release', 'handback'
     self.a = 0.0
+    self.short = 0.0          # extra on the end line while the stop would end short (10-5 km/h)
     self.wait_a = WAIT_ACCEL  # experimental WAIT lift (follows the car's real decel)
     self.lead_moving = False  # the lead was tracked moving the frame before
     self.moved = False        # this approach started from a lead that slowed to a stop (K_NEED, not K_STOPPED)
@@ -182,6 +205,7 @@ class StopApproach:
     stopped_lead = (not off and lead is not None and bool(lead.status) and lead.vLead < LEAD_STOPPED_V
                     and 0.0 < lead.dRel < MAX_DIST and v_ego > 0.3)
     was_moving = self.lead_moving
+    prev_short, self.short = self.short, 0.0  # self.a is what was asked; the end line's own state is self.a + prev_short
     self.lead_moving = not off and lead is not None and bool(lead.status) and lead.vLead >= LEAD_STOPPED_V
     if not stopped_lead:
       self.wait_a = WAIT_ACCEL
@@ -228,8 +252,12 @@ class StopApproach:
       else:
         # ease at J_RELEASE onto the end line, then follow it; hold (do not ease further) while the need runs ahead,
         # never firm up again
-        target = self.a if _need_plain(v_ego, lead.dRel) > -self.a + 0.3 else min(goal, self.a + J_RELEASE * self.dt)
-        self.a = out = max(target, self.a)
+        base = self.a + prev_short
+        target = base if _need_plain(v_ego, lead.dRel) > -base + 0.3 else min(goal, base + J_RELEASE * self.dt)
+        base = max(target, base)
+        want = _short_extra(v_ego, lead.dRel, goal)
+        self.short = float(np.clip(want, prev_short - SHORT_RATE * self.dt, prev_short + SHORT_RATE * self.dt))
+        self.a = out = base - self.short
     if _need_plain(v_ego, lead.dRel) >= URGENT_NEED and a_mpc < out:
       self.a = out = a_mpc
     return out

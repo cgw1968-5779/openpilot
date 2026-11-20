@@ -19,6 +19,7 @@ def _dpcr_end(monkeypatch, request):
   if 'altis' not in request.node.name:
     monkeypatch.setattr(_sa, 'END_V', 5.0 / 3.6)
     monkeypatch.setattr(_sa, 'END_ROOM', 0.0)
+    monkeypatch.setattr(_sa, 'SHORT_MAX', 0.0)   # dpcr: the end line is never firmed
     monkeypatch.setattr(_sa, 'STOP_GAP', 3.5)
     monkeypatch.setattr(_sa, 'END_CURVE_V', [0.0, 1.0 / 3.6, 2.0 / 3.6, 3.0 / 3.6, 4.0 / 3.6, 5.0 / 3.6, 6.0 / 3.6, 7.0 / 3.6, 8.0 / 3.6])
     monkeypatch.setattr(_sa, 'END_CURVE_A', [-0.34, -0.36, -0.37, -0.37, -0.40, -0.45, -0.50, -0.57, -0.65])
@@ -283,3 +284,31 @@ def test_altis_end_line_is_continuous_and_the_mid_brake_ends_on_it():
   need = _sa._need(v0, d)
   assert abs(need - (v0 ** 2 - _sa.END_V ** 2) / (2 * (d - _sa.STOP_GAP - d_end))) < 1e-9
   assert need > _sa._need_plain(v0, d) * 0.9                            # the room for the end is paid for in the mid
+
+
+def test_altis_short_stop_gets_a_little_more_between_10_and_5_kph_only():
+  # owner 2026-11-20: "if it is going to stop too close, add a little force at 10 to 5 km/h"
+  line = lambda kph: float(np.interp(kph / 3.6, _sa.END_CURVE_V, _sa.END_CURVE_A))
+  fits = lambda kph: _sa.STOP_GAP + kph / 3.6 * _sa.SHORT_LAG + _sa.end_distance(kph / 3.6)
+  for kph in (10.0, 8.0, 6.0, 5.0):
+    assert _sa._short_extra(kph / 3.6, fits(kph), line(kph)) == 0.0                 # a stop that fits: the plain line
+    assert _sa._short_extra(kph / 3.6, fits(kph) + 2.0, line(kph)) == 0.0           # one ending far: the plain line
+    e = _sa._short_extra(kph / 3.6, fits(kph) - 0.35 * _sa.end_distance(kph / 3.6), line(kph))
+    assert 0.05 < e <= _sa.SHORT_MAX + 1e-9                                         # short: a little more, capped
+  for kph in (3.0, 2.0, 1.0, 0.5, 12.0, 15.0):
+    assert _sa._short_extra(kph / 3.6, _sa.STOP_GAP + 0.1, line(kph)) == 0.0        # never in the last 3 km/h, nor above 12
+  # in the controller: built and taken back at SHORT_RATE, gone by 3 km/h
+  sa = StopApproach(); sa.phase = 'release'; sa.a = line(9.0); sa.lead_moving = False
+  outs = []
+  v, d = 9.0 / 3.6, fits(9.0) - 1.5
+  for _ in range(400):
+    out = sa.update(v, lead(d), -3.0, False)
+    outs.append((v, out, sa.short))
+    v = max(v + out * sa.dt, 0.0); d -= v * sa.dt
+    if v <= 0.31:
+      break
+  sh = np.array([o[2] for o in outs]); vv = np.array([o[0] for o in outs])
+  assert sh.max() > 0.1 and np.all(np.abs(np.diff(sh)) <= _sa.SHORT_RATE * sa.dt + 1e-9)
+  assert np.all(sh[vv <= 3.0 / 3.6] < 1e-9)
+  assert np.all(np.array([o[1] for o in outs])[vv <= 2.0 / 3.6] >= -0.32 - 1e-9)    # the end is still -0.32
+
