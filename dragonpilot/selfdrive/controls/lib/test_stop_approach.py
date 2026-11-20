@@ -276,7 +276,7 @@ def test_altis_end_line_is_continuous_and_the_mid_brake_ends_on_it():
   a = [float(__import__('numpy').interp(x, _sa.END_CURVE_V, _sa.END_CURVE_A)) for x in v]
   assert all(a[k + 1] <= a[k] for k in range(12))                       # firmer with speed, monotonic
   assert max(a[k] - a[k + 1] for k in range(12)) <= 0.16                # no step: at most 0.16 m/s^2 per km/h
-  assert a[12] == -1.35 and a[0] == -0.34
+  assert a[12] == -1.35 and a[0] == a[1] == a[2] == -0.32             # owner 11-20: -0.32 held from 2 km/h to the stop
   d_end = _sa.end_distance()
   assert 7.0 < d_end < 10.0                                             # what the Altis really needs from 12 km/h
   v0, d = 40 / 3.6, 60.0

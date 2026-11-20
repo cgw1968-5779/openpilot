@@ -6,10 +6,12 @@
 import numpy as np
 from openpilot.common.realtime import DT_CTRL
 from dragonpilot.selfdrive.controls.lib.tncr1_long.end_force_limit import EndForceLimit, HOLD_RATE, POST_T, \
-  SETTLE_MIN, SETTLE_MAX, V_LINE, END_ACCEL, CEIL_BP, \
+  SETTLE_MIN, SETTLE_MAX, V_LINE, CEIL_BP, \
   END_FIRM_RATE, END_GAP_MIN
 
 import pytest
+
+END_ACCEL = -0.34   # dpcr's end value: the dpcr tests below run on it (fixture); dppb's own -0.32 has its test at the end
 from dragonpilot.selfdrive.controls.lib.tncr1_long import end_force_limit as _efl
 
 
@@ -20,6 +22,7 @@ def _dpcr_ceiling(monkeypatch, request):
     monkeypatch.setattr(_efl, 'END_RELEASE_RATE', 2.0)
     monkeypatch.setattr(_efl, 'END_RELEASE_TO_STOP', True)
     monkeypatch.setattr(_efl, 'CEIL_A', [-0.34, -0.36, -0.37, -0.37, -2.0])   # dpcr's line (dppb: -0.42 / -0.44 / -0.44)
+    monkeypatch.setattr(_efl, 'END_ACCEL', -0.34)                             # dpcr's end (dppb: -0.32 from 1 km/h)
 
 
 
@@ -215,9 +218,10 @@ def test_altis_cut_request_comes_off_slowly_and_is_not_hurried_to_the_stop(monke
 
 def test_altis_low_speed_line_is_firm_enough_to_hold_the_car():
   # dppb 2026-11-20 (routes 000001da/db): -0.36 / -0.37 at 1-3 km/h let the Altis speed up again after the release
-  # (19:25:50: rolled 3.77 -> 1.92 m). 1-3 km/h is -0.42 / -0.44 / -0.44; the last km/h still eases to END_ACCEL
-  assert _efl.CEIL_A == [-0.34, -0.42, -0.44, -0.44, -2.0] and _efl.CEIL_A[0] == _efl.END_ACCEL
-  for kph, want in ((3.0, -0.44), (2.0, -0.44), (1.0, -0.42), (0.0, -0.34)):
+  # (19:25:50: rolled 3.77 -> 1.92 m), so 2-3 km/h stays -0.44. Owner 11-20: the very end is held at -0.32 and only
+  # releases - from 1 km/h down the ceiling is -0.32 flat
+  assert _efl.CEIL_A == [-0.32, -0.32, -0.44, -0.44, -2.0] and _efl.CEIL_A[0] == _efl.END_ACCEL
+  for kph, want in ((3.0, -0.44), (2.0, -0.44), (1.0, -0.32), (0.5, -0.32), (0.0, -0.32)):
     out = _efl.EndForceLimit().update(-2.0, kph / 3.6, False, True)
     assert abs(out - want) < 0.011, (kph, out)
   assert _efl.EndForceLimit().update(-0.30, 2.0 / 3.6, False, True) == -0.30   # a ceiling only: lighter stays lighter

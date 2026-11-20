@@ -18,6 +18,7 @@ def gap_close_on(monkeypatch):
   monkeypatch.setattr(stop_gap_close, 'GAP_TRIGGER', 3.5)
   monkeypatch.setattr(stop_gap_close, 'GAP_TARGET', 3.1)
   monkeypatch.setattr(stop_gap_close, 'RELEASE_RATE', 0.3)
+  monkeypatch.setattr(stop_gap_close, 'END_ACCEL', -0.34)
   # tncr ships it OFF (ENABLED = False); the behaviour itself is tested switched on
   monkeypatch.setattr(stop_gap_close, "ENABLED", True)
 

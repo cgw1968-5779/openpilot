@@ -82,7 +82,7 @@ END_DELIVER_GAIN = [0.94, 0.85, 0.84, 0.98]
 END_DELIVER_OFF = [0.09, 0.06, 0.08, 0.16]
 # the stopping controller's end line (tncr1_long/stopping_controller.py END_CURVE), so the release lands on it
 END_CURVE_V = [0.0, 1.0 / 3.6, 2.0 / 3.6, 3.0 / 3.6, 5.0 / 3.6, 8.0 / 3.6, 12.0 / 3.6]
-END_CURVE_A = [-0.34, -0.42, -0.44, -0.48, -0.65, -0.95, -1.35]
+END_CURVE_A = [-0.32, -0.32, -0.32, -0.40, -0.60, -0.95, -1.35]  # 11-20: -0.32 held from 2 km/h (was -0.34/-0.42/-0.44/-0.48/-0.65)
 # dppb (Corolla Altis Hybrid, owner 2026-11-20 on 22:19:27, route 000001dc: "approaching a standing car the end brake did
 # not join the mid brake smoothly"): dpcr holds the mid brake to ~5 km/h and its end line only starts there. 22:19:27:
 # -1.4..-1.7 held down to 4.2 km/h, then -1.55 -> -0.43 sent within 0.8 s - a cliff, not a blend - and the Altis brake,

@@ -121,7 +121,7 @@ class StoppingController:
   BLEND_V = 13.0 / 3.6  # m/s: the line starts here, at the request the car had at that moment (was 10 km/h)
   END_V_HI = 8.0 / 3.6  # m/s (was 5 km/h)
   END_HI = -0.65  # m/s^2 at END_V_HI (~1200 N); -0.60 -> -0.65 2026-10-08, see END_CURVE_A
-  END_LO = -0.34  # m/s^2 at 0 km/h. tncr (Corolla Cross): -0.35 -> -0.34 (owner 2026-10-15 evening road test: "better,
+  END_LO = -0.32  # m/s^2 at 0 km/h. tncr (Corolla Cross): -0.35 -> -0.34 (owner 2026-10-15 evening road test: "better,
   # right direction, take the normal stop end a further 0.01 lighter"). -0.35 (~840 N) was the owner's Cross stop template
   # (route 00000063 22:56:14, 2026-10-05: -0.36 in the last km/h, stopped at 800-840 N, no nod); a light request gives the
   # Cross's duller brake only ~700 N (-0.25 crept at 0.7 km/h for 1.6 s, 22:53:30). Altis (tnpb3) keeps -0.30.
@@ -156,7 +156,7 @@ class StoppingController:
   # Owner after driving it: "the part you proposed is too heavy - lighter, but not back to the old one". 8 km/h stays the
   # firm point END_HI; 7..4 km/h lighter by 0.02-0.04, the ease a little faster just below 8 km/h and gentler toward
   # 3 km/h (steps 0.08 / 0.07 / 0.05 / 0.05 / 0.03 per km/h, at most ~0.15 m/s^3 at -0.5; the old 4 -> 3 step was 0.19)
-  END_CURVE_A = [END_LO, -0.36, -0.37, -0.37, -0.40, -0.45, -0.50, -0.57, END_HI]  # m/s^2
+  END_CURVE_A = [END_LO, END_LO, END_LO, -0.36, -0.40, -0.45, -0.50, -0.57, END_HI]  # m/s^2
   END_PLAN_MIN = -0.25  # m/s^2: the plan must be braking this much at BLEND_V to count as stopping (a crawl-follow hovers near 0)
   # The line is for the END of a stop. tncr, owner 2026-10-15 night (route 00000075 20:59:40, stopped 7.5 m out, bookmark 1):
   # at 9.6 km/h the lead was still 12 m ahead rolling to its stop; the plan eased to -0.3 (roll on to 3 m), but the line

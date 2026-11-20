@@ -28,7 +28,12 @@ from openpilot.common.realtime import DT_CTRL
 # STALL_V - the hybrid's creep torque can beat a light request), the line is let go and re-anchored at the current speed
 # and request once it slows again: a stall is not "the stop", and it still ends on -0.30 at 0 km/h.
 V_LINE = 2.0 / 3.6     # m/s
-END_ACCEL = -0.34      # m/s^2 at 0 km/h. tncr (Corolla Cross): -0.35 -> -0.34 (owner 2026-10-15 evening, "0.01 lighter");
+# dppb (Corolla Altis Hybrid), owner 2026-11-20 on 5b4952184: "the very end still jolts every time. Why not hold -0.32 at the
+# very end? The stop itself must RELEASE the brake, never add force." Route 000001dd 22:43:32: -0.91 still asked at 4.6 km/h,
+# -0.43 at 1.7, -0.35 at 0 - with the Altis's 0.5 s answer at that speed the car was still at -0.62 at 1.7 km/h.
+# The end is now -0.32, held flat from 2 km/h to the stop, and the line above it is lighter so the car has released
+# to it before the last second.
+END_ACCEL = -0.32      # m/s^2 at 0 km/h. tncr (Corolla Cross): -0.35 -> -0.34 (owner 2026-10-15 evening, "0.01 lighter");
                        # -0.35 was the Cross stop template (stopped at
                        # 800-840 N, no nod); the Altis rule above is -0.30 and stays so on tnpb3
 HOLD_RATE = 1.5        # m/s^3: after the stop, toward the standstill hold (0.5 until dpcr 2026-11-08, see POST_*)
@@ -72,7 +77,7 @@ SETTLE_A = 0.1         # m/s^2: |aEgo| below this = the body has settled
 # (was -1.2 / -0.60 / -0.38 / -0.34); 3 -> 5 km/h still opens to -2.0. A ceiling only: a lighter request stays lighter
 # (item 0 - nothing raises the force before the stop).
 CEIL_BP = [0.0, 1.0 / 3.6, 2.0 / 3.6, 3.0 / 3.6, 5.0 / 3.6]  # m/s
-CEIL_A = [-0.34, -0.42, -0.44, -0.44, -2.0]                 # m/s^2 (CEIL_A[0] must equal END_ACCEL)
+CEIL_A = [-0.32, -0.32, -0.44, -0.44, -2.0]                 # m/s^2 (CEIL_A[0] must equal END_ACCEL)
 # dppb (Corolla Altis Hybrid, 2026-11-20, first drive on the dpcr stack, routes 000001da/db): dpcr's -0.36 / -0.37 /
 # -0.37 at 1 / 2 / 3 km/h does not hold the Altis after the release that leads to it. 19:25:50: -1.32 sent at 4.9 km/h,
 # -0.36 from 1.35 km/h on - the car SPED UP 1.27 -> 1.87 km/h and rolled from 3.77 m to 1.92 m in 3 s before it stopped
