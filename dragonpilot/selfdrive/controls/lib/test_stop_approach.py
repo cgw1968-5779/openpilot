@@ -20,6 +20,7 @@ def _dpcr_end(monkeypatch, request):
     monkeypatch.setattr(_sa, 'END_V', 5.0 / 3.6)
     monkeypatch.setattr(_sa, 'END_ROOM', 0.0)
     monkeypatch.setattr(_sa, 'SHORT_MAX', 0.0)   # dpcr: the end line is never firmed
+    monkeypatch.setattr(_sa, 'SLOPE_ENABLED', False)   # dpcr: brake phase + release (dppb: one slope)
     monkeypatch.setattr(_sa, 'STOP_GAP', 3.5)
     monkeypatch.setattr(_sa, 'END_CURVE_V', [0.0, 1.0 / 3.6, 2.0 / 3.6, 3.0 / 3.6, 4.0 / 3.6, 5.0 / 3.6, 6.0 / 3.6, 7.0 / 3.6, 8.0 / 3.6])
     monkeypatch.setattr(_sa, 'END_CURVE_A', [-0.34, -0.36, -0.37, -0.37, -0.40, -0.45, -0.50, -0.57, -0.65])
@@ -286,7 +287,9 @@ def test_altis_end_line_is_continuous_and_the_mid_brake_ends_on_it():
   assert need > _sa._need_plain(v0, d) * 0.9                            # the room for the end is paid for in the mid
 
 
-def test_altis_short_stop_gets_a_little_more_between_10_and_5_kph_only():
+def test_altis_short_stop_gets_a_little_more_between_10_and_5_kph_only(monkeypatch):
+  monkeypatch.setattr(_sa, 'SLOPE_ENABLED', False)   # the pre-slope law, kept for SLOPE_ENABLED = False
+  monkeypatch.setattr(_sa, 'STOP_GAP', 3.8)
   # owner 2026-11-20: "if it is going to stop too close, add a little force at 10 to 5 km/h"
   line = lambda kph: float(np.interp(kph / 3.6, _sa.END_CURVE_V, _sa.END_CURVE_A))
   fits = lambda kph: _sa.STOP_GAP + kph / 3.6 * _sa.SHORT_LAG + _sa.end_distance(kph / 3.6)
@@ -311,4 +314,35 @@ def test_altis_short_stop_gets_a_little_more_between_10_and_5_kph_only():
   assert sh.max() > 0.1 and np.all(np.abs(np.diff(sh)) <= _sa.SHORT_RATE * sa.dt + 1e-9)
   assert np.all(sh[vv <= 3.0 / 3.6] < 1e-9)
   assert np.all(np.array([o[1] for o in outs])[vv <= 2.0 / 3.6] >= -0.32 - 1e-9)    # the end is still -0.32
+
+
+def test_altis_one_slope_worked_back_from_the_stop_point():
+  # owner 2026-11-20: "3.5 m first, smooth second; work back what speed the car must have at what distance"
+  a = [float(np.interp(k / 3.6, _sa.SLOPE_V, _sa.SLOPE_A)) for k in range(0, 61)]
+  assert all(a[k + 1] <= a[k] for k in range(60)) and a[0] == a[2] == -0.32      # one slope, easing to -0.32 held from 2 km/h
+  d = [_sa.slope_distance(k / 3.6) for k in range(0, 61, 5)]
+  assert all(d[k + 1] > d[k] for k in range(len(d) - 1))                         # distance -> speed is one-to-one
+  on = lambda kph: _sa.STOP_GAP + kph / 3.6 * _sa.SLOPE_LAG + _sa.slope_distance(kph / 3.6)
+  for kph in (40.0, 20.0, 10.0, 5.0):
+    assert abs(_sa.slope_k(kph / 3.6, on(kph)) - 1.0) < 1e-6                     # on the reference: the plain slope
+    assert _sa.slope_k(kph / 3.6, on(kph) - 1.0) > 1.0 > _sa.slope_k(kph / 3.6, on(kph) + 1.0)  # too fast firmer / too slow lighter
+  # an ideal car (gives what is asked) started on the slope ends at the stop point without firming after the first build
+  monkey = {k: getattr(_sa, k) for k in ('SLOPE_DELIVER_GAIN', 'SLOPE_DELIVER_OFF')}
+  _sa.SLOPE_DELIVER_GAIN, _sa.SLOPE_DELIVER_OFF = [1.0] * 7, [0.0] * 7
+  try:
+    sa = StopApproach(); v = 30.0 / 3.6; d = on(30.0) + 25.0; outs = []
+    for _ in range(4000):
+      out = sa.update(v, lead(d), 0.0, False)
+      outs.append((v, out, sa.phase))
+      v = max(v + min(out, 0.0) * sa.dt, 0.0); d -= v * sa.dt
+      if v <= 0.31:
+        break
+    assert abs(d - _sa.STOP_GAP) < 0.6, d
+    rel = [o[1] for o in outs if o[2] == 'release']
+    i_peak = int(np.argmin(rel))
+    assert all(rel[k + 1] >= rel[k] - 0.02 for k in range(i_peak, len(rel) - 1))  # after the build it only eases
+    assert min(o[1] for o in outs if o[0] <= 2.0 / 3.6) >= -0.32 - 1e-9           # the end is the plain -0.32
+  finally:
+    for k, val in monkey.items():
+      setattr(_sa, k, val)
 

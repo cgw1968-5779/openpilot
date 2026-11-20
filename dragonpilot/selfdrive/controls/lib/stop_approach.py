@@ -117,15 +117,54 @@ SHORT_DEAD = 0.08       # ratio: room within 8 % of what the line needs = fits
 SHORT_MAX = 0.35        # m/s^2: "a little"
 SHORT_RATE = 0.6        # m/s^3 in and out
 SHORT_LAG = 0.3         # s
+SHORT_LIGHT = 0.0       # m/s^2: how much lighter than the line when the stop would end far (0 = never lighter)
+SHORT_LIGHT_SHARE = 0.5  # ... and never more than this share of the line itself
 
 
 def _short_extra(v_ego, d_rel, goal):
+  """what the end line is scaled by (as an extra, + = firmer) so that it ends at STOP_GAP from the present speed and gap"""
   w = float(np.interp(v_ego, SHORT_V, SHORT_W))
-  if w <= 0.0 or SHORT_MAX <= 0.0:
+  if w <= 0.0:
     return 0.0
   room = max(d_rel - STOP_GAP - v_ego * SHORT_LAG, 0.3)
-  k = end_distance(v_ego) / room
-  return w * min(max(k - 1.0 - SHORT_DEAD, 0.0) * -goal, SHORT_MAX)
+  dev = end_distance(v_ego) / room - 1.0
+  dev = max(dev - SHORT_DEAD, 0.0) if dev > 0.0 else min(dev + SHORT_DEAD, 0.0)
+  return w * float(np.clip(dev * -goal, max(-SHORT_LIGHT, SHORT_LIGHT_SHARE * goal), SHORT_MAX))
+
+
+# dppb (Altis), owner 2026-11-20: "3.5 m is the first priority, smooth is second; from any speed the car must come down
+# onto a smooth deceleration slope" and "work back from the stop what speed it must have at what distance - then it
+# stops smoothly at 3.5 m every time". So ONE slope for the whole stop: SLOPE_A over speed is the shape (firm in the
+# middle, easing continuously to -0.32 for the last 2 km/h). Integrated back from the stop point - with what the Altis
+# really gives for a request - it is the speed the car must have at every distance. Each cycle the distance the slope
+# still needs from the present speed is compared with the room really left to STOP_GAP, and the whole slope is scaled
+# by that ratio k: k = 1 the car is on the reference, k > 1 it is too fast for its distance (a little firmer), k < 1 too
+# slow (a little lighter). The stop starts when the car reaches the slope (k >= SLOPE_START, looking T_PRE ahead);
+# before that the MPC drives. Below SLOPE_W_V the scaling fades out: the last 2 km/h are the plain -0.32.
+SLOPE_ENABLED = True
+SLOPE_V = [0.0, 1.0 / 3.6, 2.0 / 3.6, 3.0 / 3.6, 5.0 / 3.6, 8.0 / 3.6, 12.0 / 3.6, 20.0 / 3.6, 30.0 / 3.6, 60.0 / 3.6]
+SLOPE_A = [-0.32, -0.32, -0.32, -0.40, -0.60, -0.95, -1.35, -1.60, -1.80, -2.00]
+SLOPE_DELIVER_V = [1.8 / 3.6, 4.5 / 3.6, 8.0 / 3.6, 12.5 / 3.6, 20.0 / 3.6, 32.0 / 3.6, 52.0 / 3.6]
+SLOPE_DELIVER_GAIN = [0.94, 0.85, 0.84, 0.98, 1.10, 1.18, 1.17]
+SLOPE_DELIVER_OFF = [0.09, 0.06, 0.08, 0.16, 0.09, 0.06, 0.04]
+SLOPE_START = 0.90      # the stop begins once the room is down to the slope's own distance / this
+SLOPE_K = [0.3, 1.5]    # the slope is scaled within this (a stop that is later than that is the urgent rule's)
+SLOPE_W_V = [2.0 / 3.6, 4.0 / 3.6]  # m/s: scaling fades out below 4 km/h, none below 2
+SLOPE_W_V_LIGHT = [0.5 / 3.6, 1.5 / 3.6]  # m/s: a slope scaled DOWN (the car would stop early) stays lighter to here
+SLOPE_LAG = 0.15        # s of travel before a change is felt
+SLOPE_J_EASE = 2.0      # m/s^3: easing (1.2: a car that was too fast could not come back onto the slope and stopped early)
+
+
+def slope_distance(v_from):
+  """distance the slope takes from v_from to rest with the Altis's real delivery"""
+  vs = np.linspace(0.0, max(v_from, 0.0), 81)
+  a = -np.interp(vs, SLOPE_V, SLOPE_A)
+  a = np.maximum(a * np.interp(vs, SLOPE_DELIVER_V, SLOPE_DELIVER_GAIN) - np.interp(vs, SLOPE_DELIVER_V, SLOPE_DELIVER_OFF), 0.1)
+  return float(np.sum((vs[1:] ** 2 - vs[:-1] ** 2) / (a[1:] + a[:-1])))
+
+
+def slope_k(v_ego, d_rel):
+  return slope_distance(v_ego) / max(d_rel - STOP_GAP - v_ego * SLOPE_LAG, 0.3)
 
 
 def _stop_point(lead, latched):
@@ -228,10 +267,20 @@ class StopApproach:
       self.moved = was_moving and self.a < WAIT_ACCEL
       self.phase = 'brake' if self.moved else 'wait'
     need_pre = _need(v_ego, lead.dRel - v_ego * T_PRE)
-    if self.phase == 'wait' and need_pre >= START_NEED:
+    if SLOPE_ENABLED:
+      if self.phase in ('wait', 'brake') and slope_k(v_ego, lead.dRel - v_ego * T_PRE) >= SLOPE_START:
+        self.phase = 'release'   # on the slope from here to the stop
+    elif self.phase == 'wait' and need_pre >= START_NEED:
       self.phase = 'brake'
 
-    if self.phase == 'wait':
+    if SLOPE_ENABLED and self.phase == 'brake':
+      self.a = out = a_mpc       # the lead slowed to its stop and the MPC is braking behind it: not on the slope yet
+    elif SLOPE_ENABLED and self.phase == 'release':
+      shape = float(np.interp(v_ego, SLOPE_V, SLOPE_A))
+      k = float(np.clip(slope_k(v_ego, lead.dRel), SLOPE_K[0], SLOPE_K[1]))
+      w = float(np.interp(v_ego, SLOPE_W_V if k > 1.0 else SLOPE_W_V_LIGHT, [0.0, 1.0]))  # firmer: never in the last km/h
+      out = self._step(shape * (1.0 + (k - 1.0) * w), SLOPE_J_EASE, J_BUILD)
+    elif self.phase == 'wait':
       if exp and a_ego is not None and a_ego < -(need + WAIT_FB_MARGIN):
         self.wait_a = min(self.wait_a + WAIT_FB_RATE * self.dt, 0.0)
       else:
