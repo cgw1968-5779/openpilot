@@ -29,6 +29,9 @@ from dragonpilot.selfdrive.controls.lib.tncr1_long.stop_gap_close import decel_r
 # held the very first touch firmer, against principle step 1. The 7 -> 2 km/h blend keeps the release into the end line
 # near 0.5 m/s^3 (a 5 -> 2 km/h blend released at up to 1.4 m/s^3 on 159 09:05:54). Only actuators.accel is shaped;
 # the stopping controller's prev_accel keeps the plain request (same rule as lead_brake_boost).
+# dppb (Altis), owner 2026-11-20 (see stop_gap_close.py ENABLED): no stage keeps the brake firmer than the plan to end
+# at the stop distance. The hold is OFF; the roll guard (a car rolling at standstill) is unchanged.
+HOLD_ENABLED = False
 GAP_MIN = 4.1            # m (radar dRel)
 V_MAX = 30.0 / 3.6       # m/s
 LEAD_V_MAX = 1.0         # m/s: lead treated as stopped (its own remaining travel is ignored -> conservative)
@@ -128,7 +131,7 @@ class StopGapHold:
       self.roll_out, self.roll_caught = None, False
       return accel
     accel = self._roll_guard(accel, v_ego, standstill, lead)
-    if standstill:
+    if standstill or not HOLD_ENABLED:
       self.held, self.holding, self.braking_t, self.urgent = None, False, 0.0, False
       return accel
     if bool(lead.present):

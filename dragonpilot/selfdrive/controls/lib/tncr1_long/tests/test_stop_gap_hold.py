@@ -6,6 +6,14 @@
 from cereal import log
 from dragonpilot.selfdrive.controls.lib.tncr1_long.long_ext import LeadView
 from dragonpilot.selfdrive.controls.lib.tncr1_long.stop_gap_hold import StopGapHold
+import pytest
+from dragonpilot.selfdrive.controls.lib.tncr1_long import stop_gap_hold as _sgh
+
+
+@pytest.fixture(autouse=True)
+def _hold_on(monkeypatch):
+  # dppb ships the hold OFF (owner 2026-11-20); dpcr's behaviour itself is tested switched on
+  monkeypatch.setattr(_sgh, 'HOLD_ENABLED', True)
 
 
 def lead(d, v=0.0, present=True):
@@ -174,3 +182,12 @@ def test_roll_guard_targets_2m_in_an_urgent_stop():
   assert out_plain < -0.97 and plain.roll_out is not None                   # the 2.5 m guard acts
   assert out_urgent > out_plain + 0.3, (out_plain, out_urgent)               # the urgent guard asks much less
   assert m.ROLL_GAP_URGENT == 2.0
+
+
+def test_dppb_ships_the_hold_and_the_gap_close_off():
+  from dragonpilot.selfdrive.controls.lib.tncr1_long import stop_gap_close as _sgc
+  import importlib
+  assert importlib.reload(_sgc).ENABLED is False
+  src = open(_sgh.__file__).read()
+  assert "\nHOLD_ENABLED = False\n" in src
+
