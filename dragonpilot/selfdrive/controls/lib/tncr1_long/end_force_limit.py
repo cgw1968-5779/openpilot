@@ -72,7 +72,13 @@ SETTLE_A = 0.1         # m/s^2: |aEgo| below this = the body has settled
 # (was -1.2 / -0.60 / -0.38 / -0.34); 3 -> 5 km/h still opens to -2.0. A ceiling only: a lighter request stays lighter
 # (item 0 - nothing raises the force before the stop).
 CEIL_BP = [0.0, 1.0 / 3.6, 2.0 / 3.6, 3.0 / 3.6, 5.0 / 3.6]  # m/s
-CEIL_A = [-0.34, -0.36, -0.37, -0.37, -2.0]                 # m/s^2 (CEIL_A[0] must equal END_ACCEL)
+CEIL_A = [-0.34, -0.42, -0.44, -0.44, -2.0]                 # m/s^2 (CEIL_A[0] must equal END_ACCEL)
+# dppb (Corolla Altis Hybrid, 2026-11-20, first drive on the dpcr stack, routes 000001da/db): dpcr's -0.36 / -0.37 /
+# -0.37 at 1 / 2 / 3 km/h does not hold the Altis after the release that leads to it. 19:25:50: -1.32 sent at 4.9 km/h,
+# -0.36 from 1.35 km/h on - the car SPED UP 1.27 -> 1.87 km/h and rolled from 3.77 m to 1.92 m in 3 s before it stopped
+# with a nod; 19:24:22 (2.52 m), 19:13:00 (2.56 m) and 19:26:21 the same - 5 of the 9 stops of the drive. Stop
+# scorecard (151 dppb stops): a command of -0.42 or firmer at 1.6 km/h failed to slow the car in 2 % of the stops,
+# -0.30..-0.42 in 43 %. So 1-3 km/h is -0.42 / -0.44 / -0.44 on the Altis; the last km/h still eases to -0.34.
 CEIL_V = CEIL_BP[-1]
 CEIL_TOP = CEIL_A[-1]
 STALL_V = 0.5 / 3.6    # m/s

@@ -78,7 +78,7 @@ END_V = 5.0 / 3.6       # m/s: the release reaches the end line by here
 END_ROOM = 0.0          # share of the end line's own distance (from END_V) the brake phase leaves in front of the stop point
 # the stopping controller's end line (tncr1_long/stopping_controller.py END_CURVE), so the release lands on it
 END_CURVE_V = [0.0, 1.0 / 3.6, 2.0 / 3.6, 3.0 / 3.6, 4.0 / 3.6, 5.0 / 3.6, 6.0 / 3.6, 7.0 / 3.6, 8.0 / 3.6]
-END_CURVE_A = [-0.34, -0.36, -0.37, -0.37, -0.40, -0.45, -0.50, -0.57, -0.65]
+END_CURVE_A = [-0.34, -0.42, -0.44, -0.44, -0.46, -0.50, -0.55, -0.62, -0.70]  # dppb (Altis) 11-20: 1-3 km/h firmer, see end_force_limit.py (dpcr: -0.34 -0.36 -0.37 -0.37 -0.40 -0.45 -0.50 -0.57 -0.65)
 MAX_DIST = 150.0        # m
 T_PRE = 1.0             # s: the start looks this far ahead (the build and the car's lag; 0.5 until 11-07)
 K_STOPPED = 1.05        # a lead first seen stopped: the earlier start already has margin, so brake closer to the need

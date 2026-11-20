@@ -6,7 +6,7 @@
 import numpy as np
 from openpilot.common.realtime import DT_CTRL
 from dragonpilot.selfdrive.controls.lib.tncr1_long.end_force_limit import EndForceLimit, HOLD_RATE, POST_T, \
-  SETTLE_MIN, SETTLE_MAX, V_LINE, END_ACCEL, CEIL_BP, CEIL_A, \
+  SETTLE_MIN, SETTLE_MAX, V_LINE, END_ACCEL, CEIL_BP, \
   END_FIRM_RATE, END_GAP_MIN
 
 import pytest
@@ -19,11 +19,12 @@ def _dpcr_ceiling(monkeypatch, request):
   if 'altis' not in request.node.name:
     monkeypatch.setattr(_efl, 'END_RELEASE_RATE', 2.0)
     monkeypatch.setattr(_efl, 'END_RELEASE_TO_STOP', True)
+    monkeypatch.setattr(_efl, 'CEIL_A', [-0.34, -0.36, -0.37, -0.37, -2.0])   # dpcr's line (dppb: -0.42 / -0.44 / -0.44)
 
 
 
 def ceil(kph):
-  return float(np.interp(kph / 3.6, CEIL_BP, CEIL_A))
+  return float(np.interp(kph / 3.6, CEIL_BP, _efl.CEIL_A))
 
 
 def test_line_from_2kph_to_minus_030():
@@ -142,7 +143,7 @@ def test_ordinary_stop_is_unchanged():
   v = 5.0 / 3.6
   for i in range(200):
     req = -0.7 + 0.33 * min(i / 50.0, 1.0)
-    old = float(np.interp(v, CEIL_BP, CEIL_A))
+    old = float(np.interp(v, CEIL_BP, _efl.CEIL_A))
     out = b.update(req, v, False, True, -0.6, lead_d=6.0, lead_v=0.0)
     if v >= V_LINE:
       assert abs(out - max(req, old)) < 1e-9
@@ -210,3 +211,13 @@ def test_altis_cut_request_comes_off_slowly_and_is_not_hurried_to_the_stop(monke
   assert -1.2 < out < -0.95                            # 0.2 firmer-to-lighter in 0.4 s: no cut to -0.37
   light = _efl.EndForceLimit()
   assert light.update(-0.2, 2.9 / 3.6, False, True, -0.2) == -0.2
+
+
+def test_altis_low_speed_line_is_firm_enough_to_hold_the_car():
+  # dppb 2026-11-20 (routes 000001da/db): -0.36 / -0.37 at 1-3 km/h let the Altis speed up again after the release
+  # (19:25:50: rolled 3.77 -> 1.92 m). 1-3 km/h is -0.42 / -0.44 / -0.44; the last km/h still eases to END_ACCEL
+  assert _efl.CEIL_A == [-0.34, -0.42, -0.44, -0.44, -2.0] and _efl.CEIL_A[0] == _efl.END_ACCEL
+  for kph, want in ((3.0, -0.44), (2.0, -0.44), (1.0, -0.42), (0.0, -0.34)):
+    out = _efl.EndForceLimit().update(-2.0, kph / 3.6, False, True)
+    assert abs(out - want) < 0.011, (kph, out)
+  assert _efl.EndForceLimit().update(-0.30, 2.0 / 3.6, False, True) == -0.30   # a ceiling only: lighter stays lighter

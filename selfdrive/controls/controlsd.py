@@ -21,6 +21,7 @@ from openpilot.selfdrive.controls.lib.latcontrol_pid import LatControlPID
 from openpilot.selfdrive.controls.lib.latcontrol_angle import LatControlAngle, STEER_ANGLE_SATURATION_THRESHOLD
 from openpilot.selfdrive.controls.lib.latcontrol_torque import LatControlTorque
 from openpilot.selfdrive.controls.lib.longcontrol import LongControl
+from dragonpilot.selfdrive.controls.lib.creep_stop import CreepStop, pcm_from_ext
 from dragonpilot.selfdrive.controls.lib.exp_stop_line import ExpStopLine
 from dragonpilot.selfdrive.controls.lib.tncr1_long.long_ext import LeadView, Tncr1Long
 from openpilot.selfdrive.modeld.modeld import LAT_SMOOTH_SECONDS
@@ -59,6 +60,7 @@ class Controls:
     self.LoC = LongControl(self.CP)
     self.exp_stop_line = ExpStopLine(DT_CTRL)  # dragonpilot hook
     self.tncr1_long = Tncr1Long(self.CP)  # dragonpilot hook (dpcr mid / low-speed stop, 11-20)
+    self.creep_stop = CreepStop(DT_CTRL, self.CP.mass)  # dragonpilot hook (the stop after the driver's gas creep)
     self.VM = VehicleModel(self.CP)
     self.LaC: LatControl
     if self.CP.steerControlType == car.CarParams.SteerControlType.angle:
@@ -138,6 +140,7 @@ class Controls:
     a_target = self.tncr1_long.long_target(self.LoC, long_plan, CS, CC.longActive, lead_one)  # dragonpilot hook
     actuators.accel = float(self.LoC.update(CC.longActive, CS, a_target, long_plan.shouldStop, pid_accel_limits))
     actuators.accel = self.tncr1_long.long_accel(self.LoC, CS, long_plan, pid_accel_limits, CC.longActive, lead_one, self.calibrated_pose)  # dragonpilot hook
+    actuators.accel = float(self.creep_stop.update(actuators.accel, CS, lead_one, a_target, CC.longActive, pcm_from_ext(self.sm['carStateExt'] if self.sm.alive['carStateExt'] else None)))  # dragonpilot hook (owner: the stop after a gas creep must be a smooth light brake)
 
     # Steering PID loop and lateral MPC
     # Reset desired curvature to current to avoid violating the limits on engage
