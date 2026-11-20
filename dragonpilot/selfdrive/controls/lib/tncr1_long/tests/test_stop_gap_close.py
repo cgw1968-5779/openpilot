@@ -19,6 +19,14 @@ def gap_close_on(monkeypatch):
   monkeypatch.setattr(stop_gap_close, 'GAP_TARGET', 3.1)
   monkeypatch.setattr(stop_gap_close, 'RELEASE_RATE', 0.3)
   monkeypatch.setattr(stop_gap_close, 'END_ACCEL', -0.34)
+  # ... and dpcr's end of a stop (dppb 11-21: the owner's own manual end, -0.45 .. -0.85 below 3 km/h)
+  from dragonpilot.selfdrive.controls.lib.tncr1_long import end_force_limit as _efl
+  from dragonpilot.selfdrive.controls.lib.tncr1_long.stopping_controller import StoppingController as _SC
+  monkeypatch.setattr(_efl, 'END_ACCEL', -0.34)
+  monkeypatch.setattr(_efl, 'CEIL_A', [-0.34, -0.36, -0.37, -0.37, -2.0])
+  monkeypatch.setattr(_SC, 'END_LO', -0.34)
+  monkeypatch.setattr(_SC, 'END_HI', -0.65)
+  monkeypatch.setattr(_SC, 'END_CURVE_A', [-0.34, -0.36, -0.37, -0.37, -0.40, -0.45, -0.50, -0.57, -0.65])
   # tncr ships it OFF (ENABLED = False); the behaviour itself is tested switched on
   monkeypatch.setattr(stop_gap_close, "ENABLED", True)
 

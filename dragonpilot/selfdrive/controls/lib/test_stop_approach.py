@@ -319,7 +319,9 @@ def test_altis_short_stop_gets_a_little_more_between_10_and_5_kph_only(monkeypat
 def test_altis_one_slope_worked_back_from_the_stop_point():
   # owner 2026-11-20: "3.5 m first, smooth second; work back what speed the car must have at what distance"
   a = [float(np.interp(k / 3.6, _sa.SLOPE_V, _sa.SLOPE_A)) for k in range(0, 61)]
-  assert all(a[k + 1] <= a[k] for k in range(60)) and a[0] == a[2] == -0.32      # one slope, easing to -0.32 held from 2 km/h
+  assert all(a[k + 1] <= a[k] for k in range(60))                               # one slope, firmer with speed
+  assert a[0] == -0.45 and a[1] == -0.50 and abs(a[12] - -1.45) < 1e-9          # the owner's manual end: ~-0.5 kept to the stop
+  assert max(a[k] - a[k + 1] for k in range(60)) <= 0.21                        # no step in it
   d = [_sa.slope_distance(k / 3.6) for k in range(0, 61, 5)]
   assert all(d[k + 1] > d[k] for k in range(len(d) - 1))                         # distance -> speed is one-to-one
   on = lambda kph: _sa.STOP_GAP + kph / 3.6 * _sa.SLOPE_LAG + _sa.slope_distance(kph / 3.6)
@@ -341,7 +343,7 @@ def test_altis_one_slope_worked_back_from_the_stop_point():
     rel = [o[1] for o in outs if o[2] == 'release']
     i_peak = int(np.argmin(rel))
     assert all(rel[k + 1] >= rel[k] - 0.02 for k in range(i_peak, len(rel) - 1))  # after the build it only eases
-    assert min(o[1] for o in outs if o[0] <= 2.0 / 3.6) >= -0.32 - 1e-9           # the end is the plain -0.32
+    assert min(o[1] for o in outs if o[0] <= 2.0 / 3.6) >= -0.70 - 1e-9           # the end is the plain line, nothing added
   finally:
     for k, val in monkey.items():
       setattr(_sa, k, val)

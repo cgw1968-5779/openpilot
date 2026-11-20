@@ -143,13 +143,21 @@ def _short_extra(v_ego, d_rel, goal):
 # before that the MPC drives. Below SLOPE_W_V the scaling fades out: the last 2 km/h are the plain -0.32.
 SLOPE_ENABLED = True
 SLOPE_V = [0.0, 1.0 / 3.6, 2.0 / 3.6, 3.0 / 3.6, 5.0 / 3.6, 8.0 / 3.6, 12.0 / 3.6, 20.0 / 3.6, 30.0 / 3.6, 60.0 / 3.6]
-SLOPE_A = [-0.32, -0.32, -0.32, -0.40, -0.60, -0.95, -1.35, -1.60, -1.80, -2.00]
+# owner 2026-11-21: "do it after my braking pattern". His 16 manual stops marked with three bookmarks (10-01 .. 11-01,
+# claude_work/manual3): a light touch built at ~1.4 m/s^3, then -1.4..-1.6 HELD nearly constant down to ~12 km/h / ~10 m
+# before the stop point, eased only over the last ~4.6 s, and the last second nearly constant at ~-0.5 to the wheel
+# stop. Median real decel by speed: 40 km/h -1.8, 30 -1.6, 20 -1.6, 15 -1.5, 12 -1.35, 8 -1.15, 5 -0.85, 3 -0.85,
+# 2 -0.70, 1 -0.50. (The line before: -2.0 at 60, easing from 20 km/h on to -0.32 held from 2 km/h - firm too early,
+# released too early, and a long light tail the Altis brake does not hold.) The requests below are those decels through
+# the Altis's delivery (above 8 km/h it gives a little less than asked at 8-12 and more above 20).
+SLOPE_A = [-0.45, -0.50, -0.70, -0.85, -0.95, -1.30, -1.45, -1.50, -1.50, -1.60]
 SLOPE_DELIVER_V = [1.8 / 3.6, 4.5 / 3.6, 8.0 / 3.6, 12.5 / 3.6, 20.0 / 3.6, 32.0 / 3.6, 52.0 / 3.6]
 SLOPE_DELIVER_GAIN = [0.94, 0.85, 0.84, 0.98, 1.10, 1.18, 1.17]
 SLOPE_DELIVER_OFF = [0.09, 0.06, 0.08, 0.16, 0.09, 0.06, 0.04]
 SLOPE_START = 0.90      # the stop begins once the room is down to the slope's own distance / this
 SLOPE_K = [0.3, 2.5]    # the slope is scaled within this (1.5 until 11-21: the depth is limited by SLOPE_A_MAX now)
-SLOPE_W_V = [2.0 / 3.6, 4.0 / 3.6]  # m/s: scaling fades out below 4 km/h, none below 2
+SLOPE_W_V = [4.0 / 3.6, 9.0 / 3.6]  # m/s: firmer scaling fades out below 9 km/h, none below 4 (2-4 until the owner's own
+                                    # line 11-21: with its firmer low end a scaled-up slope ended 10 % of the stops at -1.7)
 SLOPE_W_V_LIGHT = [0.5 / 3.6, 1.5 / 3.6]  # m/s: a slope scaled DOWN (the car would stop early) stays lighter to here
 SLOPE_LAG = 0.15        # s of travel before a change is felt
 # owner 2026-11-21: "the mid decel must be allowed up to -2.6, the first part light as before. What makes a brake
