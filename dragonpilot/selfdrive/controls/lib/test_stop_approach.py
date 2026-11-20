@@ -346,3 +346,21 @@ def test_altis_one_slope_worked_back_from_the_stop_point():
     for k, val in monkey.items():
       setattr(_sa, k, val)
 
+
+def test_altis_slope_mid_may_reach_2_6_but_builds_softly():
+  # owner 2026-11-21: mid decel allowed to -2.6, the first part light; the rate is what must stay gentle
+  sa = StopApproach(); v = 50.0 / 3.6; outs = []
+  d = _sa.STOP_GAP + 0.55 * _sa.slope_distance(v)              # far too fast for the distance: the slope scales up
+  for _ in range(200):
+    out = sa.update(v, lead(d), 0.0, False)
+    outs.append(out)
+    v = max(v + min(out, 0.0) * sa.dt, 0.0); d -= v * sa.dt
+    if v < 20.0 / 3.6:
+      break
+  o = np.array(outs)
+  assert o.min() >= _sa.SLOPE_A_MAX - 1e-9 and o.min() < -2.3                  # deeper than the plain slope, never past -2.6
+  step = -np.diff(o)
+  assert step.max() <= max(_sa.SLOPE_J_BUILD) * sa.dt + 1e-9                    # built at the jerk limit, no step
+  first = step[(o[:-1] > -0.5) & (step > 0)]
+  assert len(first) and first.max() <= 1.2 * sa.dt + 1e-9                       # the first touch softer still
+

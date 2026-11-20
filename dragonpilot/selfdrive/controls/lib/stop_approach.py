@@ -148,10 +148,16 @@ SLOPE_DELIVER_V = [1.8 / 3.6, 4.5 / 3.6, 8.0 / 3.6, 12.5 / 3.6, 20.0 / 3.6, 32.0
 SLOPE_DELIVER_GAIN = [0.94, 0.85, 0.84, 0.98, 1.10, 1.18, 1.17]
 SLOPE_DELIVER_OFF = [0.09, 0.06, 0.08, 0.16, 0.09, 0.06, 0.04]
 SLOPE_START = 0.90      # the stop begins once the room is down to the slope's own distance / this
-SLOPE_K = [0.3, 1.5]    # the slope is scaled within this (a stop that is later than that is the urgent rule's)
+SLOPE_K = [0.3, 2.5]    # the slope is scaled within this (1.5 until 11-21: the depth is limited by SLOPE_A_MAX now)
 SLOPE_W_V = [2.0 / 3.6, 4.0 / 3.6]  # m/s: scaling fades out below 4 km/h, none below 2
 SLOPE_W_V_LIGHT = [0.5 / 3.6, 1.5 / 3.6]  # m/s: a slope scaled DOWN (the car would stop early) stays lighter to here
 SLOPE_LAG = 0.15        # s of travel before a change is felt
+# owner 2026-11-21: "the mid decel must be allowed up to -2.6, the first part light as before. What makes a brake
+# uncomfortable is the decel changing too fast; reached smoothly, -2.6 or even -2.8 is still not too uncomfortable."
+# So the limit is on the RATE, not on the depth: ... down to SLOPE_A_MAX, built at SLOPE_J_BUILD (light at the first touch)
+SLOPE_A_MAX = -2.6      # m/s^2: firmest request of the slope (beyond it: the urgent rule / the MPC)
+SLOPE_J_BUILD_A = [0.0, 0.5, 1.0]   # m/s^2 already asked
+SLOPE_J_BUILD = [0.8, 1.2, 1.5]     # m/s^3: the build - soft at the first touch, then steady
 SLOPE_J_EASE = 2.0      # m/s^3: easing (1.2: a car that was too fast could not come back onto the slope and stopped early)
 
 
@@ -279,7 +285,8 @@ class StopApproach:
       shape = float(np.interp(v_ego, SLOPE_V, SLOPE_A))
       k = float(np.clip(slope_k(v_ego, lead.dRel), SLOPE_K[0], SLOPE_K[1]))
       w = float(np.interp(v_ego, SLOPE_W_V if k > 1.0 else SLOPE_W_V_LIGHT, [0.0, 1.0]))  # firmer: never in the last km/h
-      out = self._step(shape * (1.0 + (k - 1.0) * w), SLOPE_J_EASE, J_BUILD)
+      target = max(shape * (1.0 + (k - 1.0) * w), SLOPE_A_MAX)
+      out = self._step(target, SLOPE_J_EASE, float(np.interp(-self.a, SLOPE_J_BUILD_A, SLOPE_J_BUILD)))
     elif self.phase == 'wait':
       if exp and a_ego is not None and a_ego < -(need + WAIT_FB_MARGIN):
         self.wait_a = min(self.wait_a + WAIT_FB_RATE * self.dt, 0.0)
