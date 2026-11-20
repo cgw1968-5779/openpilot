@@ -1,93 +1,73 @@
-# dppb (owner 2026-11-13): below 39 km/h follow 1 m closer, except on a continuous slow-down from above 40 km/h;
-# a stopped lead always gets the unchanged stop target, and every change of the offset is rate limited
-from types import SimpleNamespace
+from types import SimpleNamespace as N
 
 import numpy as np
 
-from openpilot.selfdrive.controls.lib.longitudinal_mpc_lib import long_mpc as lm
+from dragonpilot.selfdrive.controls.lib import follow_gap as G
 
 DT = 0.05
+KPH = 1 / 3.6
 
 
-def mpc():
-  return SimpleNamespace(dt=DT, follow_offset=None, from_high=False, low=False, v_min=0.0)
+def lead(d, v_kph, status=True):
+  return N(status=status, dRel=d, vLead=v_kph * KPH)
 
 
-def lead(v=5.0, status=True):
-  return SimpleNamespace(status=status, dRel=10.0, vLead=v)
+def gap(v_kph):
+  return G.HW_MIN * v_kph * KPH + G.STOP_DISTANCE
 
 
-def step(m, ld, v_ego):
-  return lm.LongitudinalMpc.follow_gap(m, ld, v_ego)
+def test_gas_is_never_capped():
+  # 00000103 16:12:29 / 16:17:16: 40 km/h, lead 20-25 m ahead -> the MPC's gas passes untouched
+  for d, vl in ((20.0, 40), (24.6, 43.4), (8.0, 40), (gap(40) + 1.0, 43)):
+    fg = G.FollowGap(DT)
+    assert all(fg.update(40 * KPH, lead(d, vl), 0.6, False) == 0.6 for _ in range(40))
 
 
-def run(m, vs, vl=5.0):
-  return [step(m, lead(v=vl if vl is not None else max(v, 0.0)), v) for v in vs]
+def test_equal_speed_or_opening_needs_no_brake():
+  for vl in (40.0, 42.0):
+    fg = G.FollowGap(DT)
+    assert all(fg.update(40 * KPH, lead(10.0, vl), -0.05, False) == -0.05 for _ in range(60))
 
 
-LOW = lm.LOW_CLOSER - lm.FOLLOW_EXTRA
+def test_closing_inside_gap_brakes_early_and_gently():
+  fg = G.FollowGap(DT)
+  outs = [fg.update(40 * KPH, lead(gap(40) * 0.75, 35), 0.3, False) for _ in range(60)]
+  assert outs[0] <= 0.0                                    # no gas while closing inside the gap
+  assert -G.A_MAX - 1e-9 <= min(outs) < -0.3                # gentle brake builds
+  assert np.min(np.diff(outs[1:])) >= -G.J_ON * DT - 1e-9   # softly
 
 
-def test_low_speed_following_is_1m_closer():
-  m = mpc()
-  out = run(m, [15 / 3.6] * 100)
-  assert abs(out[-1] - LOW) < 1e-9 and abs(out[0] - LOW) < 1e-9   # a new lead: no ramp needed
+def test_closing_beyond_gap_untouched():
+  fg = G.FollowGap(DT)
+  assert all(fg.update(40 * KPH, lead(gap(40) + 0.5, 30), 0.2, False) == 0.2 for _ in range(40))
 
 
-def test_above_40_is_the_old_following():
-  m = mpc()
-  out = run(m, [50 / 3.6] * 100, vl=13.0)
-  assert abs(out[-1] + lm.FOLLOW_EXTRA) < 1e-9
+def test_small_shortfall_light_brake():
+  fg = G.FollowGap(DT)
+  outs = [fg.update(40 * KPH, lead(gap(40) * 0.98, 37.7), 0.2, False) for _ in range(60)]
+  assert -0.15 < min(outs) <= 0.0
 
 
-def test_slow_down_from_above_40_keeps_the_old_following():
-  m = mpc()
-  vs = list(np.linspace(50, 8, 200) / 3.6)
-  out = run(m, vs, vl=None)
-  assert not m.low and all(o <= 1e-12 for o in out)            # never closer than the old following
-  assert abs(out[0] + lm.FOLLOW_EXTRA) < 1e-9
+def test_speed_window():
+  for v, ok in ((30.0, False), (40.0, True), (45.0, True), (50.0, False), (70.0, False)):
+    fg = G.FollowGap(DT)
+    outs = [fg.update(v * KPH, lead(gap(v) * 0.7, v - 6), 0.2, False) for _ in range(40)]
+    assert (min(outs) < 0.0) == ok, v
+  fg = G.FollowGap(DT)
+  assert fg.update(45 * KPH, lead(15.0, 0.0), 0.3, False) == 0.3          # stopped lead: not this module
 
 
-def test_slow_down_then_speeding_up_again_turns_low_on_smoothly():
-  m = mpc()
-  run(m, list(np.linspace(50, 10, 200) / 3.6), vl=None)
-  assert not m.low
-  out = run(m, list(np.linspace(10, 20, 100) / 3.6) + [20 / 3.6] * 60, vl=5.0)
-  assert m.low and abs(out[-1] - LOW) < 1e-9
-  assert np.max(np.abs(np.diff(out))) <= lm.FOLLOW_RATE * DT + 1e-12
+def test_release_when_closing_stops():
+  fg = G.FollowGap(DT)
+  for _ in range(60):
+    fg.update(40 * KPH, lead(gap(40) * 0.75, 35), -0.1, False)
+  assert fg.brake > 0.35
+  outs = [fg.update(38 * KPH, lead(gap(40) * 0.75, 38.5), -0.1, False) for _ in range(30)]
+  assert outs[-1] == -0.1                                                   # back to the plan
+  assert np.max(np.diff(outs)) <= G.J_OFF * DT + 1e-9                       # smoothly
 
 
-def test_a_stop_ends_the_slow_down_and_a_stopped_lead_has_the_stop_target():
-  m = mpc()
-  run(m, list(np.linspace(50, 0, 300) / 3.6), vl=None)
-  out = run(m, [0.0] * 100, vl=0.0)
-  assert m.low and abs(out[-1]) < 1e-12
-  out = run(m, list(np.linspace(0, 15, 100) / 3.6), vl=None)
-  assert out[-1] > 0.0 and np.max(np.abs(np.diff(out))) <= lm.FOLLOW_RATE * DT + 1e-12
-
-
-def test_speeding_past_40_returns_to_the_old_following_smoothly():
-  m = mpc()
-  run(m, [20 / 3.6] * 50)
-  out = run(m, list(np.linspace(20, 50, 300) / 3.6), vl=13.0)
-  assert not m.low and abs(out[-1] + lm.FOLLOW_EXTRA) < 1e-9
-  assert np.max(np.abs(np.diff(out))) <= lm.FOLLOW_RATE * DT + 1e-12
-
-
-def test_hysteresis_39_40():
-  m = mpc()
-  run(m, [20 / 3.6] * 10)
-  run(m, [39.6 / 3.6] * 50)
-  assert m.low
-
-
-def test_no_lead_no_offset():
-  m = mpc()
-  assert step(m, lead(status=False), 5.0) == 0.0 and m.follow_offset is None
-
-
-def test_a_slowing_lead_hands_back_the_stop_target_smoothly():
-  m = mpc()
-  run(m, [15 / 3.6] * 20)
-  out = [step(m, lead(v=v), 15 / 3.6) for v in np.linspace(5.0, 0.0, 100)] + [step(m, lead(v=0.0), 0.0) for _ in range(60)]
-  assert abs(out[-1]) < 1e-12 and np.max(np.abs(np.diff(out))) <= lm.FOLLOW_RATE * DT + 1e-12
+def test_plan_firmer_wins_and_disengaged_untouched():
+  fg = G.FollowGap(DT)
+  assert fg.update(42 * KPH, lead(10.0, 30), -1.5, False) == -1.5
+  assert G.FollowGap(DT).update(42 * KPH, lead(10.0, 30), 0.4, True) == 0.4

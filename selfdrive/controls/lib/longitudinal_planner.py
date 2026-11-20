@@ -20,6 +20,10 @@ from dragonpilot.selfdrive.controls.lib.apm import APM
 from dragonpilot.selfdrive.controls.lib.eco_ev import EcoEv
 from dragonpilot.selfdrive.controls.lib.cruise_decel import CruiseDecel
 from dragonpilot.selfdrive.controls.lib.curve_speed import CurveSpeed  # dragonpilot hook
+from dragonpilot.selfdrive.controls.lib.stop_approach import StopApproach
+from dragonpilot.selfdrive.controls.lib.urgent_brake import UrgentBrake
+from dragonpilot.selfdrive.controls.lib.follow_gap import FollowGap
+from dragonpilot.selfdrive.controls.lib.launch_start import LaunchStart
 from dragonpilot.selfdrive.controls.lib.exp_stop_line import ExpStopLine
 
 A_CRUISE_MAX_VALS = [1.6, 1.2, 0.8, 0.6]
@@ -81,6 +85,10 @@ class LongitudinalPlanner:
     self.apm = APM()
     self.cruise_decel = CruiseDecel()  # dragonpilot hook
     self.curve_speed = CurveSpeed(dt)  # dragonpilot hook
+    self.stop_approach = StopApproach(self.dt)  # dragonpilot hook (dpcr mid / low-speed stop, 11-20)
+    self.urgent_brake = UrgentBrake(self.dt)  # dragonpilot hook
+    self.follow_gap = FollowGap(self.dt)  # dragonpilot hook
+    self.launch_start = LaunchStart(self.dt)  # dragonpilot hook
     self.exp_stop_line = ExpStopLine(self.dt)  # dragonpilot hook
     self.eco_ev = EcoEv(self.dt)  # dragonpilot hook
 
@@ -198,6 +206,15 @@ class LongitudinalPlanner:
     else:
       output_a_target = output_a_target_mpc
       self.output_should_stop = output_should_stop_mpc
+    # dragonpilot hooks (dppb 2026-11-20, owner: "move dpcr's mid / low-speed stop over to dppb"): dpcr's planner side
+    output_a_target = self.stop_approach.update(v_ego, self.exp_stop_line.lead(sm, v_ego, sm['radarState'].leadOne), output_a_target, reset_state,
+                                                sm['selfdriveState'].experimentalMode, sm['carState'].aEgo)  # dragonpilot hook
+    output_a_target = self.follow_gap.update(v_ego, sm['radarState'].leadOne, output_a_target, reset_state)  # dragonpilot hook
+    output_a_target = self.urgent_brake.update(v_ego, sm['radarState'].leadOne, output_a_target, reset_state)  # dragonpilot hook
+    # dragonpilot hook (dpcr 2026-11-06, tncr1 copy): tncr1's should_stop - the car's own speed below 0.3 m/s and the target
+    # below 0.1 (drive_helpers.should_stop), not the plan's first speed below vEgoStopping (0.25); e2e's own flag kept
+    self.output_should_stop = bool(v_ego < 0.3 and output_a_target < 0.1) or (mode == 'blended' and output_should_stop_e2e)
+    self.output_should_stop = self.launch_start.update(self.output_should_stop, v_ego, sm['radarState'].leadOne, output_a_target)  # dragonpilot hook
 
     for idx in range(2):
       accel_clip[idx] = np.clip(accel_clip[idx], self.prev_accel_clip[idx] - 0.05, self.prev_accel_clip[idx] + 0.05)

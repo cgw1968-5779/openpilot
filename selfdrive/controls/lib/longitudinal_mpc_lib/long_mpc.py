@@ -5,6 +5,7 @@ import numpy as np
 from cereal import log
 from opendbc.car.interfaces import ACCEL_MIN, ACCEL_MAX
 from openpilot.common.realtime import DT_MDL
+from dragonpilot.selfdrive.controls.lib.long_mpc_ext import LongMpcExt, lead_decel_trust, aggressive_t_follow
 from openpilot.common.swaglog import cloudlog
 # WARNING: imports outside of constants will not trigger a rebuild
 from openpilot.selfdrive.modeld.constants import index_function
@@ -73,82 +74,6 @@ LAUNCH_FADE = 0.5           # m/s
 LAUNCH_FADE_STOPPED = 2.0   # m/s
 LAUNCH_EGO_V = 0.3          # m/s: "we are stopped"
 LAUNCH_EXTRA = 0.5          # m beyond the gap we stopped at, so a lead creeping off slowly is followed at once
-# dragonpilot (dppb, owner 2026-11-05): "the distance I stopped at behind the truck (09:19:43, radar 4.00 m) is the
-# standard stop position; calibrate every stop to it". STOP_DISTANCE is compiled into the acados model, so the MPC is
-# given every real lead STOP_EXTRA closer than measured: its stop target (and its following distance) moves out by
-# STOP_EXTRA without a rebuild. With the stop end's gaps at 4.0 m (longcontrol), closed-loop sim of 17 engaged stops
-# (11-04/11-05, x86 MPC, Altis low-speed map): median 3.32 -> 3.94 m, 3 -> 9 within 3.5-4.5 m; the three gentle stops
-# that already end far (lead stopping with us) end ~0.5 m farther (owner chose to road test it).
-# 11-12 owner: "4 m is still too far, 3.5 m is right; and follow 0.5-1 m closer below 15 km/h" -> STOP_EXTRA 0 with the
-# stop end gaps 3.5 m. Real stops since 11-06 (37): median 4.08 m; sim 17 stops 3.85 -> 3.40 (real est ~3.6 m). The same
-# offset sets the following distance: steady following 3-15 km/h (7.7-11.0 m) comes 0.7 m closer, every speed alike.
-# 11-15 owner: "try to bring the stop to 3.25 m" -> STOP_EXTRA -0.25 (the lead is given 0.25 m farther than measured)
-# with the stop end gaps 3.25 m. Real stops 11-15 (21 behind a stopped lead): median 3.64 m.
-STOP_EXTRA = -0.25          # m (11-12..11-15: 0.0; 11-05..11-12: 0.7)
-# 11-18/19 owner (hard targets: every stop 3.5 m +-0.25 behind the lead, no jolt, no two-stage; "remove the cause, do not
-# patch"). Root cause of the scattered stops (stop scorecard, 152 dppb stops 11-02..11-18: 27 % within 3.25-3.75 m,
-# range 2.4-6.0 m, crawl stops ~6 m): the MPC's stop target was STOP_DISTANCE + STOP_EXTRA = 5.75 m and the car only
-# reached ~3.5 m by coasting past it through open-loop end layers. Now the MPC's own stop target behind a STOPPED lead
-# is STOP_GAP: the lead obstacle moves out by STOP_SHIFT, faded out with the lead's speed over FOLLOW_VLEAD (a moving
-# lead keeps its following distance), changing at most STOP_SHIFT_RATE. The stop itself is closed on the radar
-# distance by dragonpilot's StopControl in longcontrol. Replaces the 11-18 creep_gap / queue_gap.
-STOP_GAP = 3.5              # m (owner)
-STOP_SHIFT = STOP_DISTANCE + STOP_EXTRA - STOP_GAP  # m: 2.25
-STOP_SHIFT_RATE = 2.0       # m/s
-# 11-13 owner: "drop yesterday's closer following below 15 km/h; instead, below 30 km/h - except when the speed has been
-# coming down continuously from above 31 km/h - follow 1 m closer, with all the smooth-stop measures as before". The stop
-# target stays STOP_EXTRA (3.5 m stop end); only a MOVING lead gets a following offset, blended in with the lead's own
-# speed so a lead that stops hands the MPC the unchanged stop target, and every change is rate limited:
-#  - normal: the 11-05..11-12 following distance (lead seen FOLLOW_EXTRA closer);
-#  - low (<= 30 km/h, not on a continuous slow-down from > 31 km/h): LOW_CLOSER nearer than that. The slow-down from
-#    > 31 km/h ends once we stop, or speed back up LOW_RISE above the lowest speed since; > 31 km/h ends low.
-# 11-13 owner (later): "raise the switch point to 39 km/h" -> low at <= 39 km/h, slow-downs from > 40 km/h excluded.
-FOLLOW_EXTRA = 0.7          # m
-LOW_CLOSER = 1.0            # m
-LOW_V_ON = 39.0 / 3.6       # m/s (11-13 first version: 30)
-LOW_V_OFF = 40.0 / 3.6      # m/s (11-13 first version: 31)
-LOW_RISE = 1.0              # m/s
-FOLLOW_VLEAD = (0.3, 4.0)   # m/s: lead at/below the first is stopped (stop target), at/above the second is moving
-FOLLOW_RATE = 0.25          # m/s: offset change rate
-# 11-15 owner: "at 10:32 the MPC kept its following distance while the lead braked, so it braked too hard" + "cut the
-# mid braking for a hard-braking lead to -2.54 (the 11:37 three-bookmark template peak command); go to -3.5 only when
-# -2.54 would still hit the lead". The MPC's accel floor (a runtime parameter, no new layer) is MID_MIN; it opens to
-# ACCEL_MIN while braking at MID_MIN (from the current accel after BRAKE_REACT, reached at MID_JERK) would bring us
-# within CRASH_GAP of a lead that keeps its current braking until it stops, and closes again once we have stopped or that gap is over CLEAR_GAP.
-# 11-18 owner: "open it once -2.54 would stop within 3 m" -> CRASH_GAP 0.5 -> 3.0 m (CLEAR_GAP 2.5 -> 5.0 m, same 2 m
-# hysteresis). With 0.5 m, sudden stopped leads at 40-60 km/h ended 0.8-2 m behind with a stop-go-stop; at 3 m they end
-# 3.4-4.1 m with one stop, and the 11-15 10:32 replay ends 1.7-2.2 m instead of 0.5-1.2 m. It now also closes only once the
-# plan itself no longer needs more than MID_MIN, so closing can never cut the braking (a 50 km/h / 55 m stop opened at the
-# onset and dropped -2.91 -> -2.54 in 0.25 s when it closed on the gap alone).
-# Fading the following time out while the lead brakes was tried too and dropped: it lightens the onset (10:32 sim -0.85
-# instead of -1.54 at 1.5 s), so the mid had to go to -3.5 anyway.
-MID_MIN = -2.54             # m/s^2
-MID_JERK = 1.8              # m/s^3 (11:37 template peak command rate)
-BRAKE_REACT = 0.5           # s
-CRASH_GAP = 3.0             # m (11-15: 0.5)
-CLEAR_GAP = 5.0             # m (11-15: 2.5)
-CHECK_TAU = 0.3             # 1/s^2: decay of the lead braking assumed by the check (MPC uses 1.5)
-CHECK_DT = 0.05             # s
-CHECK_T = np.arange(1, 201) * CHECK_DT  # 10 s
-
-# 11-18 owner (route 000001d1): "the mid brake slows down a little early - keep the soft onset as it is, but when no hard
-# brake is needed start braking ~0.2-0.3 s later". While closing in on a slower lead that is still far, the lead obstacle
-# is moved out by APPROACH_DELAY_T * (vEgo - vLead): during an approach the gap shrinks at vEgo - vLead, so the MPC sees
-# the situation later and starts its own (unchanged, soft) build-up later, then makes up the room with a slightly firmer
-# mid. Zero when not closing in (steady following, T_FOLLOW unchanged); faded out as the real dRel drops from
-# APPROACH_FADE_D[1] to [0] (the mid's catch-up is done well before the end: stop distance kept); faded out as the brake
-# the lead needs from the real dRel goes from APPROACH_NEED[0] to [1] (a hard brake is never delayed; the owner's normal
-# firm mid is -2.0..-2.4, so a need below 2.0 is a normal stop). Not in the FCW check.
-# Sim (stopped lead seen from 120 m, 30-70 km/h; aggressive = the owner's setting): -0.3 reached 0.1-0.45 s later, -0.6
-# 0-0.45 s later, peak -2.00..-2.55 (was -2.00..-2.52), build-up rate unchanged; stop aggressive 3.69-4.04 m (was
-# 3.79-4.56), relaxed 4.15-4.41 (4.44-4.80), standard 3.50-3.85 (3.81-4.15). Lead braking, cut-in, sudden stopped leads,
-# steady following and the PRE=3 stop set identical (45/60 +0.07, 60/85 +0.19 m). Route 000001d1 replays (aggressive):
-# 21:01:57 -0.3 0.15 s later, peak -2.32 -> -2.50; 21:03:27 onset 0.21 s later.
-APPROACH_DELAY_T = 0.5           # s of closing-speed travel (MPC onset moves ~0.2-0.4 s: it also reacts to the lead appearing)
-APPROACH_FADE_D = [45.0, 90.0]   # m (real dRel): none closer than the first, full beyond the second
-APPROACH_NEED = [2.0, 3.0]       # m/s^2
-APPROACH_S0 = 4.0                # m: the standard stop gap
-APPROACH_LAG = 0.5               # s of travel before a firmer brake takes effect
 
 def get_jerk_factor(personality=log.LongitudinalPersonality.standard):
   if personality==log.LongitudinalPersonality.relaxed:
@@ -309,14 +234,9 @@ class LongitudinalMpc:
     self.dt = dt
     self.launch_t = 0.0
     self.launch_offset = 0.0
-    self.follow_offset = None
-    self.from_high = False
-    self.low = False
-    self.stop_offset = 0.0
-    self.v_min = 0.0
-    self.mid_open = False
+    self.ext = LongMpcExt()  # dragonpilot hook: tncr1's light onset / soft onset cap, see long_mpc_ext.py
+    self.cruise_profile = None  # dragonpilot hook (dppb cruise_decel: the owner's set-0 speed curve, None = stock)
     self.solver = AcadosOcpSolverCython(MODEL_NAME, ACADOS_SOLVER_TYPE, N)
-    self.cruise_profile = None  # dragonpilot hook (cruise_decel: the owner's set-0 speed curve, None = stock)
     self.reset()
     self.source = LongitudinalPlanSource.cruise
 
@@ -393,7 +313,7 @@ class LongitudinalMpc:
   def process_lead(self, lead):
     v_ego = self.x0[1]
     if lead is not None and lead.status:
-      x_lead = lead.dRel - STOP_EXTRA  # dragonpilot hook
+      x_lead = lead.dRel
       v_lead = lead.vLead
       a_lead = lead.aLeadK
       a_lead_tau = lead.aLeadTau
@@ -410,6 +330,7 @@ class LongitudinalMpc:
     x_lead = np.clip(x_lead, min_x_lead, 1e8)
     v_lead = np.clip(v_lead, 0.0, 1e8)
     a_lead = np.clip(a_lead, -10., 5.)
+    a_lead = lead_decel_trust(a_lead, v_ego) if lead is not None and lead.status else a_lead  # dragonpilot hook, see long_mpc_ext.py
     lead_xv = self.extrapolate_lead(x_lead, v_lead, a_lead, a_lead_tau)
     return lead_xv
 
@@ -419,8 +340,8 @@ class LongitudinalMpc:
       return 0.0
     if v_ego < LAUNCH_EGO_V and self.launch_offset == 0.0:
       self.launch_t = self.launch_t + self.dt if lead.vLead > LAUNCH_V else 0.0
-      if self.launch_t >= LAUNCH_T and lead.dRel - STOP_EXTRA < STOP_DISTANCE:
-        self.launch_offset = STOP_DISTANCE - (lead.dRel - STOP_EXTRA) + LAUNCH_EXTRA
+      if self.launch_t >= LAUNCH_T and lead.dRel < STOP_DISTANCE:
+        self.launch_offset = STOP_DISTANCE - lead.dRel + LAUNCH_EXTRA
     elif self.launch_offset > 0.0:
       fade = LAUNCH_FADE_STOPPED if lead.vLead < LAUNCH_V else (LAUNCH_FADE if v_ego >= LAUNCH_EGO_V else 0.0)
       self.launch_offset = max(self.launch_offset - fade * self.dt, 0.0)
@@ -428,85 +349,21 @@ class LongitudinalMpc:
         self.launch_t = 0.0
     return self.launch_offset
 
-  def stop_shift(self, lead):
-    if not lead.status:
-      self.stop_offset = 0.0
-      return 0.0
-    w = float(np.clip((lead.vLead - FOLLOW_VLEAD[0]) / (FOLLOW_VLEAD[1] - FOLLOW_VLEAD[0]), 0.0, 1.0))
-    step = STOP_SHIFT_RATE * self.dt
-    self.stop_offset = float(np.clip(STOP_SHIFT * (1.0 - w), self.stop_offset - step, self.stop_offset + step))
-    return self.stop_offset
-
-  def follow_gap(self, lead, v_ego):
-    if v_ego > LOW_V_OFF:
-      self.from_high, self.low, self.v_min = True, False, v_ego
-    elif self.from_high:
-      self.v_min = min(self.v_min, v_ego)
-      if v_ego < LAUNCH_EGO_V or v_ego > self.v_min + LOW_RISE:
-        self.from_high = False
-    if v_ego <= LOW_V_ON and not self.from_high:
-      self.low = True
-    if not lead.status:
-      self.follow_offset = None
-      return 0.0
-    w = float(np.clip((lead.vLead - FOLLOW_VLEAD[0]) / (FOLLOW_VLEAD[1] - FOLLOW_VLEAD[0]), 0.0, 1.0))
-    target = w * ((LOW_CLOSER if self.low else 0.0) - FOLLOW_EXTRA)
-    if self.follow_offset is None:
-      self.follow_offset = target
-    else:
-      step = FOLLOW_RATE * self.dt
-      self.follow_offset = float(np.clip(target, self.follow_offset - step, self.follow_offset + step))
-    return self.follow_offset
-
-  def mid_floor_gap(self, lead, v_ego):
-    # least gap to the lead if it keeps its braking and we brake at MID_MIN from now
-    if not lead.status:
-      return 1e3
-    a_l = min(float(np.clip(lead.aLeadK, -10., 5.)), 0.0) * np.exp(-CHECK_TAU * CHECK_T**2 / 2.)
-    x_l = lead.dRel + np.cumsum(CHECK_DT * np.clip(lead.vLead + np.cumsum(CHECK_DT * a_l), 0.0, 1e8))
-    a0 = min(float(self.x0[2]), 0.0)
-    a_e = np.where(CHECK_T < BRAKE_REACT, a0, np.maximum(a0 - MID_JERK * (CHECK_T - BRAKE_REACT), MID_MIN))
-    x_e = np.cumsum(CHECK_DT * np.clip(v_ego + np.cumsum(CHECK_DT * a_e), 0.0, 1e8))
-    return float(np.min(x_l - x_e))
-
-  def mid_floor(self, radarstate, v_ego):
-    gap = min(self.mid_floor_gap(radarstate.leadOne, v_ego), self.mid_floor_gap(radarstate.leadTwo, v_ego))
-    if gap < CRASH_GAP:
-      self.mid_open = True
-    elif v_ego < 0.1 or (gap > CLEAR_GAP and float(np.min(self.a_solution)) >= MID_MIN):
-      self.mid_open = False
-    return ACCEL_MIN if self.mid_open else MID_MIN
-
-  @staticmethod
-  def approach_delay(lead, v_ego):
-    if not lead.status:
-      return 0.0
-    dv = max(v_ego - lead.vLead, 0.0)
-    need = max(-lead.aLeadK, 0.0) + dv**2 / (2. * max(lead.dRel - APPROACH_S0 - v_ego * APPROACH_LAG, 1.0))
-    w = float(np.interp(lead.dRel, APPROACH_FADE_D, [0.0, 1.0]) * np.interp(need, APPROACH_NEED, [1.0, 0.0]))
-    return APPROACH_DELAY_T * dv * w
-
   def update(self, radarstate, v_cruise, personality=log.LongitudinalPersonality.standard):
     t_follow = get_T_FOLLOW(personality)
     v_ego = self.x0[1]
+    t_follow = aggressive_t_follow(t_follow, personality, v_ego)  # dragonpilot hook, see long_mpc_ext.py
     self.status = radarstate.leadOne.status or radarstate.leadTwo.status
 
     lead_xv_0 = self.process_lead(radarstate.leadOne)
     lead_xv_1 = self.process_lead(radarstate.leadTwo)
-    shift = self.stop_shift(radarstate.leadOne)  # dragonpilot hook
-    lead_xv_0[:, 0] += max(self.launch_gap(radarstate.leadOne, v_ego) - shift, 0.0)
-    follow = self.follow_gap(radarstate.leadOne, v_ego)  # dragonpilot hook
-    lead_xv_0[:, 0] += follow
-    lead_xv_1[:, 0] += follow
-    a_floor = self.mid_floor(radarstate, v_ego)  # dragonpilot hook
+    lead_xv_0[:, 0] += self.launch_gap(radarstate.leadOne, v_ego)
 
     # To estimate a safe distance from a moving lead, we calculate how much stopping
     # distance that lead needs as a minimum. We can add that to the current distance
     # and then treat that as a stopped car/obstacle at this new distance.
     lead_0_obstacle = lead_xv_0[:,0] + get_stopped_equivalence_factor(lead_xv_0[:,1])
     lead_1_obstacle = lead_xv_1[:,0] + get_stopped_equivalence_factor(lead_xv_1[:,1])
-    lead_0_obstacle += self.approach_delay(radarstate.leadOne, v_ego) + shift  # dragonpilot hook
-    lead_1_obstacle += self.approach_delay(radarstate.leadTwo, v_ego)  # dragonpilot hook
 
     # Fake an obstacle for cruise, this ensures smooth acceleration to set speed
     # when the leads are no factor.
@@ -517,6 +374,7 @@ class LongitudinalMpc:
     cruise_obstacle = np.cumsum(T_DIFFS * v_cruise_clipped) + get_safe_obstacle_distance(v_cruise_clipped, t_follow)
 
     x_obstacles = np.column_stack([lead_0_obstacle, lead_1_obstacle, cruise_obstacle])
+    x_obstacles = self.ext.adjust(x_obstacles, lead_xv_0, lead_xv_1, self.x_sol[:, 1], T_IDXS, personality)  # dragonpilot hook
     self.source = MPC_SOURCES[np.argmin(x_obstacles[0])]
 
     self.yref[:,:] = 0.0
@@ -524,7 +382,7 @@ class LongitudinalMpc:
       self.solver.set(i, "yref", self.yref[i])
     self.solver.set(N, "yref", self.yref[N][:COST_E_DIM])
 
-    self.params[:,0] = a_floor
+    self.params[:,0] = self.ext.min_accel(ACCEL_MIN)  # dragonpilot hook: soft onset cap, see long_mpc_ext.py
     self.params[:,1] = ACCEL_MAX
     self.params[:,2] = np.min(x_obstacles, axis=1)
     self.params[:,3] = np.copy(self.a_prev)
