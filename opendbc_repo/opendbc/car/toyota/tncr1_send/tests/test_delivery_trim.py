@@ -71,3 +71,15 @@ def test_altis_map_sends_what_delivers_the_request():
   t = DeliveryTrim()
   first = t.apply(-1.0, 8.0 / 3.6, False, True)
   assert -1.0 - _dt.TRIM_RATE * t.dt - 1e-9 <= first < -1.0   # moved in at TRIM_RATE, no step
+
+
+def test_altis_map_adds_nothing_firmer_while_the_brake_is_building():
+  # dppb 2026-11-20 (19:28:00): a building brake already gives more than the steady map says
+  t = DeliveryTrim()
+  cmd, out = -0.2, -0.2
+  for _ in range(40):                                  # firming 1.0 m/s^3 at 8 km/h
+    cmd -= 1.0 * t.dt
+    out = t.apply(cmd, 8.0 / 3.6, False, True)
+  assert abs(out - cmd) < 0.02                         # sent as asked while it builds
+  held = settle(t, cmd, 8.0 / 3.6)
+  assert held < cmd - 0.2                              # once it is steady the map comes in

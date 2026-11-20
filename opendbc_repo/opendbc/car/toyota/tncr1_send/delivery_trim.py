@@ -81,6 +81,7 @@ ALTIS_V_W = [0.0, 1.0]
 ALTIS_SHARE = 1.0     # share of the measured residual that is fed forward (the PID closes the rest)
 ALTIS_FROM = -0.15    # m/s^2: nothing on a lighter request ...
 ALTIS_FULL = -0.35    # m/s^2: ... all of it from here
+ALTIS_FIRM_D = 0.15   # m/s^2 firmer over RELEASE_T (0.5 m/s^3): the command is being firmed
 
 
 class DeliveryTrim:
@@ -105,13 +106,17 @@ class DeliveryTrim:
     return -firmer + lighter
 
   @staticmethod
-  def _altis(cmd: float, v_ego: float) -> float:
-    """what to add so the Altis delivers cmd (negative = firmer)"""
+  def _altis(cmd: float, v_ego: float, firming: bool = False) -> float:
+    """what to add so the Altis delivers cmd (negative = firmer). While the command is being firmed nothing is added
+    on the firmer side: the map is the steady car, and a brake that is building gives 0.10-0.20 MORE than it (same
+    rlogs, command firming 0.5-1.5 m/s^3 below 25 km/h) - on 11-20 19:28:00 the firmer trim on top of a building
+    brake made -2.8 of a planned -1.8"""
     if not ALTIS_ENABLED or cmd >= ALTIS_FROM:
       return 0.0
     inv = (cmd - float(np.interp(v_ego, ALTIS_V, ALTIS_OFF))) / float(np.interp(v_ego, ALTIS_V, ALTIS_GAIN))
     w = float(np.interp(v_ego, ALTIS_V_W_BP, ALTIS_V_W)) * float(np.interp(cmd, [ALTIS_FULL, ALTIS_FROM], [1.0, 0.0]))
-    return ALTIS_SHARE * w * (inv - cmd)
+    trim = ALTIS_SHARE * w * (inv - cmd)
+    return max(trim, 0.0) if firming else trim
 
   def apply(self, cmd: float, v_ego: float, standstill: bool, long_active: bool) -> float:
     if not long_active or standstill:
@@ -121,7 +126,8 @@ class DeliveryTrim:
     if len(self.hist) > self.n_hist + 1:
       self.hist.pop(0)
     releasing = len(self.hist) > self.n_hist and (cmd - self.hist[0]) > RELEASE_D
-    target = self._target(cmd, v_ego, releasing) + self._altis(cmd, v_ego)
+    firming = len(self.hist) > self.n_hist and (cmd - self.hist[0]) < -ALTIS_FIRM_D
+    target = self._target(cmd, v_ego, releasing) + self._altis(cmd, v_ego, firming)
     step = TRIM_RATE * self.dt
     self.trim = float(np.clip(target, self.trim - step, self.trim + step))
     return cmd + self.trim
