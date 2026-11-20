@@ -13,6 +13,8 @@ def _cross_tables(monkeypatch, request):
   # the tests below are the Cross's tables (dpcr): checked with dppb's Altis map off; the Altis map has its own test
   if 'altis' not in request.node.name:
     monkeypatch.setattr(_dt, 'ALTIS_ENABLED', False)
+  else:
+    monkeypatch.setattr(_dt, 'ALTIS_V_W_BP', [2.0 / 3.6, 4.0 / 3.6])   # the map itself, without the low-speed fade
 
 
 def settle(t, cmd, v, n=100):

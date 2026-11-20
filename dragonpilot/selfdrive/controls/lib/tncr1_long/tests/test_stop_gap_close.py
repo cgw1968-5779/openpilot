@@ -17,6 +17,7 @@ def gap_close_on(monkeypatch):
   # these are dpcr's tests, written around its stop gaps (dppb aims 0.3 m further back: 3.8 / 3.4)
   monkeypatch.setattr(stop_gap_close, 'GAP_TRIGGER', 3.5)
   monkeypatch.setattr(stop_gap_close, 'GAP_TARGET', 3.1)
+  monkeypatch.setattr(stop_gap_close, 'RELEASE_RATE', 0.3)
   # tncr ships it OFF (ENABLED = False); the behaviour itself is tested switched on
   monkeypatch.setattr(stop_gap_close, "ENABLED", True)
 

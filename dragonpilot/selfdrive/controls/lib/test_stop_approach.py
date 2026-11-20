@@ -9,6 +9,21 @@ from dragonpilot.selfdrive.controls.lib.stop_approach import StopApproach
 DT = 0.05
 
 
+import pytest
+import dragonpilot.selfdrive.controls.lib.stop_approach as _sa
+
+
+@pytest.fixture(autouse=True)
+def _dpcr_end(monkeypatch, request):
+  # dpcr's tests, written around its end line (from 5 km/h, the plan not leaving room for it); dppb's own are *_altis*
+  if 'altis' not in request.node.name:
+    monkeypatch.setattr(_sa, 'END_V', 5.0 / 3.6)
+    monkeypatch.setattr(_sa, 'END_ROOM', 0.0)
+    monkeypatch.setattr(_sa, 'STOP_GAP', 3.5)
+    monkeypatch.setattr(_sa, 'END_CURVE_V', [0.0, 1.0 / 3.6, 2.0 / 3.6, 3.0 / 3.6, 4.0 / 3.6, 5.0 / 3.6, 6.0 / 3.6, 7.0 / 3.6, 8.0 / 3.6])
+    monkeypatch.setattr(_sa, 'END_CURVE_A', [-0.34, -0.36, -0.37, -0.37, -0.40, -0.45, -0.50, -0.57, -0.65])
+
+
 def lead(d, v=0.0, status=True):
   return N(status=status, dRel=d, vLead=v)
 
@@ -252,3 +267,19 @@ def test_virtual_lead_passed_stops_on_the_end_line():
   real = N(status=True, dRel=0.1, vLead=0.0)
   out = sb.update(v, real, -3.0, False, True, 0.0)
   assert sb.phase != 'release' or abs(out - goal) > 1e-3
+
+
+def test_altis_end_line_is_continuous_and_the_mid_brake_ends_on_it():
+  # dppb 2026-11-20 (22:19:27): no cliff between the mid brake and the end - the line comes down from 12 km/h, and the
+  # mid brake leaves the line's own distance in front of the stop point
+  v = [k / 3.6 for k in range(0, 13)]
+  a = [float(__import__('numpy').interp(x, _sa.END_CURVE_V, _sa.END_CURVE_A)) for x in v]
+  assert all(a[k + 1] <= a[k] for k in range(12))                       # firmer with speed, monotonic
+  assert max(a[k] - a[k + 1] for k in range(12)) <= 0.16                # no step: at most 0.16 m/s^2 per km/h
+  assert a[12] == -1.35 and a[0] == -0.34
+  d_end = _sa.end_distance()
+  assert 7.0 < d_end < 10.0                                             # what the Altis really needs from 12 km/h
+  v0, d = 40 / 3.6, 60.0
+  need = _sa._need(v0, d)
+  assert abs(need - (v0 ** 2 - _sa.END_V ** 2) / (2 * (d - _sa.STOP_GAP - d_end))) < 1e-9
+  assert need > _sa._need_plain(v0, d) * 0.9                            # the room for the end is paid for in the mid

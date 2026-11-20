@@ -62,7 +62,7 @@ import numpy as np
 
 from openpilot.common.realtime import DT_MDL
 
-STOP_GAP = 3.5          # m: radar gap the plan aims at; the car ends ~0.2-0.4 m further back (Cross rule 3-3.5 m; owner manual 3.6-3.9 m)
+STOP_GAP = 3.8          # m: radar gap the plan aims at; the car ends ~0.2-0.4 m further back (Cross rule 3-3.5 m; owner manual 3.6-3.9 m)
 LEAD_STOPPED_V = 1.0    # m/s: lead slower than this counts as stopped
 START_NEED = 1.8        # m/s^2: start braking once the needed decel (0.5 s ahead) reaches this (owner's manual: 1.7-1.75)
 URGENT_NEED = 2.8       # m/s^2: from here the MPC may brake harder than this target
@@ -74,11 +74,23 @@ J_BUILD = 1.5           # m/s^3: brake build-up (owner 1.5-3)
 J_EASE = 0.8            # m/s^3: easing while braking
 J_RELEASE = 0.8         # m/s^3: end release (owner's last 1.5 s: <= ~0.9)
 J_HANDBACK = 2.0        # m/s^3
-END_V = 5.0 / 3.6       # m/s: the release reaches the end line by here
-END_ROOM = 0.0          # share of the end line's own distance (from END_V) the brake phase leaves in front of the stop point
+END_V = 12.0 / 3.6      # m/s: the release reaches the end line by here (dpcr 5 km/h; dppb 11-20: see END_CURVE)
+END_ROOM = 1.0          # share of the end line's own distance (from END_V) the brake phase leaves in front of the stop point
+# the Altis's delivery along the end line (delivered = GAIN x request - OFF; tncr1_send/delivery_trim.py's fit), for end_distance()
+END_DELIVER_V = [1.8 / 3.6, 4.5 / 3.6, 8.0 / 3.6, 12.5 / 3.6]
+END_DELIVER_GAIN = [0.94, 0.85, 0.84, 0.98]
+END_DELIVER_OFF = [0.09, 0.06, 0.08, 0.16]
 # the stopping controller's end line (tncr1_long/stopping_controller.py END_CURVE), so the release lands on it
-END_CURVE_V = [0.0, 1.0 / 3.6, 2.0 / 3.6, 3.0 / 3.6, 4.0 / 3.6, 5.0 / 3.6, 6.0 / 3.6, 7.0 / 3.6, 8.0 / 3.6]
-END_CURVE_A = [-0.34, -0.42, -0.44, -0.44, -0.46, -0.50, -0.55, -0.62, -0.70]  # dppb (Altis) 11-20: 1-3 km/h firmer, see end_force_limit.py (dpcr: -0.34 -0.36 -0.37 -0.37 -0.40 -0.45 -0.50 -0.57 -0.65)
+END_CURVE_V = [0.0, 1.0 / 3.6, 2.0 / 3.6, 3.0 / 3.6, 5.0 / 3.6, 8.0 / 3.6, 12.0 / 3.6]
+END_CURVE_A = [-0.34, -0.42, -0.44, -0.48, -0.65, -0.95, -1.35]
+# dppb (Corolla Altis Hybrid, owner 2026-11-20 on 22:19:27, route 000001dc: "approaching a standing car the end brake did
+# not join the mid brake smoothly"): dpcr holds the mid brake to ~5 km/h and its end line only starts there. 22:19:27:
+# -1.4..-1.7 held down to 4.2 km/h, then -1.55 -> -0.43 sent within 0.8 s - a cliff, not a blend - and the Altis brake,
+# released that fast, let the car speed up again (1.9 -> 2.65 km/h) and roll from 4.0 m to 1.6 m. The end line now
+# starts at 12 km/h (-1.35) and comes down continuously (-0.95 at 8, -0.65 at 5, -0.48 at 3, -0.44 / -0.42 at 2 / 1,
+# -0.34 at 0: ~0.4 m/s^3 while slowing), and the mid brake is planned to END ON it (END_ROOM 1: the distance the line
+# itself takes, with what the Altis really gives for it - END_DELIVER_*, 8.3 m from 12 km/h - is left in front of the
+# stop point). dpcr: END_V 5 km/h, END_ROOM 0, line -0.34 -0.36 -0.37 -0.37 -0.40 -0.45 -0.50 -0.57 -0.65 at 0..8 km/h.
 MAX_DIST = 150.0        # m
 T_PRE = 1.0             # s: the start looks this far ahead (the build and the car's lag; 0.5 until 11-07)
 K_STOPPED = 1.05        # a lead first seen stopped: the earlier start already has margin, so brake closer to the need
@@ -119,6 +131,8 @@ def end_distance(v_from=None):
   v_from = END_V if v_from is None else v_from
   vs = np.linspace(0.0, v_from, 81)
   a = -np.interp(vs, END_CURVE_V, END_CURVE_A)
+  # what the car really gives for the line (END_DELIVER_*: 1 / 0 = as asked)
+  a = np.maximum(a * np.interp(vs, END_DELIVER_V, END_DELIVER_GAIN) - np.interp(vs, END_DELIVER_V, END_DELIVER_OFF), 0.1)
   return float(np.sum((vs[1:] ** 2 - vs[:-1] ** 2) / (a[1:] + a[:-1])))
 
 

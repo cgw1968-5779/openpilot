@@ -54,9 +54,9 @@ V_MAX = 18.0 / 3.6         # m/s: tncr 12 -> 30 -> 18 km/h. 30 (owner 10-15: eas
                            # that would have eased by itself; the car slid (-0.6..-0.75), then firmed to -1.5 at 7-2 km/h (aEgo
                            # -1.6..-1.7) and stopped 2.8-2.9 m out. The 3-bookmark stops that day all began it at <= 17.5 km/h.
 LEAD_V_MAX = 0.5           # m/s: lead treated as stopped
-GAP_TRIGGER = 3.8          # m (radar dRel): predicted stop beyond this -> close the gap (tncr 4.0 -> 3.5, owner 10-15:
+GAP_TRIGGER = 4.1          # m (radar dRel): predicted stop beyond this -> close the gap (tncr 4.0 -> 3.5, owner 10-15:
                            # ideal 3-3.5 m, beyond 3.5 ease slowly / creep-adjust)
-GAP_TARGET = 3.4           # m: aim of the final stop (owner: 3-3.5 m; the sim ends ~0.2 m beyond it)
+GAP_TARGET = 3.7           # m: aim of the final stop (owner: 3-3.5 m; the sim ends ~0.2 m beyond it)
 TAPER_ROLL = 0.75          # m: the 2 -> 0 km/h taper to -0.30 (end_force_limit) rolls a little further: aim short of it
                            # (0.25 -> 0.75 2026-10-22 with the owner's -0.37 end line below 3 km/h: sim min gap 2.11 -> 2.62 m)
 B_MIN = 0.3                # m/s^2: floor of the decel used in the prediction
@@ -97,7 +97,7 @@ DELIVERY_V = [5.0 / 3.6, 9.0 / 3.6, 11.0 / 3.6, 13.0 / 3.6, 20.0 / 3.6]  # m/s
 DELIVERY_HOLE = [0.0, 0.15, 0.22, 0.15, 0.0]                              # m/s^2 the Cross gives less than asked
 HOLD_BAND = 0.15           # m: tncr - the present force is held while the stop ends within GAP_TARGET + TAPER_ROLL and
                            # this much beyond it (3.35-3.5 m; owner 10-15: beyond 3.5 m ease slowly / creep-adjust)
-RELEASE_RATE = 0.3         # m/s^3: lighter (owner: linear release; tncr 1.0 -> 0.3, no release feel at 10-5 km/h). Owner 10-15
+RELEASE_RATE = 1.0         # m/s^3: lighter (owner: linear release; tncr 1.0 -> 0.3, no release feel at 10-5 km/h). Owner 10-15
                            # "very slow easing is fine, but do it above 20 km/h, not at the end": done by starting at
                            # V_MAX 30 km/h; a slower rate below 10 km/h (0.15/0.2) only ended late triggers farther (sim)
 FIRM_RATE = 1.0            # m/s^3: firmer (no bite)

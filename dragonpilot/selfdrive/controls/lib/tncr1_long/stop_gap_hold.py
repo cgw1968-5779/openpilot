@@ -29,7 +29,7 @@ from dragonpilot.selfdrive.controls.lib.tncr1_long.stop_gap_close import decel_r
 # held the very first touch firmer, against principle step 1. The 7 -> 2 km/h blend keeps the release into the end line
 # near 0.5 m/s^3 (a 5 -> 2 km/h blend released at up to 1.4 m/s^3 on 159 09:05:54). Only actuators.accel is shaped;
 # the stopping controller's prev_accel keeps the plain request (same rule as lead_brake_boost).
-GAP_MIN = 3.8            # m (radar dRel)
+GAP_MIN = 4.1            # m (radar dRel)
 V_MAX = 30.0 / 3.6       # m/s
 LEAD_V_MAX = 1.0         # m/s: lead treated as stopped (its own remaining travel is ignored -> conservative)
 B_MIN = 0.3              # m/s^2: floor of the decel used in the prediction
