@@ -13,8 +13,6 @@ from dragonpilot.selfdrive.controls.lib.tncr1_long.creep_stall_guard import Cree
 from dragonpilot.selfdrive.controls.lib.tncr1_long.cruise_smoother import CruiseSmoother
 from dragonpilot.selfdrive.controls.lib.tncr1_long.end_force_limit import EndForceLimit
 from dragonpilot.selfdrive.controls.lib.tncr1_long.lead_brake_boost import LeadBrakeBoost
-from dragonpilot.selfdrive.controls.lib.tncr1_long.mid_speed_brake_add import MidSpeedBrakeAdd
-from dragonpilot.selfdrive.controls.lib.tncr1_long.stop_gap_close import StopGapClose
 from dragonpilot.selfdrive.controls.lib.tncr1_long.stop_gap_hold import StopGapHold
 from dragonpilot.selfdrive.controls.lib.tncr1_long.stopping_controller import StoppingController
 
@@ -37,10 +35,8 @@ class LeadView:
 class Tncr1Long:
   def __init__(self, CP):
     self.lead_brake_boost = LeadBrakeBoost()  # tnpb2: 3-30 km/h x1.2 after a hard lead brake, see lead_brake_boost.py
-    self.mid_speed_brake_add = MidSpeedBrakeAdd()  # tncr: +0.2 m/s^2 braking 30-10 km/h, see mid_speed_brake_add.py
+    self.creep_stall_guard = CreepStallGuard()  # tnpb3: 1-5 km/h adds back brake the hybrid creep eats (only while the car does not slow)
     self.stop_gap_hold = StopGapHold()  # tnpb3: <30 km/h no lighter while the stop gap < 3.5 m, see stop_gap_hold.py
-    self.creep_stall_guard = CreepStallGuard()  # tnpb3: 1-5 km/h adds back brake the hybrid creep eats
-    self.stop_gap_close = StopGapClose()  # tnpb3: <12 km/h a stop predicted beyond 4 m crawls on at 2.3 km/h to 3.25 m
     self.end_force_limit = EndForceLimit()  # tnpb3: owner rule, <2 km/h linear to the end value at 0 km/h, never firmer
     self.stopping_controller = StoppingController(CP.stopAccel)  # end of stop / standstill hold, see stopping_controller.py
     self.cruise_smoother = CruiseSmoother()  # steady-cruise ripple, see cruise_smoother.py
@@ -70,17 +66,16 @@ class Tncr1Long:
     # the stop-gap hold, creep-stall guard and boost only shape what is sent; last_output_accel (the next frame's
     # prev_accel for the stopping controller and LongControl's stopping state) keeps the plain request
     accel_shaped = self.stop_gap_hold.update(accel, CS.vEgo, CS.aEgo, CS.standstill, lead_one, long_active)
-    accel_shaped = self.stop_gap_close.update(accel_shaped, CS.vEgo, CS.aEgo, CS.standstill, lead_one, long_active)
-    # the gap-close crawl rolls on purpose: not a creep stall
-    accel_shaped = self.creep_stall_guard.update(accel_shaped, CS.vEgo, CS.aEgo, CS.standstill,
-                                                 long_active and not self.stop_gap_close.active, accel_limits[0])
+    # dppb 2026-11-21 (owner: "do it" on the stage audit, claude_work/stopdb/dstage.py): two stages taken out of the
+    # chain - stop_gap_close (already off: eased the brake to roll on, then firmed it again) and mid_speed_brake_add (a
+    # constant +0.1 on 5-30 km/h in 53-67 % of the frames, tuned for the Corolla Cross). The plan's stop slope decides
+    # the force. The creep-stall guard STAYS: taken out too, a car that did not slow on the end request (the Altis after
+    # a release: 1.3 km/h for 4 s on -0.44) rolled 1.5 m further and into the lead in the harness - it is the only stage
+    # that answers a car that is not slowing, and it acts in ~1 % of the frames.
+    accel_shaped = self.creep_stall_guard.update(accel_shaped, CS.vEgo, CS.aEgo, CS.standstill, long_active, accel_limits[0])
     accel_shaped = self.lead_brake_boost.update(accel_shaped, CS.vEgo, CS.standstill, lead_one, long_active,
                                                 accel_limits[0], a_ego=CS.aEgo,
                                                 hold_off=self.stop_gap_hold.roll_out is not None)
-    # tncr: +0.2 m/s^2 on braking 30-10 km/h (gone by 6 km/h, before the end ceiling below)
-    accel_shaped = self.mid_speed_brake_add.update(accel_shaped, CS.vEgo, CS.standstill, long_active, accel_limits[0],
-                                                   hold_off=self.stop_gap_hold.roll_out is not None or
-                                                   self.stop_gap_close.active)
     # owner's end-force rule, last: never firmer than the end ceiling; the standstill hold then firms up at HOLD_RATE
     return float(self.end_force_limit.update(accel_shaped, CS.vEgo, CS.standstill, long_active, CS.aEgo,
                                              pitch=calibrated_pose.orientation.pitch if calibrated_pose is not None else None,

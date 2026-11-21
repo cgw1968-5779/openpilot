@@ -62,7 +62,7 @@ import numpy as np
 
 from openpilot.common.realtime import DT_MDL
 
-STOP_GAP = 3.4          # m: radar gap the plan aims at; the car ends ~0.2-0.4 m further back (Cross rule 3-3.5 m; owner manual 3.6-3.9 m)
+STOP_GAP = 3.2          # m: radar gap the plan aims at; the car ends ~0.2-0.4 m further back (Cross rule 3-3.5 m; owner manual 3.6-3.9 m)
 LEAD_STOPPED_V = 1.0    # m/s: lead slower than this counts as stopped
 START_NEED = 1.8        # m/s^2: start braking once the needed decel (0.5 s ahead) reaches this (owner's manual: 1.7-1.75)
 URGENT_NEED = 2.8       # m/s^2: from here the MPC may brake harder than this target
@@ -174,13 +174,16 @@ SLOPE_LAG = 0.15        # s of travel before a change is felt
 # -1.24 at 5 km/h, -1.03 at 3, -0.88 at 2, -0.58 at 1), opening to SLOPE_A_MAX in the middle. A stop that is short is
 # made up where he makes it up - a firmer middle that is then eased all the way - not by a heavy brake at 10 km/h.
 SLOPE_ENV_V = [0.0, 1.0 / 3.6, 2.0 / 3.6, 3.0 / 3.6, 5.0 / 3.6, 8.0 / 3.6, 12.0 / 3.6, 20.0 / 3.6, 30.0 / 3.6]
-SLOPE_ENV_A = [-0.32, -0.50, -0.75, -0.95, -1.20, -1.40, -1.70, -2.20, -2.60]
+SLOPE_ENV_A = [-0.32, -0.50, -0.75, -0.95, -1.25, -1.50, -1.80, -2.30, -2.60]
+SLOPE_ENV_HARD_A = [-0.32, -0.50, -0.80, -1.10, -1.60, -2.10, -2.50, -2.60, -2.60]
+SLOPE_K_HARD = 1.5
 SLOPE_A_MAX = -2.6      # m/s^2: firmest request of the slope (beyond it: the urgent rule / the MPC)
 SLOPE_J_BUILD_A = [0.0, 0.5, 1.0]   # m/s^2 already asked
 SLOPE_J_BUILD = [0.8, 1.2, 1.5]     # m/s^3: the build - soft at the first touch, then steady
 SLOPE_J_EASE = 1.35     # m/s^3: easing (the owner's own release rate; 2.0 let -2.1 fall to -0.7 in 1 s)
 SLOPE_K_LIGHT_LOW = 0.4   # below SLOPE_EASED_V the slope is never scaled lighter than this (0.75: stops ended up to 9 m out)
 SLOPE_EASED_V = 12.0 / 3.6  # m/s
+SLOPE_K_TAU = 0.0       # s: low-pass of the scale (0 = none)
 SLOPE_STILL_T = 1.0     # s the end value is kept after the wheels stand
 SLOPE_K_REFIRM = 1.2    # ... unless the room is this short of what the slope needs
 
@@ -248,6 +251,7 @@ class StopApproach:
     self.phase = None  # None (MPC), 'wait', 'brake', 'release', 'handback'
     self.a = 0.0
     self.still_t = 0.0
+    self.k_f = None           # slope: the filtered scale
     self.eased = False        # slope: the request has begun to ease toward the stop (no firming again)
     self.short = 0.0          # extra on the end line while the stop would end short (10-5 km/h)
     self.wait_a = WAIT_ACCEL  # experimental WAIT lift (follows the car's real decel)
@@ -307,6 +311,7 @@ class StopApproach:
       if self.phase in ('wait', 'brake') and slope_k(v_ego, lead.dRel - v_ego * T_PRE) >= SLOPE_START:
         self.phase = 'release'   # on the slope from here to the stop
         self.eased = False
+        self.k_f = None
     elif self.phase == 'wait' and need_pre >= START_NEED:
       self.phase = 'brake'
 
@@ -316,8 +321,14 @@ class StopApproach:
       shape = float(np.interp(v_ego, SLOPE_V, SLOPE_A))
       k_raw = slope_k(v_ego, lead.dRel)
       k = float(np.clip(k_raw, SLOPE_K[0] if v_ego > SLOPE_EASED_V else SLOPE_K_LIGHT_LOW, SLOPE_K[1]))
+      # the scale itself moves slowly: a heavy part is taken back gradually and a light part is brought up to meet it
+      self.k_f = k if self.k_f is None else self.k_f + (k - self.k_f) * min(self.dt / max(SLOPE_K_TAU, self.dt), 1.0)
+      k = self.k_f
       w = float(np.interp(v_ego, SLOPE_W_V if k > 1.0 else SLOPE_W_V_LIGHT, [0.0, 1.0]))  # firmer: never in the last km/h
-      target = max(shape * (1.0 + (k - 1.0) * w), float(np.interp(v_ego, SLOPE_ENV_V, SLOPE_ENV_A)))
+      # a stop that is really short (the room a third less than the slope needs) may use the hard bound - a late cut-in
+      # or a late engagement is not a comfort stop
+      env = SLOPE_ENV_HARD_A if k_raw >= SLOPE_K_HARD else SLOPE_ENV_A
+      target = max(shape * (1.0 + (k - 1.0) * w), float(np.interp(v_ego, SLOPE_ENV_V, env)))
       if v_ego < SLOPE_EASED_V and target > self.a + 0.05:
         self.eased = True              # the end has begun
       if self.eased and k_raw < SLOPE_K_REFIRM:
