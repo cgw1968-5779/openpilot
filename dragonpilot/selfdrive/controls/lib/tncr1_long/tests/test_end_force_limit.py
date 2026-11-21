@@ -220,8 +220,8 @@ def test_altis_low_speed_line_is_firm_enough_to_hold_the_car():
   # dppb 2026-11-20 (routes 000001da/db): -0.36 / -0.37 at 1-3 km/h let the Altis speed up again after the release
   # (19:25:50: rolled 3.77 -> 1.92 m), so 2-3 km/h stays -0.44. Owner 11-20: the very end is held at -0.32 and only
   # releases - from 1 km/h down the ceiling is -0.32 flat
-  assert _efl.CEIL_A == [-0.45, -0.50, -0.70, -0.85, -2.0] and _efl.CEIL_A[0] == _efl.END_ACCEL
-  for kph, want in ((3.0, -0.85), (2.0, -0.70), (1.0, -0.50), (0.0, -0.45)):
+  assert _efl.CEIL_A == [-0.32, -0.40, -0.52, -0.65, -2.0] and _efl.CEIL_A[0] == _efl.END_ACCEL
+  for kph, want in ((3.0, -0.65), (2.0, -0.52), (1.0, -0.40), (0.0, -0.32)):
     out = _efl.EndForceLimit().update(-2.0, kph / 3.6, False, True)
     assert abs(out - want) < 0.011, (kph, out)
   assert _efl.EndForceLimit().update(-0.30, 2.0 / 3.6, False, True) == -0.30   # a ceiling only: lighter stays lighter

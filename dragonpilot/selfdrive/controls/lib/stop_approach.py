@@ -62,7 +62,7 @@ import numpy as np
 
 from openpilot.common.realtime import DT_MDL
 
-STOP_GAP = 3.8          # m: radar gap the plan aims at; the car ends ~0.2-0.4 m further back (Cross rule 3-3.5 m; owner manual 3.6-3.9 m)
+STOP_GAP = 3.4          # m: radar gap the plan aims at; the car ends ~0.2-0.4 m further back (Cross rule 3-3.5 m; owner manual 3.6-3.9 m)
 LEAD_STOPPED_V = 1.0    # m/s: lead slower than this counts as stopped
 START_NEED = 1.8        # m/s^2: start braking once the needed decel (0.5 s ahead) reaches this (owner's manual: 1.7-1.75)
 URGENT_NEED = 2.8       # m/s^2: from here the MPC may brake harder than this target
@@ -150,23 +150,39 @@ SLOPE_V = [0.0, 1.0 / 3.6, 2.0 / 3.6, 3.0 / 3.6, 5.0 / 3.6, 8.0 / 3.6, 12.0 / 3.
 # 2 -0.70, 1 -0.50. (The line before: -2.0 at 60, easing from 20 km/h on to -0.32 held from 2 km/h - firm too early,
 # released too early, and a long light tail the Altis brake does not hold.) The requests below are those decels through
 # the Altis's delivery (above 8 km/h it gives a little less than asked at 8-12 and more above 20).
-SLOPE_A = [-0.45, -0.50, -0.70, -0.85, -0.95, -1.30, -1.45, -1.50, -1.50, -1.60]
+# 2026-11-21 08:42:59 (route 000001e2, the first road stop on it; owner: "still no good - the brake before the end is too
+# heavy and not smooth, and the very end is not eased light enough"): engaged 32 m behind a standing car at 30 km/h, the
+# scaled slope still asked -2.14 at 10 km/h (real -2.5), fell to -0.66 within 1 s (the car stopped slowing at 3.5 km/h:
+# the Altis after a fast release), then went back to -0.88 (controls -1.14) and ended at -0.45..-0.6. So:
+#  - the low end is lighter again and eases all the way: -0.65 at 3 km/h, -0.52 at 2, -0.40 at 1, -0.32 at the stop;
+#  - firmer scaling ends higher up (SLOPE_W_V), the easing is slower (SLOPE_J_EASE), a light scale is bounded
+#    (SLOPE_K_LIGHT_LOW) and, once the request has begun to ease below SLOPE_EASED_V, it never firms again (owner's
+#    data: bad stops re-firm ~0.6 inside the last 2 s, perfect ones <= 0.2) unless the stop is really short (SLOPE_K_REFIRM).
+SLOPE_A = [-0.32, -0.40, -0.52, -0.65, -0.85, -1.15, -1.40, -1.50, -1.50, -1.60]
 SLOPE_DELIVER_V = [1.8 / 3.6, 4.5 / 3.6, 8.0 / 3.6, 12.5 / 3.6, 20.0 / 3.6, 32.0 / 3.6, 52.0 / 3.6]
 SLOPE_DELIVER_GAIN = [0.94, 0.85, 0.84, 0.98, 1.10, 1.18, 1.17]
 SLOPE_DELIVER_OFF = [0.09, 0.06, 0.08, 0.16, 0.09, 0.06, 0.04]
 SLOPE_START = 0.90      # the stop begins once the room is down to the slope's own distance / this
 SLOPE_K = [0.3, 2.5]    # the slope is scaled within this (1.5 until 11-21: the depth is limited by SLOPE_A_MAX now)
-SLOPE_W_V = [4.0 / 3.6, 9.0 / 3.6]  # m/s: firmer scaling fades out below 9 km/h, none below 4 (2-4 until the owner's own
-                                    # line 11-21: with its firmer low end a scaled-up slope ended 10 % of the stops at -1.7)
-SLOPE_W_V_LIGHT = [0.5 / 3.6, 1.5 / 3.6]  # m/s: a slope scaled DOWN (the car would stop early) stays lighter to here
+SLOPE_W_V = [1.0 / 3.6, 3.0 / 3.6]  # m/s: firmer scaling to 3 km/h, none below 1 - bounded by SLOPE_ENV at every speed
+SLOPE_W_V_LIGHT = [1.0 / 3.6, 2.5 / 3.6]  # m/s: lighter scaling fades out below 2.5 km/h (to 1.5 km/h it let the car creep 4 s on -0.19)
 SLOPE_LAG = 0.15        # s of travel before a change is felt
 # owner 2026-11-21: "the mid decel must be allowed up to -2.6, the first part light as before. What makes a brake
 # uncomfortable is the decel changing too fast; reached smoothly, -2.6 or even -2.8 is still not too uncomfortable."
 # So the limit is on the RATE, not on the depth: ... down to SLOPE_A_MAX, built at SLOPE_J_BUILD (light at the first touch)
+# the firmest the scaled slope may ask at each speed = the firm quarter of the owner's own perfect stops (75th percentile:
+# -1.24 at 5 km/h, -1.03 at 3, -0.88 at 2, -0.58 at 1), opening to SLOPE_A_MAX in the middle. A stop that is short is
+# made up where he makes it up - a firmer middle that is then eased all the way - not by a heavy brake at 10 km/h.
+SLOPE_ENV_V = [0.0, 1.0 / 3.6, 2.0 / 3.6, 3.0 / 3.6, 5.0 / 3.6, 8.0 / 3.6, 12.0 / 3.6, 20.0 / 3.6, 30.0 / 3.6]
+SLOPE_ENV_A = [-0.32, -0.50, -0.75, -0.95, -1.20, -1.40, -1.70, -2.20, -2.60]
 SLOPE_A_MAX = -2.6      # m/s^2: firmest request of the slope (beyond it: the urgent rule / the MPC)
 SLOPE_J_BUILD_A = [0.0, 0.5, 1.0]   # m/s^2 already asked
 SLOPE_J_BUILD = [0.8, 1.2, 1.5]     # m/s^3: the build - soft at the first touch, then steady
-SLOPE_J_EASE = 2.0      # m/s^3: easing (1.2: a car that was too fast could not come back onto the slope and stopped early)
+SLOPE_J_EASE = 1.35     # m/s^3: easing (the owner's own release rate; 2.0 let -2.1 fall to -0.7 in 1 s)
+SLOPE_K_LIGHT_LOW = 0.4   # below SLOPE_EASED_V the slope is never scaled lighter than this (0.75: stops ended up to 9 m out)
+SLOPE_EASED_V = 12.0 / 3.6  # m/s
+SLOPE_STILL_T = 1.0     # s the end value is kept after the wheels stand
+SLOPE_K_REFIRM = 1.2    # ... unless the room is this short of what the slope needs
 
 
 def slope_distance(v_from):
@@ -231,6 +247,8 @@ class StopApproach:
     self.dt = dt
     self.phase = None  # None (MPC), 'wait', 'brake', 'release', 'handback'
     self.a = 0.0
+    self.still_t = 0.0
+    self.eased = False        # slope: the request has begun to ease toward the stop (no firming again)
     self.short = 0.0          # extra on the end line while the stop would end short (10-5 km/h)
     self.wait_a = WAIT_ACCEL  # experimental WAIT lift (follows the car's real decel)
     self.lead_moving = False  # the lead was tracked moving the frame before
@@ -256,7 +274,11 @@ class StopApproach:
       self.via_stopping = False
     self.stopping = d_stop is not None
     stopped_lead = (not off and lead is not None and bool(lead.status) and lead.vLead < LEAD_STOPPED_V
-                    and 0.0 < lead.dRel < MAX_DIST and v_ego > 0.3)
+                    and 0.0 < lead.dRel < MAX_DIST
+                    # the slope keeps its end value down to the wheel stop: handing back at 0.3 m/s let the plan drop to
+                    # -0.1 for the last km/h, and the stopping controller then put -0.32 back on (eased, then re-applied)
+                    and (v_ego > 0.3 or (SLOPE_ENABLED and self.phase == 'release' and self.still_t < SLOPE_STILL_T)))
+    self.still_t = self.still_t + self.dt if v_ego <= 0.02 else 0.0   # ... and SLOPE_STILL_T longer, until the hold has the car
     was_moving = self.lead_moving
     prev_short, self.short = self.short, 0.0  # self.a is what was asked; the end line's own state is self.a + prev_short
     self.lead_moving = not off and lead is not None and bool(lead.status) and lead.vLead >= LEAD_STOPPED_V
@@ -284,6 +306,7 @@ class StopApproach:
     if SLOPE_ENABLED:
       if self.phase in ('wait', 'brake') and slope_k(v_ego, lead.dRel - v_ego * T_PRE) >= SLOPE_START:
         self.phase = 'release'   # on the slope from here to the stop
+        self.eased = False
     elif self.phase == 'wait' and need_pre >= START_NEED:
       self.phase = 'brake'
 
@@ -291,9 +314,14 @@ class StopApproach:
       self.a = out = a_mpc       # the lead slowed to its stop and the MPC is braking behind it: not on the slope yet
     elif SLOPE_ENABLED and self.phase == 'release':
       shape = float(np.interp(v_ego, SLOPE_V, SLOPE_A))
-      k = float(np.clip(slope_k(v_ego, lead.dRel), SLOPE_K[0], SLOPE_K[1]))
+      k_raw = slope_k(v_ego, lead.dRel)
+      k = float(np.clip(k_raw, SLOPE_K[0] if v_ego > SLOPE_EASED_V else SLOPE_K_LIGHT_LOW, SLOPE_K[1]))
       w = float(np.interp(v_ego, SLOPE_W_V if k > 1.0 else SLOPE_W_V_LIGHT, [0.0, 1.0]))  # firmer: never in the last km/h
-      target = max(shape * (1.0 + (k - 1.0) * w), SLOPE_A_MAX)
+      target = max(shape * (1.0 + (k - 1.0) * w), float(np.interp(v_ego, SLOPE_ENV_V, SLOPE_ENV_A)))
+      if v_ego < SLOPE_EASED_V and target > self.a + 0.05:
+        self.eased = True              # the end has begun
+      if self.eased and k_raw < SLOPE_K_REFIRM:
+        target = max(target, self.a)   # from here the request only eases
       out = self._step(target, SLOPE_J_EASE, float(np.interp(-self.a, SLOPE_J_BUILD_A, SLOPE_J_BUILD)))
     elif self.phase == 'wait':
       if exp and a_ego is not None and a_ego < -(need + WAIT_FB_MARGIN):

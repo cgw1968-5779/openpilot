@@ -320,7 +320,7 @@ def test_altis_one_slope_worked_back_from_the_stop_point():
   # owner 2026-11-20: "3.5 m first, smooth second; work back what speed the car must have at what distance"
   a = [float(np.interp(k / 3.6, _sa.SLOPE_V, _sa.SLOPE_A)) for k in range(0, 61)]
   assert all(a[k + 1] <= a[k] for k in range(60))                               # one slope, firmer with speed
-  assert a[0] == -0.45 and a[1] == -0.50 and abs(a[12] - -1.45) < 1e-9          # the owner's manual end: ~-0.5 kept to the stop
+  assert a[0] == -0.32 and a[1] == -0.40 and abs(a[12] - -1.40) < 1e-9          # eased all the way to a light end
   assert max(a[k] - a[k + 1] for k in range(60)) <= 0.21                        # no step in it
   d = [_sa.slope_distance(k / 3.6) for k in range(0, 61, 5)]
   assert all(d[k + 1] > d[k] for k in range(len(d) - 1))                         # distance -> speed is one-to-one
@@ -343,7 +343,7 @@ def test_altis_one_slope_worked_back_from_the_stop_point():
     rel = [o[1] for o in outs if o[2] == 'release']
     i_peak = int(np.argmin(rel))
     assert all(rel[k + 1] >= rel[k] - 0.02 for k in range(i_peak, len(rel) - 1))  # after the build it only eases
-    assert min(o[1] for o in outs if o[0] <= 2.0 / 3.6) >= -0.70 - 1e-9           # the end is the plain line, nothing added
+    assert min(o[1] for o in outs if o[0] <= 2.0 / 3.6) >= -0.52 - 1e-9           # the end is the plain line, nothing added
   finally:
     for k, val in monkey.items():
       setattr(_sa, k, val)
@@ -365,4 +365,25 @@ def test_altis_slope_mid_may_reach_2_6_but_builds_softly():
   assert step.max() <= max(_sa.SLOPE_J_BUILD) * sa.dt + 1e-9                    # built at the jerk limit, no step
   first = step[(o[:-1] > -0.5) & (step > 0)]
   assert len(first) and first.max() <= 1.2 * sa.dt + 1e-9                       # the first touch softer still
+
+
+def test_altis_slope_end_only_eases_and_is_kept_to_the_wheel_stop():
+  # owner 2026-11-21 (route 000001e2 08:42:59): eased to -0.66, re-applied to -0.88 before the end. And the 121
+  # bookmarked stops: bad ones re-firm ~0.6 inside the last 2 s, perfect ones <= 0.2
+  for d0, kph in ((14.0, 20.0), (9.0, 12.0), (20.0, 20.0)):
+    sa = StopApproach(); sa.phase = 'release'; sa.a = float(np.interp(kph / 3.6, _sa.SLOPE_V, _sa.SLOPE_A))
+    v, d, outs = kph / 3.6, d0, []
+    for k in range(3000):
+      out = sa.update(v, lead(d), 0.0, False)
+      outs.append((v, out))
+      # a car that answers unevenly (stalls for a moment at 3 km/h, as the Altis does after a release)
+      a_car = 0.0 if 3.0 / 3.6 < v < 3.4 / 3.6 and k % 3 else min(out, 0.0)
+      v = max(v + a_car * sa.dt, 0.0); d -= v * sa.dt
+      if v <= 0.02:
+        break
+    low = np.array([o[1] for o in outs if o[0] < _sa.SLOPE_EASED_V])
+    assert (np.maximum.accumulate(low) - low).max() <= 0.2 + 1e-9, (d0, kph)   # once easing, no re-firming
+    assert low[-1] >= -0.40 and low[-1] <= -0.10                               # a light end, and still a brake
+    slow = [o[1] for o in outs if o[0] <= 0.3]
+    assert len(slow) and min(slow) >= -0.42 and max(slow) <= -0.10             # kept below 0.3 m/s too (no hand-back dip)
 
