@@ -188,6 +188,7 @@ def test_dppb_ships_the_hold_and_the_gap_close_off():
   from dragonpilot.selfdrive.controls.lib.tncr1_long import stop_gap_close as _sgc
   import importlib
   assert importlib.reload(_sgc).ENABLED is False
-  src = open(_sgh.__file__).read()
+  with open(_sgh.__file__) as f:
+    src = f.read()
   assert "\nHOLD_ENABLED = False\n" in src
 
