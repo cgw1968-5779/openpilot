@@ -183,6 +183,10 @@ SLOPE_J_BUILD = [0.8, 1.2, 1.5]     # m/s^3: the build - soft at the first touch
 SLOPE_J_EASE = 1.35     # m/s^3: easing (the owner's own release rate; 2.0 let -2.1 fall to -0.7 in 1 s)
 SLOPE_K_LIGHT_LOW = 0.4   # below SLOPE_EASED_V the slope is never scaled lighter than this (0.75: stops ended up to 9 m out)
 SLOPE_EASED_V = 12.0 / 3.6  # m/s
+# m/s^2 the target is above the request for the end to count as begun. 0.05 until 11-22: an end that eases smoothly keeps
+# the request within 0.05 of its target every frame, so the latch never set and the plan firmed again at 4.6 km/h on
+# the road (route 1e4: -0.68 -> -0.73 and -0.74 -> -0.81 while the car was slowing less than asked)
+SLOPE_EASED_D = 0.005
 SLOPE_K_TAU = 0.0       # s: low-pass of the scale (0 = none)
 SLOPE_STILL_T = 1.0     # s the end value is kept after the wheels stand
 SLOPE_K_REFIRM = 1.2    # ... unless the room is this short of what the slope needs
@@ -329,7 +333,7 @@ class StopApproach:
       # or a late engagement is not a comfort stop
       env = SLOPE_ENV_HARD_A if k_raw >= SLOPE_K_HARD else SLOPE_ENV_A
       target = max(shape * (1.0 + (k - 1.0) * w), float(np.interp(v_ego, SLOPE_ENV_V, env)))
-      if v_ego < SLOPE_EASED_V and target > self.a + 0.05:
+      if v_ego < SLOPE_EASED_V and target > self.a + SLOPE_EASED_D:
         self.eased = True              # the end has begun
       if self.eased and k_raw < SLOPE_K_REFIRM:
         target = max(target, self.a)   # from here the request only eases

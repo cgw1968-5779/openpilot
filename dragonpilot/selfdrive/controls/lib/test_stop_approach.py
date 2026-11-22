@@ -387,3 +387,19 @@ def test_altis_slope_end_only_eases_and_is_kept_to_the_wheel_stop():
     slow = [o[1] for o in outs if o[0] <= 0.3]
     assert len(slow) and min(slow) >= -0.42 and max(slow) <= -0.10             # kept below 0.3 m/s too (no hand-back dip)
 
+
+def test_altis_slope_smooth_end_does_not_firm_again_when_the_car_gives_less():
+  # road test 2026-11-22 (route 000001e4, +260 s and +401 s): the car gave about half the request between 8 and 4.5 km/h,
+  # the room shrank and the plan went -0.68 -> -0.73 / -0.74 -> -0.81 at 4.6 km/h. The end had been easing so smoothly
+  # that the request never trailed its target by 0.05, so the "only eases from here" latch was never set
+  sa = StopApproach(); sa.phase = 'release'; sa.a = -1.25
+  v, d, outs = 15.0 / 3.6, 15.0, []
+  for _ in range(3000):
+    out = sa.update(v, lead(d), 0.0, False)
+    outs.append((v, out))
+    a_car = min(out, 0.0) * (0.5 if 4.5 / 3.6 < v < 8.0 / 3.6 else 0.9)
+    v = max(v + a_car * sa.dt, 0.0); d -= v * sa.dt
+    if v <= 0.02:
+      break
+  low = np.array([o[1] for o in outs if o[0] < 8.0 / 3.6])
+  assert (np.maximum.accumulate(low) - low).max() <= 0.02, (np.maximum.accumulate(low) - low).max()

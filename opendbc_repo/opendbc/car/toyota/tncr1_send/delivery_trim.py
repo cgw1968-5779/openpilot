@@ -76,7 +76,11 @@ ALTIS_ENABLED = True
 ALTIS_V = [1.8 / 3.6, 4.5 / 3.6, 8.0 / 3.6, 12.5 / 3.6, 20.0 / 3.6, 32.0 / 3.6, 52.0 / 3.6]   # m/s
 ALTIS_GAIN = [0.94, 0.85, 0.84, 0.98, 1.10, 1.18, 1.17]
 ALTIS_OFF = [0.09, 0.06, 0.08, 0.16, 0.09, 0.06, 0.04]
-ALTIS_V_W_BP = [8.0 / 3.6, 15.0 / 3.6]  # m/s (11-20 late: was 2-4 km/h; below 8 km/h the stop's own end line is planned with what the car gives, and a firmer send there fed the 22:19 cliff: plan -0.72, sent -1.55 at 4 km/h)
+# 11-22 road test of 0ac6b5d (route 000001e4, two stops from 30 km/h): the trim faded out over 15 -> 8 km/h exactly while the
+# plan was easing, so the command fell -1.48 -> -0.70 in 1.8 s, and below 8 km/h the car gave only -0.33..-0.55 of the
+# -0.7 asked until 4.5 km/h, then came back to -0.6..-0.7 at 3-4 km/h (felt: lets go, then bites again). The fade now
+# runs 10 -> 5 km/h: half as steep, and the weak band is partly covered. Still nothing below 5 km/h.
+ALTIS_V_W_BP = [5.0 / 3.6, 10.0 / 3.6]  # m/s (8-15 km/h until 11-22; 11-20 late: was 2-4 km/h; below 8 km/h the stop's own end line is planned with what the car gives, and a firmer send there fed the 22:19 cliff: plan -0.72, sent -1.55 at 4 km/h)
 ALTIS_V_W = [0.0, 1.0]
 ALTIS_SHARE = 1.0     # share of the measured residual that is fed forward (the PID closes the rest)
 ALTIS_FROM = -0.15    # m/s^2: nothing on a lighter request ...
