@@ -159,9 +159,14 @@ SLOPE_V = [0.0, 1.0 / 3.6, 2.0 / 3.6, 3.0 / 3.6, 5.0 / 3.6, 8.0 / 3.6, 12.0 / 3.
 #    (SLOPE_K_LIGHT_LOW) and, once the request has begun to ease below SLOPE_EASED_V, it never firms again (owner's
 #    data: bad stops re-firm ~0.6 inside the last 2 s, perfect ones <= 0.2) unless the stop is really short (SLOPE_K_REFIRM).
 SLOPE_A = [-0.32, -0.40, -0.52, -0.65, -0.85, -1.15, -1.40, -1.50, -1.50, -1.60]
-SLOPE_DELIVER_V = [1.8 / 3.6, 4.5 / 3.6, 8.0 / 3.6, 12.5 / 3.6, 20.0 / 3.6, 32.0 / 3.6, 52.0 / 3.6]
-SLOPE_DELIVER_GAIN = [0.94, 0.85, 0.84, 0.98, 1.10, 1.18, 1.17]
-SLOPE_DELIVER_OFF = [0.09, 0.06, 0.08, 0.16, 0.09, 0.06, 0.04]
+# 11-22 (routes 000001e3..e6 on 0ac6b5d / 88c223f, steady command, real decel from the wheel speed): between 3.5 and
+# 5.5 km/h the Altis gives 0.23-0.41 LESS than sent (sent -0.56 -> real -0.26 at 3.5-4.5 km/h, -0.59 -> -0.23 at 4.5-5.5),
+# while at 2-3.5 km/h it gives what is sent (-0.50 -> -0.47). The 11-20 fit had +0.06 for the whole 3-6 km/h band, so
+# the slope counted on a decel there that never came: the request went as light as -0.33..-0.55, the car did not slow
+# for 1-2 s, the room ran out and the request had to be put back on (-0.55 -> -1.16 at 4.6 km/h, real -1.29 at 3 km/h).
+SLOPE_DELIVER_V = [1.8 / 3.6, 3.2 / 3.6, 4.0 / 3.6, 5.0 / 3.6, 8.0 / 3.6, 12.5 / 3.6, 20.0 / 3.6, 32.0 / 3.6, 52.0 / 3.6]
+SLOPE_DELIVER_GAIN = [0.94, 0.94, 0.90, 0.88, 0.84, 0.98, 1.10, 1.18, 1.17]
+SLOPE_DELIVER_OFF = [0.09, 0.05, 0.20, 0.32, 0.08, 0.16, 0.09, 0.06, 0.04]
 SLOPE_START = 0.90      # the stop begins once the room is down to the slope's own distance / this
 SLOPE_K = [0.3, 2.5]    # the slope is scaled within this (1.5 until 11-21: the depth is limited by SLOPE_A_MAX now)
 SLOPE_W_V = [1.0 / 3.6, 3.0 / 3.6]  # m/s: firmer scaling to 3 km/h, none below 1 - bounded by SLOPE_ENV at every speed

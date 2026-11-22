@@ -330,7 +330,7 @@ def test_altis_one_slope_worked_back_from_the_stop_point():
     assert _sa.slope_k(kph / 3.6, on(kph) - 1.0) > 1.0 > _sa.slope_k(kph / 3.6, on(kph) + 1.0)  # too fast firmer / too slow lighter
   # an ideal car (gives what is asked) started on the slope ends at the stop point without firming after the first build
   monkey = {k: getattr(_sa, k) for k in ('SLOPE_DELIVER_GAIN', 'SLOPE_DELIVER_OFF')}
-  _sa.SLOPE_DELIVER_GAIN, _sa.SLOPE_DELIVER_OFF = [1.0] * 7, [0.0] * 7
+  _sa.SLOPE_DELIVER_GAIN, _sa.SLOPE_DELIVER_OFF = [1.0] * len(_sa.SLOPE_DELIVER_V), [0.0] * len(_sa.SLOPE_DELIVER_V)
   try:
     sa = StopApproach(); v = 30.0 / 3.6; d = on(30.0) + 25.0; outs = []
     for _ in range(4000):
