@@ -209,10 +209,12 @@ def test_slow_lead_braking_to_a_stop_aims_at_its_stop_point():
   sa = SA2.StopApproach(0.05)
   ld = N2(status=True, dRel=5.0, vLead=6.8 / 3.6, aLeadK=-1.76)
   sa.update(9.5 / 3.6, N2(status=True, dRel=5.3, vLead=7.5 / 3.6, aLeadK=-0.1), -1.5, False)   # tracked moving before
-  out = [sa.update(9.5 / 3.6, ld, -2.06, False) for _ in range(10)][-1]
+  out = [sa.update(9.5 / 3.6, ld, -2.06, False) for _ in range(20)][-1]   # eased from the plan's -2.06 at J_EASE: 0.6 s (10 steps were 0.4)
   need = (9.5 / 3.6) ** 2 / (2 * (5.0 + (6.8 / 3.6) ** 2 / (2 * 1.76) - SA2.STOP_GAP))
   assert sa.stopping and out > -2.06                       # lighter than the MPC's 6 m aim
-  assert out == pytest.approx(-SA2.K_NEED * need, abs=0.05)
+  # an approach that starts from such a lead uses K_STOPPED (via_stopping: its stop point is already a prediction);
+  # the test still expected K_NEED and had failed since that change
+  assert out == pytest.approx(-SA2.K_STOPPED * need, abs=0.05)
 
 
 def test_slow_lead_not_braking_stays_with_mpc():
@@ -264,36 +266,82 @@ def test_virtual_lead_passed_stops_on_the_end_line():
 
 
 
-def test_slope_is_one_line_worked_back_from_the_stop_point():
+def _ideal_car(monkeypatch):
+  # a car that gives exactly what is asked, at once
+  monkeypatch.setattr(SA, 'SLOPE_DELIVER_GAIN', [1.0] * len(SA.SLOPE_DELIVER_V))
+  monkeypatch.setattr(SA, 'SLOPE_DELIVER_ADD', [0.0] * len(SA.SLOPE_DELIVER_V))
+  monkeypatch.setattr(SA, 'SLOPE_ANSWER_T', 0.0)
+
+
+def test_slope_is_one_line_worked_back_from_the_stop_point(monkeypatch):
   # owner 2026-11-23: the dppb end-brake principle on dpcr, the stop held at 3.5 m
   assert SA.STOP_GAP == 3.5
   a = [float(np.interp(k / 3.6, SA.SLOPE_V, SA.SLOPE_A)) for k in range(0, 61)]
   assert all(a[k + 1] <= a[k] for k in range(60))                               # one slope, firmer with speed
   assert a[0] == -0.34 and a[1] == -0.36 and a[2] == -0.37 and a[3] == -0.37    # the Cross end line below 3 km/h
   assert max(a[k] - a[k + 1] for k in range(60)) <= 0.12                        # no step in it
-  d = [SA.slope_distance(k / 3.6) for k in range(0, 61, 5)]
-  assert all(d[k + 1] > d[k] for k in range(len(d) - 1))                         # distance -> speed is one-to-one
-  on = lambda kph: SA.STOP_GAP + kph / 3.6 * SA.SLOPE_LAG + SA.slope_distance(kph / 3.6)
-  for kph in (40.0, 20.0, 10.0, 5.0):
-    assert abs(SA.slope_k(kph / 3.6, on(kph)) - 1.0) < 1e-6                      # on the reference: the plain slope
-    assert SA.slope_k(kph / 3.6, on(kph) - 1.0) > 1.0 > SA.slope_k(kph / 3.6, on(kph) + 1.0)
-  # a car that gives what is asked, first seen far out, ends at the stop point and only eases after the build
-  for kph0, extra in ((30.0, 25.0), (50.0, 40.0), (15.0, 10.0)):
+  for ideal in (False, True):
+    if ideal:
+      _ideal_car(monkeypatch)
+    d = [SA.slope_distance(k / 3.6) for k in range(0, 61, 5)]
+    assert all(d[k + 1] > d[k] for k in range(len(d) - 1))                       # distance -> speed is one-to-one
+    on = lambda kph: SA.STOP_GAP + kph / 3.6 * SA.SLOPE_LAG + SA.slope_distance(kph / 3.6)
+    for kph in (40.0, 20.0, 10.0, 5.0):
+      assert abs(SA.slope_k(kph / 3.6, on(kph)) - 1.0) < 5e-3                    # on the reference: the plain slope
+      assert SA.slope_k(kph / 3.6, on(kph) - 1.0) > 1.0 > SA.slope_k(kph / 3.6, on(kph) + 1.0)
+  # the ideal car, first seen far out, ends at the stop point and only eases after the build
+  for kph0, extra in ((30.0, 25.0), (50.0, 40.0), (15.0, 10.0), (5.0, 6.0)):
     sa = StopApproach(); v = kph0 / 3.6; d = on(kph0) + extra; outs = []
-    for _ in range(6000):
+    for _ in range(8000):
       out = sa.update(v, lead(d), 0.0, False)
       outs.append((v, out, sa.phase))
       v = max(v + min(out, 0.0) * sa.dt, 0.0); d -= v * sa.dt
       if v <= 0.02:
         break
-    assert abs(d - SA.STOP_GAP) < 0.5, (kph0, d)
+    assert abs(d - SA.STOP_GAP) < 0.5, (kph0, d)                                 # (from a crawl the floor ends it a little early)
     rel = [o[1] for o in outs if o[2] == 'release']
     i_peak = int(np.argmin(rel))
     assert all(rel[k + 1] >= rel[k] - 0.02 for k in range(i_peak, len(rel) - 1)), kph0   # after the build it only eases
     assert min(o[1] for o in outs if o[0] <= 3.0 / 3.6) >= -0.37 - 1e-9          # the end is the plain end line
 
 
-def test_slope_builds_softly_and_stays_inside_its_bound():
+def test_slope_scale_counts_on_what_the_car_gives():
+  # 9-30 km/h: the send side's fixed additions make a light plan give more than asked, so the same speed and distance
+  # need a lighter scale than a unity car would; the answer time shortens the eased end
+  v, d = 20.0 / 3.6, 22.0
+  k_real = SA.slope_k(v, d)
+  gain, add, t = SA.SLOPE_DELIVER_GAIN, SA.SLOPE_DELIVER_ADD, SA.SLOPE_ANSWER_T
+  try:
+    SA.SLOPE_DELIVER_GAIN, SA.SLOPE_DELIVER_ADD, SA.SLOPE_ANSWER_T = [1.0] * len(gain), [0.0] * len(add), 0.0
+    k_unity = SA.slope_k(v, d)
+    d_unity = SA.slope_distance(5.0 / 3.6)
+  finally:
+    SA.SLOPE_DELIVER_GAIN, SA.SLOPE_DELIVER_ADD, SA.SLOPE_ANSWER_T = gain, add, t
+  assert k_real < k_unity
+  assert SA.slope_distance(5.0 / 3.6) < d_unity
+
+
+def test_slope_light_scale_never_goes_lighter_than_the_floor():
+  # sim 2026-11-23 (cases 33 / 32 / 21): a car slow for its distance got -0.15..-0.18 and crept 5-8 s at 1-3 km/h
+  for kph in (25.0, 12.0, 8.0, 5.0, 3.0, 1.5):
+    r = float(SA.slope_request(kph / 3.6, SA.SLOPE_K[0]))
+    assert r <= max(float(np.interp(kph / 3.6, SA.SLOPE_V, SA.SLOPE_A)), SA.SLOPE_LIGHT_FLOOR) + 1e-9
+    assert r <= -0.25 + 1e-9
+
+
+def test_slope_wait_lift_is_no_more_than_the_need_at_crawl_speed():
+  # 5 km/h, 10 m behind a standing car while the MPC asks -0.5: the old -0.30 lift stopped the car 4-7 m back
+  sa = StopApproach(); v, d = 5.0 / 3.6, 10.0
+  need = v ** 2 / (2.0 * (d - SA.STOP_GAP))
+  outs = [sa.update(v, lead(d), -0.5, False) for _ in range(40)]
+  assert sa.phase == 'wait' and min(outs[20:]) >= -need - 1e-6 and outs[-1] <= -SA.K_EARLY * need + 1e-6
+  # ... and at speed the lift is the old one
+  sa = StopApproach(); v, d = 50.0 / 3.6, 140.0
+  outs = [sa.update(v, lead(d), -1.0, False) for _ in range(40)]
+  assert sa.phase == 'wait' and min(outs[20:]) >= min(SA.WAIT_ACCEL, -SA.K_EARLY * v ** 2 / (2.0 * (d - SA.STOP_GAP))) - 1e-6
+
+
+def test_slope_builds_at_the_dpcr_rate_and_stays_inside_its_bound():
   sa = StopApproach(); v = 50.0 / 3.6; outs = []
   d = SA.STOP_GAP + 0.55 * SA.slope_distance(v)                # far too fast for the distance: the slope scales up
   for _ in range(200):
@@ -304,10 +352,7 @@ def test_slope_builds_softly_and_stays_inside_its_bound():
       break
   o = np.array(outs)
   assert o.min() >= min(SA.SLOPE_ENV_HARD_A) - 1e-9 and o.min() < -2.0          # deeper than the plain slope, bounded
-  step = -np.diff(o)
-  assert step.max() <= max(SA.SLOPE_J_BUILD) * sa.dt + 1e-9                     # built at the jerk limit, no step
-  first = step[(o[:-1] > -0.5) & (step > 0)]
-  assert len(first) and first.max() <= 1.2 * sa.dt + 1e-9                       # the first touch softer still
+  assert (-np.diff(o)).max() <= SA.J_BUILD * sa.dt + 1e-9                       # built at dpcr's own rate, no step
 
 
 def test_slope_end_only_eases_and_is_kept_to_the_wheel_stop():
@@ -325,10 +370,10 @@ def test_slope_end_only_eases_and_is_kept_to_the_wheel_stop():
     low = low[int(np.argmin(low)):]                                            # (a stop that starts short builds first)
     assert (np.maximum.accumulate(low) - low).max() <= 1e-9, (d0, kph)         # once easing, no re-firming
     slow = [o[1] for o in outs if o[0] <= 0.3]
-    assert len(slow) and min(slow) >= -0.37 - 1e-9 and max(slow) <= -0.10      # kept below 0.3 m/s too (no hand-back dip)
+    assert len(slow) and min(slow) >= -0.37 - 1e-9 and max(slow) <= SA.SLOPE_LIGHT_FLOOR + 1e-9   # kept below 0.3 m/s too (no hand-back dip)
     # ... and SLOPE_STILL_T after the wheels stand, then back to the plan
     held = [sa.update(0.0, lead(d), 0.0, False) for _ in range(int(SA.SLOPE_STILL_T / sa.dt) - 1)]
-    assert max(held) <= -0.30 and min(held) >= -0.37 - 1e-9
+    assert max(held) <= SA.SLOPE_LIGHT_FLOOR + 1e-9 and min(held) >= -0.37 - 1e-9
     later = [sa.update(0.0, lead(d), 0.0, False) for _ in range(40)]
     assert sa.phase in (None, 'handback') and later[-1] > held[-1]
 
