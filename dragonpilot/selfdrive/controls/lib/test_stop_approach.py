@@ -9,6 +9,15 @@ from dragonpilot.selfdrive.controls.lib.stop_approach import StopApproach
 DT = 0.05
 
 
+@pytest.fixture(autouse=True)
+def _before_the_slope(monkeypatch, request):
+  # the tests below were written for the brake phase + open-loop release (SLOPE_ENABLED False, STOP_GAP 3.2), which is
+  # still the code path with the slope off; the slope's own tests are *_slope_*
+  if 'slope' not in request.node.name:
+    monkeypatch.setattr(SA, 'SLOPE_ENABLED', False)
+    monkeypatch.setattr(SA, 'STOP_GAP', 3.2)
+
+
 def lead(d, v=0.0, status=True):
   return N(status=status, dRel=d, vLead=v)
 
@@ -252,3 +261,89 @@ def test_virtual_lead_passed_stops_on_the_end_line():
   real = N(status=True, dRel=0.1, vLead=0.0)
   out = sb.update(v, real, -3.0, False, True, 0.0)
   assert sb.phase != 'release' or abs(out - goal) > 1e-3
+
+
+
+def test_slope_is_one_line_worked_back_from_the_stop_point():
+  # owner 2026-11-23: the dppb end-brake principle on dpcr, the stop held at 3.5 m
+  assert SA.STOP_GAP == 3.5
+  a = [float(np.interp(k / 3.6, SA.SLOPE_V, SA.SLOPE_A)) for k in range(0, 61)]
+  assert all(a[k + 1] <= a[k] for k in range(60))                               # one slope, firmer with speed
+  assert a[0] == -0.34 and a[1] == -0.36 and a[2] == -0.37 and a[3] == -0.37    # the Cross end line below 3 km/h
+  assert max(a[k] - a[k + 1] for k in range(60)) <= 0.12                        # no step in it
+  d = [SA.slope_distance(k / 3.6) for k in range(0, 61, 5)]
+  assert all(d[k + 1] > d[k] for k in range(len(d) - 1))                         # distance -> speed is one-to-one
+  on = lambda kph: SA.STOP_GAP + kph / 3.6 * SA.SLOPE_LAG + SA.slope_distance(kph / 3.6)
+  for kph in (40.0, 20.0, 10.0, 5.0):
+    assert abs(SA.slope_k(kph / 3.6, on(kph)) - 1.0) < 1e-6                      # on the reference: the plain slope
+    assert SA.slope_k(kph / 3.6, on(kph) - 1.0) > 1.0 > SA.slope_k(kph / 3.6, on(kph) + 1.0)
+  # a car that gives what is asked, first seen far out, ends at the stop point and only eases after the build
+  for kph0, extra in ((30.0, 25.0), (50.0, 40.0), (15.0, 10.0)):
+    sa = StopApproach(); v = kph0 / 3.6; d = on(kph0) + extra; outs = []
+    for _ in range(6000):
+      out = sa.update(v, lead(d), 0.0, False)
+      outs.append((v, out, sa.phase))
+      v = max(v + min(out, 0.0) * sa.dt, 0.0); d -= v * sa.dt
+      if v <= 0.02:
+        break
+    assert abs(d - SA.STOP_GAP) < 0.5, (kph0, d)
+    rel = [o[1] for o in outs if o[2] == 'release']
+    i_peak = int(np.argmin(rel))
+    assert all(rel[k + 1] >= rel[k] - 0.02 for k in range(i_peak, len(rel) - 1)), kph0   # after the build it only eases
+    assert min(o[1] for o in outs if o[0] <= 3.0 / 3.6) >= -0.37 - 1e-9          # the end is the plain end line
+
+
+def test_slope_builds_softly_and_stays_inside_its_bound():
+  sa = StopApproach(); v = 50.0 / 3.6; outs = []
+  d = SA.STOP_GAP + 0.55 * SA.slope_distance(v)                # far too fast for the distance: the slope scales up
+  for _ in range(200):
+    out = sa.update(v, lead(d), 0.0, False)
+    outs.append(out)
+    v = max(v + min(out, 0.0) * sa.dt, 0.0); d -= v * sa.dt
+    if v < 20.0 / 3.6:
+      break
+  o = np.array(outs)
+  assert o.min() >= min(SA.SLOPE_ENV_HARD_A) - 1e-9 and o.min() < -2.0          # deeper than the plain slope, bounded
+  step = -np.diff(o)
+  assert step.max() <= max(SA.SLOPE_J_BUILD) * sa.dt + 1e-9                     # built at the jerk limit, no step
+  first = step[(o[:-1] > -0.5) & (step > 0)]
+  assert len(first) and first.max() <= 1.2 * sa.dt + 1e-9                       # the first touch softer still
+
+
+def test_slope_end_only_eases_and_is_kept_to_the_wheel_stop():
+  for d0, kph in ((14.0, 20.0), (9.0, 12.0), (20.0, 20.0)):
+    sa = StopApproach(); sa.phase = 'release'; sa.a = float(np.interp(kph / 3.6, SA.SLOPE_V, SA.SLOPE_A))
+    v, d, outs = kph / 3.6, d0, []
+    for k in range(4000):
+      out = sa.update(v, lead(d), 0.0, False)
+      outs.append((v, out))
+      a_car = 0.0 if 3.0 / 3.6 < v < 3.4 / 3.6 and k % 3 else min(out, 0.0)      # a car that answers unevenly
+      v = max(v + a_car * sa.dt, 0.0); d -= v * sa.dt
+      if v <= 0.02:
+        break
+    low = np.array([o[1] for o in outs if o[0] < SA.SLOPE_EASED_V])
+    low = low[int(np.argmin(low)):]                                            # (a stop that starts short builds first)
+    assert (np.maximum.accumulate(low) - low).max() <= 1e-9, (d0, kph)         # once easing, no re-firming
+    slow = [o[1] for o in outs if o[0] <= 0.3]
+    assert len(slow) and min(slow) >= -0.37 - 1e-9 and max(slow) <= -0.10      # kept below 0.3 m/s too (no hand-back dip)
+    # ... and SLOPE_STILL_T after the wheels stand, then back to the plan
+    held = [sa.update(0.0, lead(d), 0.0, False) for _ in range(int(SA.SLOPE_STILL_T / sa.dt) - 1)]
+    assert max(held) <= -0.30 and min(held) >= -0.37 - 1e-9
+    later = [sa.update(0.0, lead(d), 0.0, False) for _ in range(40)]
+    assert sa.phase in (None, 'handback') and later[-1] > held[-1]
+
+
+def test_slope_adds_nothing_for_the_distance_below_5_kph():
+  # the car gives half of what is asked between 8 and 3 km/h, so the room runs short: above SLOPE_REFIRM_V a really
+  # short stop may be made up, below it the request only eases (item 0: nothing raises the force before the stop)
+  sa = StopApproach(); sa.phase = 'release'; sa.a = -1.25
+  v, d, outs = 15.0 / 3.6, 13.0, []
+  for _ in range(4000):
+    out = sa.update(v, lead(d), 0.0, False)
+    outs.append((v, out))
+    a_car = min(out, 0.0) * (0.5 if 3.0 / 3.6 < v < 8.0 / 3.6 else 0.9)
+    v = max(v + a_car * sa.dt, 0.0); d -= v * sa.dt
+    if v <= 0.02:
+      break
+  low = np.array([o[1] for o in outs if o[0] < SA.SLOPE_REFIRM_V])
+  assert (np.maximum.accumulate(low) - low).max() <= 1e-9

@@ -62,7 +62,7 @@ import numpy as np
 
 from openpilot.common.realtime import DT_MDL
 
-STOP_GAP = 3.2          # m: radar gap the plan aims at; the car ends ~0.2-0.4 m further back (Cross rule 3-3.5 m; owner manual 3.6-3.9 m)
+STOP_GAP = 3.5          # m: radar gap the stop ends at (owner 2026-11-23: 3.5 m; 3.2 until then, when the eased end was open loop)
 LEAD_STOPPED_V = 1.0    # m/s: lead slower than this counts as stopped
 START_NEED = 1.8        # m/s^2: start braking once the needed decel (0.5 s ahead) reaches this (owner's manual: 1.7-1.75)
 URGENT_NEED = 2.8       # m/s^2: from here the MPC may brake harder than this target
@@ -91,6 +91,60 @@ V_EGO_STOPPING = 25.0 / 3.6  # m/s: below this ego speed
 A_KEEP = 0.3            # m/s^2: a latched lead now braking less than this is not stopping (00000103 16:13:25)
 VIRTUAL_PASSED = 0.3    # m: an experimental virtual stop-line lead this close to the aim (or past it) stops on the end line
 A_LEAD_GO = 0.3         # m/s^2: a latched lead that accelerates this much is moving again
+
+# ONE deceleration slope worked back from the stop point (dppb 2026-11-20..22, owner 2026-11-23: "apply the principle of
+# the dppb end-brake work to dpcr too; dpcr is already close to good and only needs the same kind of fine tuning; the
+# stop is to be held at 3.5 m"). SLOPE_A over speed is the shape of the stop - the Cross's own: the median plan of the
+# dpcr road stops that ended 3.2-3.8 m back (11-05..11-09: -1.7 at 20-30 km/h, -1.2 at 12-16, -0.87 at 8-10, -0.6 at
+# 4-6, then the stopping controller's end line -0.37 .. -0.34). Integrated back from the stop point, with what the Cross
+# gives for a plan (SLOPE_DELIVER_*), it is the speed the car must have at every distance. Each cycle the distance the
+# slope still needs from the present speed is compared with the room really left to STOP_GAP and the whole slope is
+# scaled by that ratio k (k > 1: too fast for the distance, a little firmer; k < 1: a little lighter) - where the plan
+# before aimed a constant decel at STOP_GAP and then eased OPEN LOOP onto the end line (the eased end rolled on:
+# closed-loop sim of the 58 recorded starts 2.0 / 2.9 / 4.3 m). The stop starts when the car reaches the slope
+# (k >= SLOPE_START, looking T_PRE ahead); until then WAIT is unchanged. The scaling fades out below SLOPE_W_V: the last
+# km/h are the plain end line. Once the request has begun to ease below SLOPE_EASED_V it only eases (no second bite)
+# unless the stop is really short (SLOPE_K_REFIRM), and the end value is kept until the wheels stand + SLOPE_STILL_T.
+SLOPE_ENABLED = True
+SLOPE_V = [0.0, 1.0 / 3.6, 2.0 / 3.6, 3.0 / 3.6, 4.0 / 3.6, 5.0 / 3.6, 8.0 / 3.6, 12.0 / 3.6, 20.0 / 3.6, 30.0 / 3.6, 60.0 / 3.6]
+SLOPE_A = [-0.34, -0.36, -0.37, -0.37, -0.48, -0.58, -0.82, -1.10, -1.50, -1.75, -1.75]
+# what the Cross gives for a plan on such a stop (real = GAIN x plan - OFF). With its send side (delivery trim, mid-speed
+# add, PID) the Cross follows the plan within +-0.07 at every speed in the closed-loop sim (dpcr_1123/calib.py), so the
+# map is unity; the tables stay so that road data can correct a band (dppb needed 3.5-5.5 km/h: -0.23..-0.41)
+SLOPE_DELIVER_V = [1.5 / 3.6, 2.5 / 3.6, 4.5 / 3.6, 8.0 / 3.6, 12.5 / 3.6, 20.0 / 3.6, 30.0 / 3.6]
+SLOPE_DELIVER_GAIN = [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
+SLOPE_DELIVER_OFF = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+SLOPE_START = 0.90      # the stop begins once the room is down to the slope's own distance / this
+SLOPE_K = [0.3, 2.5]    # the slope is scaled within this
+SLOPE_W_V = [1.0 / 3.6, 3.0 / 3.6]        # m/s: firmer scaling to 3 km/h, none below 1 - bounded by SLOPE_ENV at every speed
+SLOPE_W_V_LIGHT = [1.0 / 3.6, 2.5 / 3.6]  # m/s: lighter scaling fades out below 2.5 km/h
+SLOPE_LAG = 0.15        # s of travel before a change is felt
+# the firmest the scaled slope may ask at each speed (the end ceiling of tncr1_long/end_force_limit.py below 3 km/h)
+SLOPE_ENV_V = [0.0, 1.0 / 3.6, 2.0 / 3.6, 3.0 / 3.6, 5.0 / 3.6, 8.0 / 3.6, 12.0 / 3.6, 20.0 / 3.6, 30.0 / 3.6]
+SLOPE_ENV_A = [-0.34, -0.36, -0.37, -0.37, -1.00, -1.40, -1.80, -2.30, -2.60]
+SLOPE_ENV_HARD_A = [-0.34, -0.36, -0.37, -0.37, -1.50, -2.00, -2.50, -2.60, -2.60]
+SLOPE_K_HARD = 1.5      # a stop this short of room (late cut-in, late engagement) may use the hard bound
+SLOPE_J_BUILD_A = [0.0, 0.5, 1.0]   # m/s^2 already asked
+SLOPE_J_BUILD = [0.8, 1.2, 1.5]     # m/s^3: the build - soft at the first touch, then J_BUILD
+SLOPE_J_EASE = 0.9      # m/s^3: easing (owner's Cross release: <= ~0.9)
+SLOPE_K_LIGHT_LOW = 0.4   # below SLOPE_EASED_V the slope is never scaled lighter than this
+SLOPE_EASED_V = 12.0 / 3.6  # m/s
+SLOPE_EASED_D = 0.005   # m/s^2 the target is above the request for the end to count as begun
+SLOPE_STILL_T = 1.0     # s the end value is kept after the wheels stand
+SLOPE_K_REFIRM = 1.2    # ... unless the room is this short of what the slope needs
+SLOPE_REFIRM_V = 5.0 / 3.6  # m/s: ... and only above this speed (below it nothing is added for the distance)
+
+
+def slope_distance(v_from):
+  """distance the slope takes from v_from to rest with what the car really gives"""
+  vs = np.linspace(0.0, max(v_from, 0.0), 81)
+  a = -np.interp(vs, SLOPE_V, SLOPE_A)
+  a = np.maximum(a * np.interp(vs, SLOPE_DELIVER_V, SLOPE_DELIVER_GAIN) - np.interp(vs, SLOPE_DELIVER_V, SLOPE_DELIVER_OFF), 0.1)
+  return float(np.sum((vs[1:] ** 2 - vs[:-1] ** 2) / (a[1:] + a[:-1])))
+
+
+def slope_k(v_ego, d_rel):
+  return slope_distance(v_ego) / max(d_rel - STOP_GAP - v_ego * SLOPE_LAG, 0.3)
 
 
 def _stop_point(lead, latched):
@@ -122,6 +176,8 @@ class StopApproach:
     self.dt = dt
     self.phase = None  # None (MPC), 'wait', 'brake', 'release', 'handback'
     self.a = 0.0
+    self.still_t = 0.0        # slope: time the wheels have been standing
+    self.eased = False        # slope: the request has begun to ease toward the stop (no firming again)
     self.wait_a = WAIT_ACCEL  # experimental WAIT lift (follows the car's real decel)
     self.lead_moving = False  # the lead was tracked moving the frame before
     self.moved = False        # this approach started from a lead that slowed to a stop (K_NEED, not K_STOPPED)
@@ -146,7 +202,11 @@ class StopApproach:
       self.via_stopping = False
     self.stopping = d_stop is not None
     stopped_lead = (not off and lead is not None and bool(lead.status) and lead.vLead < LEAD_STOPPED_V
-                    and 0.0 < lead.dRel < MAX_DIST and v_ego > 0.3)
+                    and 0.0 < lead.dRel < MAX_DIST
+                    # the slope keeps its end value down to the wheel stop (a hand-back at 0.3 m/s is an ease, then the
+                    # stopping controller's re-application)
+                    and (v_ego > 0.3 or (SLOPE_ENABLED and self.phase == 'release' and self.still_t < SLOPE_STILL_T)))
+    self.still_t = self.still_t + self.dt if v_ego <= 0.02 else 0.0   # ... and SLOPE_STILL_T longer, until the hold has the car
     was_moving = self.lead_moving
     self.lead_moving = not off and lead is not None and bool(lead.status) and lead.vLead >= LEAD_STOPPED_V
     if not stopped_lead:
@@ -170,10 +230,28 @@ class StopApproach:
       self.moved = was_moving and self.a < WAIT_ACCEL
       self.phase = 'brake' if self.moved else 'wait'
     need_pre = _need(v_ego, lead.dRel - v_ego * T_PRE)
-    if self.phase == 'wait' and need_pre >= START_NEED:
+    if SLOPE_ENABLED:
+      if self.phase in ('wait', 'brake') and slope_k(v_ego, lead.dRel - v_ego * T_PRE) >= SLOPE_START:
+        self.phase = 'release'   # on the slope from here to the stop
+        self.eased = False
+    elif self.phase == 'wait' and need_pre >= START_NEED:
       self.phase = 'brake'
 
-    if self.phase == 'wait':
+    if SLOPE_ENABLED and self.phase == 'brake':
+      self.a = out = a_mpc       # the lead slowed to its stop and the MPC is braking behind it: not on the slope yet
+    elif SLOPE_ENABLED and self.phase == 'release':
+      shape = float(np.interp(v_ego, SLOPE_V, SLOPE_A))
+      k_raw = slope_k(v_ego, lead.dRel)
+      k = float(np.clip(k_raw, SLOPE_K[0] if v_ego > SLOPE_EASED_V else SLOPE_K_LIGHT_LOW, SLOPE_K[1]))
+      w = float(np.interp(v_ego, SLOPE_W_V if k > 1.0 else SLOPE_W_V_LIGHT, [0.0, 1.0]))  # firmer: never in the last km/h
+      env = SLOPE_ENV_HARD_A if k_raw >= SLOPE_K_HARD else SLOPE_ENV_A
+      target = max(shape * (1.0 + (k - 1.0) * w), float(np.interp(v_ego, SLOPE_ENV_V, env)))
+      if v_ego < SLOPE_EASED_V and target > self.a + SLOPE_EASED_D:
+        self.eased = True              # the end has begun
+      if self.eased and (k_raw < SLOPE_K_REFIRM or v_ego < SLOPE_REFIRM_V):
+        target = max(target, self.a)   # from here the request only eases
+      out = self._step(target, SLOPE_J_EASE, float(np.interp(-self.a, SLOPE_J_BUILD_A, SLOPE_J_BUILD)))
+    elif self.phase == 'wait':
       if exp and a_ego is not None and a_ego < -(need + WAIT_FB_MARGIN):
         self.wait_a = min(self.wait_a + WAIT_FB_RATE * self.dt, 0.0)
       else:

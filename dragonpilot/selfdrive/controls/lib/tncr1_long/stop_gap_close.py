@@ -42,7 +42,10 @@ from openpilot.common.realtime import DT_CTRL
 # RELEASE_RATE 0.3 m/s^3 (was 1.0), a slow straight line; (3) above V_FLOOR it never asks for less than B_FLOOR of decel unless the plan itself is lighter
 # (no coasting). Below V_FLOOR the end-force line (end_force_limit) takes it to -0.35.
 # The Altis (tnpb3) keeps the original f908530 law.
-ENABLED = True
+# dpcr 2026-11-23 (owner: the dppb end-brake principle on dpcr, stop held at 3.5 m): OFF. The planner's stop slope
+# (stop_approach.py SLOPE_*) is closed on the distance down to the end line, so there is nothing left for this stage to
+# close - and what it does (ease the brake to roll on, then firm it again) is what the owner ruled out on 2026-11-20.
+ENABLED = False
 B_FLOOR = 0.3              # m/s^2: above V_FLOOR never ask for less decel than this (mapped like b, so it includes the
                            # creep torque below 6 km/h), unless the plan itself is lighter. Proposed as a -0.5 request floor, but
                            # routes 69/6a at 3-20 km/h: req -0.2/-0.3/-0.4 still gave aEgo -0.30/-0.44/-0.51 (regen, 80-480 N) -
