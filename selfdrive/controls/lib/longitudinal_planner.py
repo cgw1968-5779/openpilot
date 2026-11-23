@@ -202,7 +202,7 @@ class LongitudinalPlanner:
     else:
       output_a_target = output_a_target_mpc
       self.output_should_stop = output_should_stop_mpc
-    output_a_target = self.stop_approach.update(v_ego, self.exp_stop_line.lead(sm, v_ego, sm['radarState'].leadOne), output_a_target, reset_state, sm['selfdriveState'].experimentalMode, sm['carState'].aEgo)  # dragonpilot hook
+    output_a_target = self.stop_approach.update(v_ego, self.exp_stop_line.lead(sm, v_ego, sm['radarState'].leadOne), output_a_target, reset_state, sm['selfdriveState'].experimentalMode, sm['carState'].aEgo, sm['carState'].gasPressed)  # dragonpilot hook
     output_a_target = self.follow_gap.update(v_ego, sm['radarState'].leadOne, output_a_target, reset_state)  # dragonpilot hook
     output_a_target = self.urgent_brake.update(v_ego, sm['radarState'].leadOne, output_a_target, reset_state)  # dragonpilot hook
     # dragonpilot hook (dpcr 2026-11-06, tncr1 copy): tncr1's should_stop - the car's own speed below 0.3 m/s and the target

@@ -392,3 +392,66 @@ def test_slope_adds_nothing_for_the_distance_below_5_kph():
       break
   low = np.array([o[1] for o in outs if o[0] < SA.SLOPE_REFIRM_V])
   assert (np.maximum.accumulate(low) - low).max() <= 1e-9
+
+
+def _creep_stop(kph, d0, gas_steps=4, a_mpc=-2.0):
+  """the driver creeps up with the gas and lets go kph / d0 behind a standing car; the car gives what is asked"""
+  sa = StopApproach(); v, d, outs = kph / 3.6, d0, []
+  for k in range(4000):
+    gas = k < gas_steps
+    out = sa.update(v, lead(d), 0.3 if gas else a_mpc, gas, gas=gas)   # the gas overrides: long control is off
+    if not gas:
+      outs.append(out)
+      v = max(v + min(out, 0.0) * sa.dt, 0.0)
+    d -= v * sa.dt
+    if v <= 0.02:
+      break
+  return np.array(outs), d
+
+
+def test_slope_stop_after_a_gas_creep_is_soft():
+  # owner 2026-11-23: "the stop after creeping up with the gas ... must be soft enough". The MPC answers the standing
+  # car with -2.0 at once; the soft stop builds from the released gas and is decided once
+  for kph, d0 in ((5.0, 6.0), (5.0, 5.0), (3.0, 4.5), (4.0, 5.0), (6.0, 7.0)):
+    o, d = _creep_stop(kph, d0)
+    assert o[0] >= -0.1 - SA.CREEP_J * 0.05 - 1e-9, (kph, d0)               # from ~0, not from the MPC's -2.0
+    assert (-np.diff(o)).max() <= SA.CREEP_J * 0.05 + 1e-9, (kph, d0)       # built at CREEP_J
+    assert o.min() >= -0.75, (kph, d0, o.min())                             # never a bite
+    i = int(np.argmin(o))
+    assert (np.maximum.accumulate(o[i:]) - o[i:]).max() <= 0.03, (kph, d0)  # one build, one ease
+    assert d > 1.8, (kph, d0, d)                                            # and it stops
+
+
+def test_slope_gas_creep_with_no_room_is_the_ordinary_stop():
+  # 9 km/h let go 4.5 m behind the car: not a soft stop - the ordinary slope / the urgent rule, as before
+  o, d = _creep_stop(9.0, 4.5)
+  assert o.min() <= -1.5
+
+
+def test_slope_without_gas_is_not_the_soft_stop():
+  # the same approach with no gas pressed: the slope as it is (the soft cap is the gas creep's only)
+  sa = StopApproach(); v, d, o = 9.0 / 3.6, 7.6, []
+  for _ in range(400):
+    out = sa.update(v, lead(d), -0.3, False)
+    o.append(out); v = max(v + min(out, 0.0) * sa.dt, 0.0); d -= v * sa.dt
+    if v <= 0.02:
+      break
+  assert not sa.creep and min(o) < -0.9
+
+
+def test_slope_short_stop_is_made_up_a_little_not_put_back_on():
+  # sim case 5: the car gave half of the request at 7-5.5 km/h for 1.2 s; the plan went -0.54 -> -1.29 in 0.5 s
+  sa = StopApproach(); sa.phase = 'release'; sa.a = -1.0
+  v, d, outs = 14.0 / 3.6, 14.0, []
+  for _ in range(4000):
+    out = sa.update(v, lead(d), 0.0, False)
+    outs.append((v, out))
+    a_car = min(out, 0.0) * (0.5 if 5.5 / 3.6 < v < 7.5 / 3.6 else 1.0)
+    v = max(v + a_car * sa.dt, 0.0); d -= v * sa.dt
+    if v <= 0.02:
+      break
+  low = np.array([o[1] for o in outs if o[0] < SA.SLOPE_EASED_V])
+  low = low[int(np.argmin(low[:max(len(low) // 3, 1)])):]
+  assert (np.maximum.accumulate(low) - low).max() <= SA.SLOPE_REFIRM_MAX + 1e-9   # "a little"
+  assert (-np.diff(low)).max() <= SA.SLOPE_REFIRM_J * sa.dt + 1e-9               # and slowly
+  assert d > SA.SLOPE_SAFE_GAP

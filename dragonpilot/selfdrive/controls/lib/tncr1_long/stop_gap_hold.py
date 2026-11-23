@@ -79,6 +79,13 @@ ROLL_RELEASE_RATE = 1.5  # m/s^3
 # a stop, so the guard conflicts with them at 2.5 m. While the stop is urgent the guard uses the urgent gap and
 # trigger; and (controlsd) its output is no longer exempt from the end-force ceiling while the car moves.
 ROLL_GAP_URGENT = 2.0    # m
+# dpcr 2026-11-23, the stop after the driver's gas creep (owner: "it must be soft enough"). When control comes back
+# while the car is already rolling below ROLL_V_MAX - the gas released behind a standing car - the guard caught the
+# stop at once, asked for 2.5 m and built at 1.5 m/s^3; the send side's soft onset lagged that, the need grew, and the
+# brake bit (sim, 5 km/h released 4.5 m back: -1.15 sent, -1.3 felt, 2.4 m). The driver chose to close up, so that
+# stop uses the urgent gap and trigger (2.0 m) and builds at ROLL_RATE_CREEP: -0.7 sent, the stop ends near 2.2 m.
+ROLL_RATE_CREEP = 0.8    # m/s^3
+ROLL_B_CREEP_MAX = 1.0   # m/s^2: a catch that needs more than this is not a soft stop
 ROLL_TRIGGER_URGENT = 2.0  # m
 
 
@@ -91,11 +98,13 @@ class StopGapHold:
     self.roll_out = None    # roll guard output while it acts (None = not acting)
     self.roll_caught = False
     self.roll_d0 = 0.0
+    self.was_active = False
+    self.creep = False      # control came back while rolling at creep speed (after the driver's gas): the soft catch
 
   def _roll_guard(self, accel: float, v_ego: float, standstill: bool, lead) -> float:
     present = lead is not None and bool(lead.present)
     lead_still = present and lead.vLead < ROLL_LEAD_V
-    roll_gap, roll_trigger = (ROLL_GAP_URGENT, ROLL_TRIGGER_URGENT) if self.urgent else (ROLL_GAP, ROLL_TRIGGER)
+    roll_gap, roll_trigger = (ROLL_GAP_URGENT, ROLL_TRIGGER_URGENT) if self.urgent or self.creep else (ROLL_GAP, ROLL_TRIGGER)
     if standstill:
       if self.roll_caught and lead_still and lead.dRel < self.roll_d0 + ROLL_GO_D:
         prev = accel if self.roll_out is None else self.roll_out
@@ -105,6 +114,8 @@ class StopGapHold:
     elif lead_still and v_ego <= ROLL_V_MAX and (self.roll_caught or
                                                 lead.dRel - v_ego * ROLL_LOOK_T - v_ego ** 2 / (2.0 * ROLL_B) < roll_trigger):
       b = v_ego ** 2 / (2.0 * max(lead.dRel - roll_gap, ROLL_D_MIN))
+      if self.creep and b > ROLL_B_CREEP_MAX:
+        self.creep = False   # no room for the soft catch: the ordinary guard from the next frame
       if self.roll_caught:
         b = max(b, ROLL_B_CAUGHT)
       need = decel_request(b, v_ego)
@@ -112,7 +123,7 @@ class StopGapHold:
       ends_short = b_req <= 0.0 or lead.dRel - v_ego ** 2 / (2.0 * b_req) < roll_gap - ROLL_SLACK
       if need < accel and (self.roll_caught or ends_short):
         prev = min(accel, 0.0) if self.roll_out is None else self.roll_out
-        self.roll_out = max(need, prev - ROLL_RATE * DT_CTRL)
+        self.roll_out = max(need, prev - (ROLL_RATE_CREEP if self.creep else ROLL_RATE) * DT_CTRL)
         self.roll_caught, self.roll_d0 = True, lead.dRel
         return self.roll_out
     self.roll_caught = False  # handed back while rolling: the next catch starts fresh
@@ -126,7 +137,13 @@ class StopGapHold:
     if not long_active:
       self.held, self.holding, self.braking_t, self.urgent = None, False, 0.0, False
       self.roll_out, self.roll_caught = None, False
+      self.was_active, self.creep = False, False
       return accel
+    if not self.was_active:
+      self.creep = not standstill and 0.3 < v_ego < ROLL_V_MAX
+    elif standstill or v_ego >= ROLL_V_MAX:
+      self.creep = False
+    self.was_active = True
     accel = self._roll_guard(accel, v_ego, standstill, lead)
     if standstill:
       self.held, self.holding, self.braking_t, self.urgent = None, False, 0.0, False

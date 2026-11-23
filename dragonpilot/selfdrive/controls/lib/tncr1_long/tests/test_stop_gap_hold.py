@@ -174,3 +174,27 @@ def test_roll_guard_targets_2m_in_an_urgent_stop():
   assert out_plain < -0.97 and plain.roll_out is not None                   # the 2.5 m guard acts
   assert out_urgent > out_plain + 0.3, (out_plain, out_urgent)               # the urgent guard asks much less
   assert m.ROLL_GAP_URGENT == 2.0
+
+
+def test_roll_guard_after_a_gas_creep_is_the_soft_catch():
+  # dpcr 2026-11-23: control comes back while the car rolls at 5 km/h 4.6 m behind a standing car (the gas released)
+  from types import SimpleNamespace as N
+  from dragonpilot.selfdrive.controls.lib.tncr1_long import stop_gap_hold as M
+  ld = lambda d: N(present=True, dRel=d, vLead=0.0, aLeadK=0.0)
+  def run(creep):
+    h = M.StopGapHold()
+    if not creep:
+      h.update(0.0, 12.0 / 3.6, 0.0, False, ld(30.0), True)   # active long before, faster than the creep speed
+    else:
+      h.update(0.3, 5.0 / 3.6, 0.2, False, ld(4.7), False)    # the gas: long control off
+    v, d, out = 5.0 / 3.6, 4.6, []
+    for _ in range(120):
+      a = h.update(-0.1, v, 0.0, v <= 0.0, ld(d), True)
+      out.append(a); v = max(v + min(a, 0.0) * 0.01, 0.0); d -= v * 0.01
+    return h, out
+  h, soft = run(True)
+  _, plain = run(False)
+  assert h.creep or min(soft) > -1.0
+  assert min(soft) > min(plain)                                        # 2.0 m, not 2.5 m
+  step = max(soft[k] - soft[k + 1] for k in range(len(soft) - 1))
+  assert step <= M.ROLL_RATE_CREEP * 0.01 + 1e-9                       # built under the send side's onset threshold

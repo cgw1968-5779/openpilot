@@ -140,6 +140,26 @@ SLOPE_EASED_D = 0.005   # m/s^2 the target is above the request for the end to c
 SLOPE_STILL_T = 1.0     # s the end value is kept after the wheels stand
 SLOPE_K_REFIRM = 1.2    # ... unless the room is this short of what the slope needs
 SLOPE_WAIT_NEED = 1.0   # WAIT's light lift is at most this x the decel needed to stop at STOP_GAP
+# The stop after the driver's gas creep (owner 2026-11-23: "dpcr seemed to have it already; if it is gone, put it back,
+# and it must be soft enough"). dpcr never had a stage of its own for it (dppb's creep_stop.py is the Altis's); what it
+# had was the send side's soft brake onset. Sim of a gas release at 5-9 km/h, 4-6 m behind a standing car: -1.2..-2.3
+# built at 2 m/s^3 on 8627c39d3 and on the slope alike (the short-stop scaling, its hard bound, the urgent hand-over to
+# the MPC) - and the bite buys nothing, the brake's answer time decides where such a stop ends (5 km/h at 4.5 m: 2.4 m
+# with -1.16, 2.6 m with -0.7). So from a gas press below CREEP_V until the car stands (or is faster than CREEP_V_OFF):
+# the request starts from ~0, builds at CREEP_J and is never firmer than CREEP_SOFT - unless even that would end closer
+# than CREEP_MIN_GAP to the lead; then it is the decel that ends there (a soft stop, but it must stop). Smooth comes
+# before the distance here: a release closer than ~5.5 m ends inside 3.5 m.
+CREEP_V = 10.0 / 3.6        # m/s
+CREEP_V_OFF = 12.0 / 3.6    # m/s
+CREEP_SOFT = 0.60           # m/s^2 asked (the Cross gives 1.1-1.3 x at these speeds: ~-0.75 felt)
+CREEP_J = 1.0               # m/s^3
+CREEP_MIN_GAP = 1.8         # m
+CREEP_HARD_GAP = 1.3        # m: the decided force is raised only if the stop would end inside this
+CREEP_GIVE_UP = 1.0          # m/s^2: a stop that needs more than this is not a soft stop - the ordinary one takes it
+CREEP_ONSET_T = 0.5         # s the send side's soft onset takes before the brake is really on (counted when the force is decided)
+SLOPE_REFIRM_MAX = 0.15  # m/s^2: the most a short stop is made up once the end has begun ...
+SLOPE_REFIRM_J = 0.6     # m/s^3: ... and how fast
+SLOPE_SAFE_GAP = 2.2     # m: ... unless the stop would end inside this
 SLOPE_REFIRM_V = 5.0 / 3.6  # m/s: ... and only above this speed (below it nothing is added for the distance)
 
 
@@ -152,19 +172,24 @@ def slope_request(v, k, hard=False):
   return np.minimum(a, np.maximum(shape, SLOPE_LIGHT_FLOOR))
 
 
+def slope_deliver(v, request):
+  """the decel the car gives for a request (<= 0) at speed v, by the fit"""
+  return -request * np.interp(v, SLOPE_DELIVER_V, SLOPE_DELIVER_GAIN) + np.interp(v, SLOPE_DELIVER_V, SLOPE_DELIVER_ADD)
+
+
 def slope_distance(v_from, k=1.0):
   """distance the slope scaled by k takes from v_from to rest with what the car really gives"""
   vs = np.linspace(0.0, max(v_from, 0.0), 81)
   hard = k >= SLOPE_K_HARD   # the same bound the request itself will use
   a = -slope_request(vs, k, hard)
   a = -slope_request(vs + a * SLOPE_ANSWER_T, k, hard)   # the car gives what was asked SLOPE_ANSWER_T earlier, when it was faster
-  a = np.maximum(a * np.interp(vs, SLOPE_DELIVER_V, SLOPE_DELIVER_GAIN) + np.interp(vs, SLOPE_DELIVER_V, SLOPE_DELIVER_ADD), 0.1)
+  a = np.maximum(slope_deliver(vs, -a), 0.1)
   return float(np.sum((vs[1:] ** 2 - vs[:-1] ** 2) / (a[1:] + a[:-1])))
 
 
-def slope_k(v_ego, d_rel):
-  """the scale at which the slope, with what the car really gives, ends at STOP_GAP from this speed and distance"""
-  room = max(d_rel - STOP_GAP - v_ego * SLOPE_LAG, 0.3)
+def slope_k(v_ego, d_rel, gap=None):
+  """the scale at which the slope, with what the car really gives, ends at STOP_GAP (gap) from this speed and distance"""
+  room = max(d_rel - (STOP_GAP if gap is None else gap) - v_ego * SLOPE_LAG, 0.3)
   lo, hi = 0.1, 4.0
   if slope_distance(v_ego, hi) >= room:
     return hi
@@ -210,18 +235,33 @@ class StopApproach:
     self.a = 0.0
     self.still_t = 0.0        # slope: time the wheels have been standing
     self.eased = False        # slope: the request has begun to ease toward the stop (no firming again)
+    self.eased_a = 0.0        # slope: the lightest request since the end began
+    self.creep = False        # the driver crept up with the gas: the stop that follows is the soft one (CREEP_*)
+    self.creep_cap = None     # ... its firmest decel, decided when it begins
     self.wait_a = WAIT_ACCEL  # experimental WAIT lift (follows the car's real decel)
     self.lead_moving = False  # the lead was tracked moving the frame before
     self.moved = False        # this approach started from a lead that slowed to a stop (K_NEED, not K_STOPPED)
     self.stopping = False     # the lead is a slow lead braking to a stop close ahead (aimed at its stop point)
     self.via_stopping = False  # this approach started from such a lead (its stop point is already a prediction: K_STOPPED)
 
+  def _creep_cap(self, v_ego, d_rel):
+    """the firmest decel of the soft stop: decided ONCE, when the stop begins - CREEP_SOFT, or what it takes to end
+    CREEP_MIN_GAP behind the lead from there - and raised afterwards only if the stop would end inside CREEP_HARD_GAP"""
+    to = lambda gap: v_ego ** 2 / (2.0 * max(d_rel - gap - v_ego * (SLOPE_ANSWER_T + (CREEP_ONSET_T if self.creep_cap is None else 0.0)), 0.3))
+    if self.creep_cap is None:
+      self.creep_cap = max(CREEP_SOFT, to(CREEP_MIN_GAP))
+    return max(self.creep_cap, to(CREEP_HARD_GAP))
+
   def _step(self, target, up, down):
     """move self.a toward target: up = easing rate (toward 0/positive), down = firming rate"""
     self.a = float(np.clip(target, self.a - down * self.dt, self.a + up * self.dt))
     return self.a
 
-  def update(self, v_ego, lead, a_mpc, off, exp=False, a_ego=None):
+  def update(self, v_ego, lead, a_mpc, off, exp=False, a_ego=None, gas=False):
+    if gas and v_ego < CREEP_V:
+      self.creep, self.creep_cap = True, None
+    elif v_ego <= 0.02 or v_ego > CREEP_V_OFF:
+      self.creep, self.creep_cap = False, None
     if not off and lead is not None and bool(lead.status) and lead.vLead >= LEAD_STOPPED_V and v_ego < V_EGO_STOPPING:
       d_stop = _stop_point(lead, self.stopping)
     else:
@@ -259,6 +299,8 @@ class StopApproach:
       return self._step(float(np.interp(v_ego, END_CURVE_V, END_CURVE_A)), J_RELEASE, J_BUILD)
     if self.phase in (None, 'handback'):
       self.a = a_mpc if self.phase is None else self.a
+      if self.creep:
+        self.a = float(np.clip(self.a, -0.1, 0.0))   # the soft stop builds from the released gas, not from the MPC's first answer
       self.moved = was_moving and self.a < WAIT_ACCEL
       self.phase = 'brake' if self.moved else 'wait'
     need_pre = _need(v_ego, lead.dRel - v_ego * T_PRE)
@@ -275,11 +317,24 @@ class StopApproach:
       k_raw = slope_k(v_ego, lead.dRel)
       k = float(np.clip(k_raw, SLOPE_K[0], SLOPE_K[1]))
       target = float(slope_request(v_ego, k, hard=k_raw >= SLOPE_K_HARD))
-      if v_ego < SLOPE_EASED_V and target > self.a + SLOPE_EASED_D:
-        self.eased = True              # the end has begun
-      if self.eased and (k_raw < SLOPE_K_REFIRM or v_ego < SLOPE_REFIRM_V):
-        target = max(target, self.a)   # from here the request only eases
-      out = self._step(target, SLOPE_J_EASE, float(np.interp(-self.a, SLOPE_J_BUILD_A, SLOPE_J_BUILD)))
+      j_build = float(np.interp(-self.a, SLOPE_J_BUILD_A, SLOPE_J_BUILD))
+      if v_ego < SLOPE_EASED_V and target > self.a + SLOPE_EASED_D and not self.eased:
+        self.eased, self.eased_a = True, self.a   # the end has begun
+      if self.eased:
+        self.eased_a = max(self.eased_a, self.a)  # the lightest the request has been since
+        if k_raw < SLOPE_K_REFIRM or v_ego < SLOPE_REFIRM_V:
+          target = max(target, self.a)            # from here the request only eases
+        elif slope_k(v_ego, lead.dRel, SLOPE_SAFE_GAP) < 1.0:
+          # a stop that turns out short is made up a LITTLE and slowly (owner: "if it is going to stop too close, add a
+          # little force at 10 to 5 km/h") - not put back on: sim case 5, the car gave half of -0.55 at 6 km/h for 1.2 s
+          # and the plan went -0.54 -> -1.29 in 0.5 s at 5 km/h, the "heavy first, then eases". The full slope again
+          # only when the stop would otherwise end inside SLOPE_SAFE_GAP.
+          target, j_build = max(target, self.eased_a - SLOPE_REFIRM_MAX), SLOPE_REFIRM_J
+      if self.creep and self._creep_cap(v_ego, lead.dRel) > CREEP_GIVE_UP:
+        self.creep = False             # no room for a soft stop: the ordinary stop (and the urgent rule) from here
+      if self.creep:
+        target, j_build = max(target, -self._creep_cap(v_ego, lead.dRel)), CREEP_J
+      out = self._step(target, SLOPE_J_EASE, j_build)
     elif self.phase == 'wait':
       if exp and a_ego is not None and a_ego < -(need + WAIT_FB_MARGIN):
         self.wait_a = min(self.wait_a + WAIT_FB_RATE * self.dt, 0.0)
@@ -306,6 +361,8 @@ class StopApproach:
         # never firm up again
         target = self.a if need > -self.a + 0.3 else min(goal, self.a + J_RELEASE * self.dt)
         self.a = out = max(target, self.a)
+    if self.creep and self.phase == 'release':
+      return out
     if need >= URGENT_NEED and a_mpc < out:
       self.a = out = a_mpc
     return out
