@@ -15,6 +15,7 @@ from dragonpilot.selfdrive.controls.lib.tncr1_long.end_force_limit import EndFor
 from dragonpilot.selfdrive.controls.lib.tncr1_long.lead_brake_boost import LeadBrakeBoost
 from dragonpilot.selfdrive.controls.lib.tncr1_long.mid_speed_brake_add import MidSpeedBrakeAdd
 from dragonpilot.selfdrive.controls.lib.tncr1_long.stop_gap_close import StopGapClose
+from dragonpilot.selfdrive.controls.lib.stop_approach import RADAR_LAG
 from dragonpilot.selfdrive.controls.lib.tncr1_long.stop_gap_hold import StopGapHold
 from dragonpilot.selfdrive.controls.lib.tncr1_long.stopping_controller import StoppingController
 
@@ -22,7 +23,7 @@ from dragonpilot.selfdrive.controls.lib.tncr1_long.stopping_controller import St
 class LeadView:
   """a dp radarState LeadData under tncr1's field names (present) and the car side's (status)"""
   __slots__ = ('present', 'status', 'dRel', 'yRel', 'vRel', 'aRel', 'vLead', 'vLeadK', 'aLeadK', 'aLeadTau', 'modelProb',
-               'radar', 'radarTrackId', 'dPath', 'vLat', 'fcw')
+               'radar', 'radarTrackId', 'dPath', 'vLat', 'fcw', 'dNow')
 
   def __init__(self, src=None):
     self.present = self.status = bool(getattr(src, 'status', False)) if src is not None else False
@@ -32,6 +33,8 @@ class LeadView:
     self.radar = bool(getattr(src, 'radar', False)) if src is not None else False
     self.radarTrackId = int(getattr(src, 'radarTrackId', -1)) if src is not None else -1
     self.fcw = bool(getattr(src, 'fcw', False)) if src is not None else False
+    # the distance as it is now: radarState is RADAR_LAG old (stop_approach.py), the end of the stop is judged on this
+    self.dNow = max(self.dRel + min(self.vRel, 0.0) * RADAR_LAG, min(self.dRel, 0.05))
 
 
 class Tncr1Long:
@@ -62,7 +65,7 @@ class Tncr1Long:
       prev_state, stock_state, CS, self._a_target_sp, prev_accel, LoC.last_output_accel, accel_limits, long_plan.hasLead,
       pitch=calibrated_pose.orientation.pitch if calibrated_pose is not None else None,
       a_long=calibrated_pose.acceleration.x if calibrated_pose is not None else None,
-      lead_d=lead_one.dRel if lead_one.present else None,
+      lead_d=lead_one.dNow if lead_one.present else None,
       lead_v=lead_one.vLead if lead_one.present else None)
     if LoC.long_control_state != stock_state:
       LoC.reset()
@@ -84,5 +87,5 @@ class Tncr1Long:
     # owner's end-force rule, last: never firmer than the end ceiling; the standstill hold then firms up at HOLD_RATE
     return float(self.end_force_limit.update(accel_shaped, CS.vEgo, CS.standstill, long_active, CS.aEgo,
                                              pitch=calibrated_pose.orientation.pitch if calibrated_pose is not None else None,
-                                             lead_d=lead_one.dRel if lead_one.present else None,
+                                             lead_d=lead_one.dNow if lead_one.present else None,
                                              lead_v=lead_one.vLead if lead_one.present else None))

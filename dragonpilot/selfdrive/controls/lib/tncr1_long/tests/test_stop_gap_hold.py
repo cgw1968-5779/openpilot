@@ -198,3 +198,13 @@ def test_roll_guard_after_a_gas_creep_is_the_soft_catch():
   assert min(soft) > min(plain)                                        # 2.0 m, not 2.5 m
   step = max(soft[k] - soft[k + 1] for k in range(len(soft) - 1))
   assert step <= M.ROLL_RATE_CREEP * 0.01 + 1e-9                       # built under the send side's onset threshold
+
+
+def test_lead_view_gives_the_distance_as_it_is_now():
+  # radarState is RADAR_LAG old (stop_approach.py): closing at 3 m/s the lead is 0.57 m nearer than dRel says
+  from types import SimpleNamespace
+  from dragonpilot.selfdrive.controls.lib.stop_approach import RADAR_LAG
+  mk = lambda d, vrel: LeadView(SimpleNamespace(status=True, dRel=d, vRel=vrel, vLead=0.0))
+  assert abs(mk(8.0, -3.0).dNow - (8.0 - 3.0 * RADAR_LAG)) < 1e-9 and mk(8.0, -3.0).dRel == 8.0
+  assert mk(8.0, 0.0).dNow == 8.0 and mk(8.0, 2.0).dNow == 8.0     # standing / opening: the radar distance itself
+  assert mk(0.3, -5.0).dNow > 0.0

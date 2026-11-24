@@ -219,6 +219,24 @@ def _stop_point(lead, latched):
   return lead.dRel + s
 
 
+RADAR_LAG = 0.19   # s. What radarState says is this old: over 246 recorded stops behind a standing lead (65 Cross, 181 Altis)
+                   # dRel was 0.19 s x speed MORE than the stop distance + the wheel odometry (0.2 m at 4 km/h, 0.5 m at
+                   # 10 km/h, 1.3 m at 30 km/h), and the lead's plate in the road camera (no lag) agreed with the odometry.
+                   # Planned on the late distance the slope is set for a stop point ~0.3 m too far and the scale k
+                   # climbs as the car slows. The stop target uses the distance as it is now.
+
+
+class _Now:
+  """the radar lead with dRel brought forward by RADAR_LAG at the closing speed (everything else as radard gives it)"""
+
+  def __init__(self, lead, v_ego):
+    self._lead = lead
+    self.dRel = max(lead.dRel - max(v_ego - lead.vLead, 0.0) * RADAR_LAG, min(lead.dRel, 0.05))
+
+  def __getattr__(self, name):
+    return getattr(self._lead, name)
+
+
 class _Lead:
   def __init__(self, status, d_rel, v_lead):
     self.status, self.dRel, self.vLead = status, d_rel, v_lead
@@ -262,6 +280,8 @@ class StopApproach:
       self.creep, self.creep_cap = True, None
     elif v_ego <= 0.02 or v_ego > CREEP_V_OFF:
       self.creep, self.creep_cap = False, None
+    if RADAR_LAG > 0.0 and lead is not None and bool(lead.status) and not getattr(lead, 'virtual', False):
+      lead = _Now(lead, v_ego)
     if not off and lead is not None and bool(lead.status) and lead.vLead >= LEAD_STOPPED_V and v_ego < V_EGO_STOPPING:
       d_stop = _stop_point(lead, self.stopping)
     else:

@@ -13,6 +13,8 @@ DT = 0.05
 def _before_the_slope(monkeypatch, request):
   # the tests below were written for the brake phase + open-loop release (SLOPE_ENABLED False, STOP_GAP 3.2), which is
   # still the code path with the slope off; the slope's own tests are *_slope_*
+  if 'radar_lag' not in request.node.name:
+    monkeypatch.setattr(SA, 'RADAR_LAG', 0.0)   # the tests hand over the distance as it is (their own kinematics)
   if 'slope' not in request.node.name:
     monkeypatch.setattr(SA, 'SLOPE_ENABLED', False)
     monkeypatch.setattr(SA, 'STOP_GAP', 3.2)
@@ -455,3 +457,33 @@ def test_slope_short_stop_is_made_up_a_little_not_put_back_on():
   assert (np.maximum.accumulate(low) - low).max() <= SA.SLOPE_REFIRM_MAX + 1e-9   # "a little"
   assert (-np.diff(low)).max() <= SA.SLOPE_REFIRM_J * sa.dt + 1e-9               # and slowly
   assert d > SA.SLOPE_SAFE_GAP
+
+
+def test_radar_lag_distance_is_brought_forward_at_the_closing_speed():
+  # radarState is RADAR_LAG old: closing at 5 m/s on a standing lead the car is 0.95 m nearer than it says
+  assert SA._Now(lead(10.0), 5.0).dRel == pytest.approx(10.0 - 5.0 * SA.RADAR_LAG)
+  assert SA._Now(lead(10.0, v=3.0), 5.0).dRel == pytest.approx(10.0 - 2.0 * SA.RADAR_LAG)
+  assert SA._Now(lead(10.0, v=6.0), 5.0).dRel == 10.0          # a lead pulling away: nothing taken off, nothing added
+  assert SA._Now(lead(10.0), 0.0).dRel == 10.0                 # standing: the radar distance itself
+  assert SA._Now(lead(0.5), 5.0).dRel > 0.0
+  n = SA._Now(N(status=True, dRel=8.0, vLead=0.0, aLeadK=-1.0), 2.0)
+  assert n.aLeadK == -1.0 and n.status and n.vLead == 0.0      # everything else as radard gives it
+
+
+def test_radar_lag_stop_ends_where_the_true_distance_says(monkeypatch):
+  # the same approach three ways: the true distance (no lag anywhere), a late radar taken as it is, a late radar
+  # brought forward. Taken as it is the car plans on room it does not have and ends short.
+  def run(lag_radar, lag_code):
+    monkeypatch.setattr(SA, 'RADAR_LAG', lag_code)
+    sa = StopApproach(); v, d, hist = 30.0 / 3.6, 45.0, []
+    for _ in range(6000):
+      hist.append(d)
+      seen = hist[max(len(hist) - 1 - int(round(lag_radar / sa.dt)), 0)]
+      out = sa.update(v, lead(seen), -0.2, False)
+      v = max(v + min(out, 0.0) * sa.dt, 0.0); d -= v * sa.dt
+      if v <= 0.02:
+        break
+    return d
+  true, late, fixed = run(0.0, 0.0), run(0.19, 0.0), run(0.19, 0.19)
+  assert late < true - 0.10
+  assert abs(fixed - true) < abs(late - true) and abs(fixed - true) < 0.10
