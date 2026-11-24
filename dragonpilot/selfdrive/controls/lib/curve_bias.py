@@ -39,7 +39,13 @@ CURVE_OUTWARD_V_BP = [v * CV.KPH_TO_MS for v in (30., 50., 60., 70., 90., 100., 
 # 0.16 / 0.13 -> 0.22 / 0.17 (50 unchanged: raising it pushed 40-55 km/h curves 10-44 cm outward). Closed-loop sim
 # (whole route, model pull-back 1.5 / 2.0 / 2.5 s): 55-70 km/h curves 11-25 cm further out (were 37-43 cm inside),
 # 40-55 km/h 1-5 cm, never past the centre; straights unchanged, command jerk p95 2.69 -> 2.60.
-CURVE_OUTWARD_FRAC_V = [0.0, 0.13, 0.22, 0.17, 0.155, 0.155, 0.155]
+# dpcr, owner 2026-11-25 (after the 11-24 drive: "80 km/h curves sometimes sit on the inside"; shown the table, he chose
+# "for now hold 0.22 from 60 km/h up", until the learning logic he asked for at the same time exists): 70 / 90 / 100 /
+# 120 km/h 0.17 / 0.155 / 0.155 / 0.155 -> 0.22. Told to the owner: above 70 km/h the line pursuit carries 0.85 of the
+# command (lane_centering.py LINE_W_MAX), so this fraction acts on the remaining 15 % only - at 80 km/h the command
+# changes by about 0.9 % of the curvature (0.163 -> 0.22 on 15 %); the pursuit's own outward fraction (LINE_OUT_FRAC_V,
+# 0 below 85 km/h) is not changed here.
+CURVE_OUTWARD_FRAC_V = [0.0, 0.13, 0.22, 0.22, 0.22, 0.22, 0.22]
 
 
 def apply_curve_outward_bias(desired_curvature: float, v_ego: float) -> float:
