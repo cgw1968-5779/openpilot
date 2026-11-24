@@ -126,6 +126,7 @@ procs = [
   PythonProcess("tombstoned", "system.tombstoned", always_run, enabled=not PC),
   PythonProcess("updated", "system.updated.updated", only_offroad, enabled=not PC),
   PythonProcess("tn_autoupdate", "dragonpilot.system.tn_autoupdate", always_run, enabled=not PC),  # dragonpilot hook
+  PythonProcess("curve_learn_sync", "dragonpilot.system.curve_learn_sync", only_offroad, enabled=not PC),  # dragonpilot hook
   PythonProcess("uploader", "system.loggerd.uploader", and_(comma_connect, always_run)),
   PythonProcess("statsd", "system.statsd", always_run),
   PythonProcess("feedbackd", "selfdrive.ui.feedback.feedbackd", only_onroad),
