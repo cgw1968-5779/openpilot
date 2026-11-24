@@ -61,6 +61,7 @@ MPC as on the car, 25 stops): stopped-lead stops identical; 11 moving-lead stops
 import numpy as np
 
 from openpilot.common.realtime import DT_MDL
+from dragonpilot.selfdrive.controls.lib.tncr1_long.end_force_limit import FEEL_A, FEEL_BP, FEEL_V
 
 STOP_GAP = 3.5          # m: radar gap the stop ends at (owner 2026-11-23: 3.5 m; 3.2 until then, when the eased end was open loop)
 LEAD_STOPPED_V = 1.0    # m/s: lead slower than this counts as stopped
@@ -174,7 +175,11 @@ def slope_request(v, k, hard=False):
 
 def slope_deliver(v, request):
   """the decel the car gives for a request (<= 0) at speed v, by the fit"""
-  return -request * np.interp(v, SLOPE_DELIVER_V, SLOPE_DELIVER_GAIN) + np.interp(v, SLOPE_DELIVER_V, SLOPE_DELIVER_ADD)
+  a = -request * np.interp(v, SLOPE_DELIVER_V, SLOPE_DELIVER_GAIN) + np.interp(v, SLOPE_DELIVER_V, SLOPE_DELIVER_ADD)
+  # the last km/h is eased to the feel line when the car gives more (end_force_limit.py FEEL_*): the stop takes that
+  # much longer, so the slope counts on it and begins that much earlier. Only the lower FEEL_PLAN of the feel window: the
+  # ease grows at FEEL_RATE and the car answers ~0.4 s late, so the upper part is still on what the request gives.
+  return np.where(np.asarray(v) < FEEL_PLAN * FEEL_V, np.minimum(a, -np.interp(v, FEEL_BP, FEEL_A)), a)
 
 
 def slope_distance(v_from, k=1.0):
@@ -219,6 +224,28 @@ def _stop_point(lead, latched):
   return lead.dRel + s
 
 
+# Crawl-on (owner 2026-11-24, C4 road test of 5cfac4a3d: "creeping up to a standing lead at low speed it stops too far
+# back - let the brake go and add only a short touch of gas, a little push forward"). Route 0000000a 23:14:13: 5 km/h
+# with 9.2 m to the lead, the request stayed -0.52 .. -0.19 (the slope's light floor, the MPC's own 6 m stop) and the
+# Cross, which gives -0.3 .. -0.45 for that below 4 km/h, stood at 5.6 m; 22:55:03 5.7 m, 09:09:00 5.9 m, and the same
+# on the versions before the slope (08:55 6.4 m, 08:58 6.2 m). The end of a stop from 3 km/h takes ~1.2 m: while the
+# car is slower than CRAWL_V_IN, still rolling, and has more than that plus CRAWL_ROOM_ON left to STOP_GAP, the request
+# is a speed hold at CRAWL_V instead of a brake - mostly the released brake (the hybrid's own creep carries it), a
+# little positive only while the car is below CRAWL_V - changed at CRAWL_J, never a step. Once the room is down to the
+# slope's own distance (+ CRAWL_ROOM_OFF) the slope takes the stop as before. Never from a standstill: a car that has
+# stopped stays stopped (owner 11-20).
+FEEL_PLAN = 0.7            # of end_force_limit.FEEL_V: below this the slope counts on the eased end (slope_deliver)
+CRAWL_V = 3.0 / 3.6        # m/s: the speed held on the way to the stop point
+CRAWL_V_IN = 5.0 / 3.6     # m/s: only below this (a faster approach is the slope's)
+CRAWL_V_MIN = 0.35         # m/s: only while still rolling
+CRAWL_ROOM_ON = 1.0        # m more than the slope needs from the present speed: crawl on
+CRAWL_ROOM_OFF = 0.30      # m more than the slope needs (+ CRAWL_T_OFF of travel): hand over to the slope
+CRAWL_T_OFF = 0.30         # s: the slope's request builds from the released brake, the car rolls on meanwhile
+CRAWL_KP = 0.6             # 1/s
+CRAWL_A = [-0.30, 0.25]    # m/s^2: the speed hold's request range ("a little push", never a launch)
+CRAWL_J = 0.6              # m/s^3
+
+
 RADAR_LAG = 0.19   # s. What radarState says is this old: over 246 recorded stops behind a standing lead (65 Cross, 181 Altis)
                    # dRel was 0.19 s x speed MORE than the stop distance + the wheel odometry (0.2 m at 4 km/h, 0.5 m at
                    # 10 km/h, 1.3 m at 30 km/h), and the lead's plate in the road camera (no lag) agreed with the odometry.
@@ -251,6 +278,7 @@ class StopApproach:
     self.dt = dt
     self.phase = None  # None (MPC), 'wait', 'brake', 'release', 'handback'
     self.a = 0.0
+    self.crawl = False
     self.still_t = 0.0        # slope: time the wheels have been standing
     self.eased = False        # slope: the request has begun to ease toward the stop (no firming again)
     self.eased_a = 0.0        # slope: the lightest request since the end began
@@ -302,6 +330,7 @@ class StopApproach:
     was_moving = self.lead_moving
     self.lead_moving = not off and lead is not None and bool(lead.status) and lead.vLead >= LEAD_STOPPED_V
     if not stopped_lead:
+      self.crawl = False
       self.wait_a = WAIT_ACCEL
       if self.phase in (None, 'handback') and (self.phase is None or abs(self.a - a_mpc) < 0.05):
         self.phase = None
@@ -323,6 +352,17 @@ class StopApproach:
         self.a = float(np.clip(self.a, -0.1, 0.0))   # the soft stop builds from the released gas, not from the MPC's first answer
       self.moved = was_moving and self.a < WAIT_ACCEL
       self.phase = 'brake' if self.moved else 'wait'
+    if SLOPE_ENABLED and CRAWL_V > 0.0:
+      spare = lead.dRel - STOP_GAP - slope_distance(max(v_ego, CRAWL_V) if self.crawl else v_ego, 1.0)
+      if self.crawl:
+        self.crawl = spare > CRAWL_ROOM_OFF + v_ego * CRAWL_T_OFF and v_ego > CRAWL_V_MIN and not self.creep
+        if not self.crawl:
+          self.phase, self.eased = 'release', False   # the slope from here to the stop
+      elif (self.phase in ('wait', 'release') and CRAWL_V_MIN < v_ego < CRAWL_V_IN and spare > CRAWL_ROOM_ON
+            and not self.creep and not getattr(lead, 'virtual', False)):
+        self.crawl = True
+      if self.crawl:
+        return self._step(float(np.clip(CRAWL_KP * (CRAWL_V - v_ego), CRAWL_A[0], CRAWL_A[1])), CRAWL_J, CRAWL_J)
     need_pre = _need(v_ego, lead.dRel - v_ego * T_PRE)
     if SLOPE_ENABLED:
       if self.phase in ('wait', 'brake') and slope_k(v_ego, lead.dRel - v_ego * T_PRE) >= SLOPE_START:

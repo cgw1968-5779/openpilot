@@ -487,3 +487,48 @@ def test_radar_lag_stop_ends_where_the_true_distance_says(monkeypatch):
   true, late, fixed = run(0.0, 0.0), run(0.19, 0.0), run(0.19, 0.19)
   assert late < true - 0.10
   assert abs(fixed - true) < abs(late - true) and abs(fixed - true) < 0.10
+
+
+def _crawl_run(v, d, n=3000, give=lambda v, out: out):
+  sa = StopApproach(); sa.phase = 'release'; sa.a = -0.3
+  rows = []
+  for _ in range(n):
+    out = sa.update(v, lead(d), -0.3, False)
+    rows.append((v, d, out, sa.crawl))
+    v = max(v + give(v, out) * sa.dt, 0.0); d -= v * sa.dt
+    if v <= 0.02:
+      break
+  return sa, np.array(rows)
+
+
+def test_slope_crawls_on_to_the_stop_point_instead_of_stopping_far_back():
+  # route 0000000a 23:14:13: 5 km/h with 9.2 m to a standing lead; the Cross stood at 5.6 m. Now the brake is let go
+  # and the car held near CRAWL_V until the slope's own distance is left
+  sa, r = _crawl_run(5.0 / 3.6, 9.2)
+  assert r[:, 3].any()
+  c = r[r[:, 3] > 0]
+  assert c[:, 2].max() <= SA.CRAWL_A[1] + 1e-9 and c[:, 2].min() >= SA.CRAWL_A[0] - 1e-9      # a little push, never a launch
+  assert np.abs(np.diff(r[:, 2])).max() <= max(SA.CRAWL_J, SA.SLOPE_J_BUILD[-1], SA.SLOPE_J_EASE) * sa.dt + 1e-9   # never a step
+  assert c[len(c) // 2:, 0].max() < 4.5 / 3.6 and c[len(c) // 2:, 0].min() > 2.0 / 3.6           # held near CRAWL_V
+  assert not r[-1, 3] and abs(r[-1, 1] - SA.STOP_GAP) < 0.6                                     # the slope ends it near the stop point
+
+
+def test_slope_crawl_is_only_for_a_slow_car_with_room_and_never_from_rest():
+  sa = StopApproach(); sa.phase = 'release'; sa.a = -0.3
+  sa.update(4.0 / 3.6, lead(4.6), -0.3, False); assert not sa.crawl      # the slope's own distance is all that is left
+  sa = StopApproach(); sa.phase = 'release'; sa.a = -0.8
+  sa.update(12.0 / 3.6, lead(30.0), -0.8, False); assert not sa.crawl    # a faster approach is the slope's
+  sa = StopApproach(); sa.phase = 'release'; sa.a = -0.3
+  out = sa.update(0.2, lead(8.0), -0.3, False); assert not sa.crawl and out <= 0.0   # (nearly) stopped far back: stays
+  sa = StopApproach(); sa.phase = 'release'; sa.a = -0.1
+  sa.update(4.0 / 3.6, lead(9.0), -0.1, False, gas=True); assert not sa.crawl        # the driver's gas creep has its own stop
+  sa = StopApproach()
+  sa.update(4.0 / 3.6, lead(9.0), -0.3, False); assert sa.crawl
+  sa.update(4.0 / 3.6, lead(9.0, v=2.0), -0.3, False); assert not sa.crawl            # the lead moves: back to the plan
+
+
+def test_slope_counts_on_the_eased_end():
+  # end_force_limit eases the last km/h to the feel line: the slope's distance from low speed is the longer one
+  v = 0.5 * SA.FEEL_PLAN * SA.FEEL_V
+  assert float(SA.slope_deliver(v, -0.37)) == pytest.approx(-float(np.interp(v, SA.FEEL_BP, SA.FEEL_A)))
+  assert float(SA.slope_deliver(SA.FEEL_V, -0.37)) > 0.40     # above the window: what the request gives

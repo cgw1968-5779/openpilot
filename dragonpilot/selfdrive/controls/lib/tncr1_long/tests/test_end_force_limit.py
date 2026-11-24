@@ -4,10 +4,20 @@
 # Consultant: rav4kumar (Kumar).
 # Part of a sunnypilot-based project, distributed under the sunnypilot license (see LICENSE.md and NOTICE).
 import numpy as np
+import pytest
+import dragonpilot.selfdrive.controls.lib.tncr1_long.end_force_limit as EFL
 from openpilot.common.realtime import DT_CTRL
 from dragonpilot.selfdrive.controls.lib.tncr1_long.end_force_limit import EndForceLimit, HOLD_RATE, POST_T, \
   SETTLE_MIN, SETTLE_MAX, V_LINE, END_ACCEL, CEIL_BP, CEIL_A, \
   END_RELEASE_RATE, END_FIRM_RATE, END_GAP_MIN
+
+
+@pytest.fixture(autouse=True)
+def _no_feel_for_the_older_tests(monkeypatch, request):
+  # the tests written before FEEL_* leave a_ego at its default (-1.0 = "slowing"); the feel has its own tests below
+  if 'feel' not in request.node.name:
+    monkeypatch.setattr(EFL, 'FEEL_KI', 0.0)
+
 
 
 def ceil(kph):
@@ -179,3 +189,70 @@ def test_rebound_right_after_the_stop_keeps_the_hold():
   for _ in range(int(POST_T / DT_CTRL) + 5):
     e.update(-1.2, 0.0, True, True)
   assert e.update(-1.2, 1.0 / 3.6, False, True, 0.2) >= -0.37
+
+
+def _feel_stop(real_of, v0=3.4 / 3.6, accel=-0.37, **kw):
+  """a stop from v0 with the request `accel`; the car's real decel is real_of(sent). Returns rows (v, sent, real)"""
+  e = EFL.EndForceLimit(); v, a, rows = v0, real_of(accel), []
+  for _ in range(1500):
+    out = e.update(accel, v, False, True, a, **kw)
+    a += (real_of(out) - a) * 0.01 / 0.3          # the car answers with a 0.3 s lag
+    rows.append((v, out, a)); v = max(v + a * 0.01, 0.0)
+    if v <= 0.0:
+      break
+  return e, np.array(rows)
+
+
+def test_feel_eases_the_end_when_the_car_slows_harder_than_the_feel_line():
+  # route 0000000a 22:38:12: -0.37 asked, the Cross on -0.50 down to the wheel stop
+  e, r = _feel_stop(lambda s: s - 0.13)
+  assert r[0, 1] == pytest.approx(-0.37, abs=0.01)
+  assert (np.diff(r[r[:, 2] < -0.30, 1]) >= -1e-9).all()                  # only eases while the car slows this hard
+  assert r[:, 1].min() >= -0.37 - 1e-6                                    # and nothing is ever firmer than the end value
+  assert np.diff(r[:, 1]).max() <= EFL.FEEL_RATE * 0.01 + 1e-9            # slowly
+  assert EFL.FEEL_FLOOR + 1e-9 >= r[:, 1].max() > -0.30                   # eased, never past the floor
+  assert r[-1, 2] > -0.42                                                 # the car is softer at the wheel stop than -0.50
+  # ... and the instant of the stop and the settle stay on what was eased (no step back to the end value)
+  sent = r[-1, 1]
+  assert e.update(-0.37, 0.0, True, True, 0.3) == pytest.approx(sent, abs=1e-6)
+  assert e.update(-1.2, 0.0, True, True, 0.3) == pytest.approx(sent, abs=1e-6)
+
+
+def test_feel_leaves_a_soft_stop_alone():
+  # route 00000005 09:04:45: -0.37 asked, the car on -0.10 .. -0.20 - nothing to ease
+  _, r = _feel_stop(lambda s: s + 0.22)
+  assert np.allclose(r[r[:, 0] > 2.0 / 3.6, 1], -0.37, atol=1e-6)
+  assert r[:, 1].max() <= -0.33
+
+
+def test_feel_never_goes_under_what_the_room_needs():
+  # 2.6 m behind a standing lead at 3 km/h on a car that slows hard: the end keeps what still stops END_GAP_MIN short
+  e = EFL.EndForceLimit(); v, d, a = 3.0 / 3.6, 2.6, -0.6
+  for _ in range(1500):
+    need = EFL.end_need(v, d, 0.0)
+    out = e.update(-0.9, v, False, True, a, lead_d=d, lead_v=0.0)
+    assert out <= -min(need, 0.9) + 1e-6
+    a += (out - 0.13 - a) * 0.01 / 0.3; v = max(v + a * 0.01, 0.0); d -= v * 0.01
+    if v <= 0.0:
+      break
+  assert d > EFL.END_GAP_MIN - 0.05
+
+
+def test_feel_is_forgotten_for_the_next_stop():
+  e, _ = _feel_stop(lambda s: s - 0.13)
+  assert e.feel > 0.0
+  e.update(-0.5, 6.0 / 3.6, False, True, -0.5)
+  assert e.feel == 0.0
+
+
+def test_feel_gives_the_ease_back_when_the_car_stops_slowing():
+  # the hybrid's creep eats a light request (route 00000159: -0.30 gave ~0): eased first, then the car hardly slows -
+  # the ease comes back slowly, never past the end value
+  e = EFL.EndForceLimit(); v = 3.0 / 3.6; outs = []
+  for _ in range(60):
+    outs.append(e.update(-0.37, v, False, True, -0.60))
+  assert outs[-1] > -0.30
+  for _ in range(200):
+    outs.append(e.update(-0.37, v, False, True, -0.02))
+  assert outs[-1] == pytest.approx(-0.37, abs=1e-6)
+  assert (-np.diff(outs)).max() <= EFL.FEEL_RATE * 0.01 + 1e-9

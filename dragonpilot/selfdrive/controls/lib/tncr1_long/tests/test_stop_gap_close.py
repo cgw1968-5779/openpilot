@@ -9,6 +9,7 @@ from cereal import log
 from dragonpilot.selfdrive.controls.lib.tncr1_long.long_ext import LeadView
 import dragonpilot.selfdrive.controls.lib.tncr1_long.stop_gap_close as stop_gap_close
 from dragonpilot.selfdrive.controls.lib.tncr1_long.stop_gap_close import StopGapClose
+from dragonpilot.selfdrive.controls.lib.tncr1_long import end_force_limit
 from dragonpilot.selfdrive.controls.lib.tncr1_long.end_force_limit import EndForceLimit
 
 
@@ -31,6 +32,13 @@ def run(c, n, accel, v, a_ego, l, standstill=False, active=True):
   for _ in range(n):
     out = c.update(accel, v, a_ego, standstill, l, active)
   return out
+
+
+@pytest.fixture(autouse=True)
+def _end_without_the_feel(monkeypatch):
+  # these tests are about stop_gap_close (off in dpcr since 2026-11-23) on the end line as it was; the feel of the last
+  # km/h (end_force_limit FEEL_*) has its own tests
+  monkeypatch.setattr(end_force_limit, 'FEEL_KI', 0.0)
 
 
 def sim(v, d, plain=-0.6, creep=0.27, tau=0.6, delay=0.2, t_max=30.0, hole=True):
