@@ -17,6 +17,7 @@ import numpy as np
 
 from openpilot.common.filter_simple import FirstOrderFilter
 
+from dragonpilot.selfdrive.controls.lib.curve_bias_learn import CurveBiasLearner, LEARN_FILE
 from dragonpilot.selfdrive.controls.lib.lane_choice import LaneChoice
 
 
@@ -163,6 +164,7 @@ LINE_PRED_T = 0.75          # s: measured command -> actual yaw delay (route fa;
 # (1/(1-frac) - 1) k L^2 / 2: at 100 km/h (L 47 m) with 0.08: R 2000 m ~6 cm, R 1000 m ~12 cm, R 500 m ~25 cm.
 LINE_OUT_V_BP = [85.0 / 3.6, 100.0 / 3.6]  # m/s
 LINE_OUT_FRAC_V = [0.0, 0.08]
+LINE_OUT_MAX = 0.20                        # with the learned part (curve_bias_learn.py)
 LINE_OUT_K_BP = [1e-4, 3e-4]               # 1/m: |lane-centre curvature| (centre fit) over which the fraction fades in;
                                            # not the pursuit's own curvature (it wiggles +-0.26e-3 on straights)
 LINE_W_RISE = 0.5           # 1/s: 2 s to take over
@@ -171,8 +173,10 @@ LINE_FILTER_TAU = 0.1       # s; low-pass on the line curvature (0.3 oscillated 
 
 
 class LaneCentering:
-  def __init__(self, dt: float):
+  def __init__(self, dt: float, learn: bool = False):
     self.dt = dt
+    # the learned curve outward fraction (curve_bias_learn.py); kept in its file only when controlsd asks for it
+    self.curve_learn = CurveBiasLearner(dt, LEARN_FILE if learn else None)
     self.offset_filter = FirstOrderFilter(0.0, LANE_CENTER_FILTER_TAU, dt)
     self.heading_filter = FirstOrderFilter(0.0, LANE_CENTER_FILTER_TAU, dt)
     self.width_filter = FirstOrderFilter(0.0, LANE_CENTER_WIDTH_TAU, dt)  # x == 0 until the first confident width
@@ -283,7 +287,8 @@ class LaneCentering:
     self._push_command(self.k_prev)
     k_line = self.line_curvature(model_v2, v_ego) if meas_ok and not lane_changing else None
     if k_line is not None:
-      k_line *= 1.0 - float(np.interp(v_ego, LINE_OUT_V_BP, LINE_OUT_FRAC_V)) * float(np.interp(self.lane_k, LINE_OUT_K_BP, [0.0, 1.0]))
+      out = float(np.interp(v_ego, LINE_OUT_V_BP, LINE_OUT_FRAC_V)) + self.curve_learn.extra(v_ego, k_line)   # + the learned part
+      k_line *= 1.0 - _clip(out, 0.0, LINE_OUT_MAX) * float(np.interp(self.lane_k, LINE_OUT_K_BP, [0.0, 1.0]))
     trusted = k_line is not None and abs(k_line - model_curvature) * v_ego ** 2 <= LINE_MAX_DIFF_ACCEL
     if trusted:
       if not self.line_valid and self.line_w <= 0.0:
@@ -399,6 +404,8 @@ def apply_lane_centering(lc: LaneCentering, desired_curvature: float, model_v2, 
   # dpcr 11-10: the centering now runs from 30 km/h, inside the lane choice's 15-70 km/h; while the lane choice steers
   # to another lane the centering hands back as in a lane change (it would pull to the model's lane)
   corr = lc.update(model_v2, CS.vEgo, lat_active, CS.steeringPressed, 0.0, desired_curvature, lane_changing or lc.choice.active)
+  lc.curve_learn.update(CS.vEgo, curvature, lc.last_meas, lat_active, CS.steeringPressed, CS.leftBlinker or CS.rightBlinker,
+                        lane_changing or lc.choice.active)
   if lat_active:
     corr += lc.choice.update(model_v2, CS.vEgo, desired_curvature, curvature, CS.steeringPressed,
                              CS.leftBlinker or CS.rightBlinker, lane_changing)

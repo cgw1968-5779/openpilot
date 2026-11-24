@@ -48,11 +48,16 @@ CURVE_OUTWARD_V_BP = [v * CV.KPH_TO_MS for v in (30., 50., 60., 70., 90., 100., 
 CURVE_OUTWARD_FRAC_V = [0.0, 0.13, 0.22, 0.22, 0.22, 0.22, 0.22]
 
 
-def apply_curve_outward_bias(desired_curvature: float, v_ego: float) -> float:
+CURVE_OUTWARD_FRAC_RANGE = [0.0, 0.35]   # the table plus the learned part (curve_bias_learn.py) stays inside this
+
+
+def apply_curve_outward_bias(desired_curvature: float, v_ego: float, extra: float = 0.0) -> float:
   # In a fast curve, command a slightly smaller curvature so the car runs wider and stops cutting the inside. Faded
   # out at low speed (tight curves there need the full turn-in or the car runs wide). Straights and small lane
   # corrections below the deadzone are untouched.
   frac = float(np.interp(v_ego, CURVE_OUTWARD_V_BP, CURVE_OUTWARD_FRAC_V))
+  if extra != 0.0:   # the learned part for this speed and side
+    frac = float(np.clip(frac + extra, CURVE_OUTWARD_FRAC_RANGE[0], CURVE_OUTWARD_FRAC_RANGE[1]))
   if frac == 0.0 or abs(desired_curvature) <= CURVE_OUTWARD_DEADZONE:
     return desired_curvature
   return desired_curvature * (1.0 - frac)   # frac < 0 scales the curvature UP (inward)
