@@ -255,6 +255,12 @@ class StoppingController:
   # tapers it to the owner's -0.35 at 0 km/h. The plan blends in from -0.55 and wins below -0.70 as before.
   CF_END_CROSS = -0.47  # m/s^2 (owner 2026-10-15 road test: "a touch lighter after the creep", -0.50 -> -0.47)
   CF_PLAN_SOFT_CROSS = -0.52  # m/s^2 (kept 0.05 below CF_END_CROSS)
+  # dpcr 2026-11-26: the creep-follow stop ended softly because end_force_limit's ceiling took its -0.47 down to
+  # -0.37 from 3 km/h (owner 10-22). That ceiling is the owner's manual-template taper now (-0.60 at 3 km/h, for stops
+  # that arrive firm), which would let -0.47 through to ~1.5 km/h. The soft creep-follow stop keeps its own end:
+  # -0.47 down to CF_EASE_V, eased to the end-of-stop line (-0.37 at 3 km/h, -0.36 at 1, -0.34 at 0). Not when the
+  # plan asks for more (below CF_PLAN_FIRM it is the plan's stop).
+  CF_EASE_V = 4.0 / 3.6  # m/s
 
   def __init__(self, stop_accel):
     self.stop_accel = stop_accel
@@ -302,9 +308,14 @@ class StoppingController:
       return self.stop_accel
     return max(self.stop_accel, self.FLAT_HOLD_ACCEL)
 
-  def _cf_request(self, a_target, prev_accel):
+  def _cf_request(self, a_target, prev_accel, v_ego=None):
     target = float(np.interp(a_target, [self.CF_PLAN_FIRM, self.CF_PLAN_SOFT_CROSS], [self.CF_PLAN_FIRM, self.CF_END_CROSS]))
     target = min(target, a_target) if a_target < self.CF_PLAN_FIRM else target
+    if v_ego is not None and a_target >= self.CF_PLAN_FIRM and v_ego < self.CF_EASE_V:
+      v3 = self.END_CURVE_V[3]
+      soft = float(np.interp(v_ego, self.END_CURVE_V[:4], self.END_CURVE_A[:4])) if v_ego <= v3 else \
+        float(np.interp(v_ego, [v3, self.CF_EASE_V], [self.END_CURVE_A[3], self.CF_END_CROSS]))
+      target = max(target, soft)   # the soft end: only ever lighter
     if target < prev_accel:
       return max(target, min(prev_accel, 0.0) - self.CF_RATE * DT_CTRL)
     return min(target, prev_accel + self.END_RATE * DT_CTRL)
@@ -364,7 +375,7 @@ class StoppingController:
 
     if state != LongCtrlState.stopping:
       if cf_stop:
-        return state, float(np.clip(self._cf_request(a_target, prev_accel), accel_limits[0], accel_limits[1]))
+        return state, float(np.clip(self._cf_request(a_target, prev_accel, CS.vEgo), accel_limits[0], accel_limits[1]))
       if self.end_active:
         return state, float(np.clip(self._end_request(a_target, prev_accel, CS.vEgo, has_lead), accel_limits[0], accel_limits[1]))
       # coming off the hold: linear, slow through the hand-over band, then LAUNCH_RATE up to the plan (see RELEASE_*)
@@ -390,7 +401,7 @@ class StoppingController:
       if not CS.standstill and not self.stopped_once and a_target < self.STOPPING_FOLLOW_MIN and a_target > output_accel:
         output_accel = min(a_target, output_accel + self.STOPPING_FOLLOW_RATE * DT_CTRL)
       if cf_stop:
-        output_accel = self._cf_request(a_target, prev_accel)
+        output_accel = self._cf_request(a_target, prev_accel, CS.vEgo)
       elif self.end_active:
         # still rolling inside the end window: the line (or the plan where it is firmer), never the eased-off curve
         output_accel = self._end_request(a_target, prev_accel, CS.vEgo, has_lead)
