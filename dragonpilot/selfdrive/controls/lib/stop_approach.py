@@ -140,6 +140,15 @@ SLOPE_ENV_HARD_A = CEIL_A[:4] + [-1.50, -2.00, -2.50, -2.60, -2.60]
 # ... except the stop after the driver's gas creep (owner 2026-11-20: "a smooth LIGHT brake"): it keeps the bound it had
 # (sim, gas released at 3 km/h 4.0 m back: -0.45 asked / -0.66 real; with the taper -0.60 / -0.84)
 SLOPE_ENV_CREEP_A = [-0.34, -0.36, -0.37, -0.37, -1.00, -1.40, -1.80, -2.30, -2.60]
+# ... and while it is the soft stop (CREEP_SOFT decides, not the room) it is no firmer than this line either: until
+# 2026-11-26 the old end ceiling did that between 3 and 4 km/h (sim, 3 km/h 4.0 m back: -0.45 asked)
+CREEP_SOFT_V = [3.0 / 3.6, 5.0 / 3.6]
+CREEP_SOFT_A = [-0.37, -0.60]
+# What the Cross itself adds (owner 2026-11-26: "why is the gas-creep stop still heavy - the PCM?"): the only two
+# recorded ones (0000000a 11-24 22:55:06, 000000ec) asked -0.25 / -0.30 and the car was on -0.55 / -0.60 with 1040-
+# 1200 N, where the same request gets ~700 N on any other stop; 960 N were on 0.5 s after the gas, the car still at
+# -0.06. Tried here and NOT kept: easing the request for what the car really gives (KI 2 on real - 1.2 x request, up
+# to 0.15-0.30 for 1.5 s) - the sim car, which has no such wind-up, coasted on and 5 km/h / 8 m ended 2.1 m back.
 SLOPE_K_HARD = 1.5      # a stop this short of room (late cut-in, late engagement) may use the hard bound
 SLOPE_J_BUILD_A = [0.0, 0.5, 1.0]   # m/s^2 already asked
 SLOPE_J_BUILD = [1.5, 1.5, 1.5]     # m/s^3: the build = J_BUILD, dpcr's own (0.8 at the first touch cost a short stop 0.5 s: sim 36 km/h / 37.6 m 3.0 -> 2.2 m)
@@ -405,7 +414,10 @@ class StopApproach:
       if self.creep and self._creep_cap(v_ego, lead.dRel) > CREEP_GIVE_UP:
         self.creep = False             # no room for a soft stop: the ordinary stop (and the urgent rule) from here
       if self.creep:
-        target, j_build = max(target, -self._creep_cap(v_ego, lead.dRel), float(np.interp(v_ego, SLOPE_ENV_V, SLOPE_ENV_CREEP_A))), CREEP_J
+        cap = self._creep_cap(v_ego, lead.dRel)
+        target, j_build = max(target, -cap, float(np.interp(v_ego, SLOPE_ENV_V, SLOPE_ENV_CREEP_A))), CREEP_J
+        if cap <= CREEP_SOFT + 1e-6:
+          target = max(target, float(np.interp(v_ego, CREEP_SOFT_V, CREEP_SOFT_A)))
       out = self._step(target, SLOPE_J_EASE, j_build)
     elif self.phase == 'wait':
       if exp and a_ego is not None and a_ego < -(need + WAIT_FB_MARGIN):
