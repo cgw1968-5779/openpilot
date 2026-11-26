@@ -273,6 +273,7 @@ def _ideal_car(monkeypatch):
   monkeypatch.setattr(SA, 'SLOPE_DELIVER_GAIN', [1.0] * len(SA.SLOPE_DELIVER_V))
   monkeypatch.setattr(SA, 'SLOPE_DELIVER_ADD', [0.0] * len(SA.SLOPE_DELIVER_V))
   monkeypatch.setattr(SA, 'SLOPE_ANSWER_T', 0.0)
+  monkeypatch.setattr(SA, 'SLOPE_LAND_V', [-2.0, -1.0])   # ... and down to the wheel stop (no landing)
 
 
 def test_slope_is_one_line_worked_back_from_the_stop_point(monkeypatch):
@@ -527,8 +528,13 @@ def test_slope_crawl_is_only_for_a_slow_car_with_room_and_never_from_rest():
   sa.update(4.0 / 3.6, lead(9.0, v=2.0), -0.3, False); assert not sa.crawl            # the lead moves: back to the plan
 
 
-def test_slope_counts_on_the_eased_end():
-  # end_force_limit eases the last km/h to the feel line: the slope's distance from low speed is the longer one
-  v = 0.5 * SA.FEEL_PLAN
-  assert float(SA.slope_deliver(v, -0.37)) == pytest.approx(-float(np.interp(v, SA.FEEL_BP, SA.FEEL_A)))
-  assert float(SA.slope_deliver(3.5 / 3.6, -0.37)) > 0.40     # above it: what the request gives
+def test_slope_counts_on_the_landing():
+  # end_force_limit lets the pedal come up REL_T before the stop (owner's template 2026-11-26): the car gives less
+  # over the last km/h, the slope's distance from low speed is the longer one - and nothing changes above it
+  plain = 0.37 * float(np.interp(0.1, SA.SLOPE_DELIVER_V, SA.SLOPE_DELIVER_GAIN))
+  assert float(SA.slope_deliver(0.1, -0.37)) == pytest.approx(SA.REL_FRAC * plain, abs=0.01)
+  assert float(SA.slope_deliver(0.1, -0.37)) < plain
+  for kph in (2.0, 3.5, 8.0, 20.0):
+    v = kph / 3.6
+    want = 0.6 * float(np.interp(v, SA.SLOPE_DELIVER_V, SA.SLOPE_DELIVER_GAIN)) + float(np.interp(v, SA.SLOPE_DELIVER_V, SA.SLOPE_DELIVER_ADD))
+    assert float(SA.slope_deliver(v, -0.6)) == pytest.approx(want)

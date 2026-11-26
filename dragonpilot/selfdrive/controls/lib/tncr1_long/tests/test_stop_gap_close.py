@@ -36,9 +36,9 @@ def run(c, n, accel, v, a_ego, l, standstill=False, active=True):
 
 @pytest.fixture(autouse=True)
 def _end_without_the_feel(monkeypatch):
-  # these tests are about stop_gap_close (off in dpcr since 2026-11-23) on the end line as it was; the feel of the last
-  # km/h (end_force_limit FEEL_*) has its own tests
-  monkeypatch.setattr(end_force_limit, 'FEEL_KI', 0.0)
+  # these tests are about stop_gap_close (off in dpcr since 2026-11-23) on the end line as it was; the landing of the
+  # last km/h (end_force_limit REL_*) has its own tests
+  monkeypatch.setattr(end_force_limit, 'REL_RATE', 0.0)
 
 
 def sim(v, d, plain=-0.6, creep=0.27, tau=0.6, delay=0.2, t_max=30.0, hole=True):
@@ -214,7 +214,7 @@ def test_tncr_takes_over_only_below_18kph_and_keeps_its_limit():
   # eased by itself, the car slid and then firmed to -1.5 at the end (owner: 1 bookmark each). The 3-bookmark stops
   # that day all began it at <= 17.5 km/h. From 25 km/h the plain plan brakes alone down to V_MAX, then it closes.
   gap, hist = sim(25.0 / 3.6, 30.0, plain=-1.2, t_max=40.0)
-  assert 3.1 <= gap <= 3.6, gap
+  assert 3.1 <= gap <= 3.8, gap   # 3.6 until 2026-11-26: the end ceiling is the template taper now, a firm end stops a little earlier
   assert not any(a for v, _, a in hist if v > stop_gap_close.V_MAX + 0.01)  # never above 18 km/h
   above = [cmd for v, cmd, _ in hist if v > 5.0 / 3.6]
   assert all(c1 - c0 <= stop_gap_close.RELEASE_RATE * 0.01 + 1e-9 for c0, c1 in zip(above, above[1:], strict=False))
@@ -251,7 +251,7 @@ def test_tncr_delivery_hole_no_ease_firm_pump():
   # route 00000084 21:15:04: eased into the Cross's 9-13 km/h delivery hole, the decel dropped and the gap feedback
   # firmed back (ease - firm - ease - firm). With the hole in the mapping the request falls monotonically below 13 km/h
   gap, hist = sim(17.0 / 3.6, 20.0, plain=-1.0)
-  assert 3.0 <= gap <= 3.6, gap
+  assert 3.0 <= gap <= 3.8, gap   # 3.6 until 2026-11-26 (the template taper in the end ceiling; stop_gap_close itself is off in dpcr)
   band = [cmd for v, cmd, active in hist if 5.0 / 3.6 <= v <= 13.0 / 3.6]
   firmed = max(band[i] - band[i + 1] for i in range(len(band) - 1))
   assert firmed < 0.011, firmed  # never firmer by more than one FIRM_RATE step and no sustained re-firm

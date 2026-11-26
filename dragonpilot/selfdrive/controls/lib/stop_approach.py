@@ -61,7 +61,7 @@ MPC as on the car, 25 stops): stopped-lead stops identical; 11 moving-lead stops
 import numpy as np
 
 from openpilot.common.realtime import DT_MDL
-from dragonpilot.selfdrive.controls.lib.tncr1_long.end_force_limit import FEEL_A, FEEL_BP
+from dragonpilot.selfdrive.controls.lib.tncr1_long.end_force_limit import CEIL_A, REL_FRAC, REL_T, REL_V
 
 STOP_GAP = 3.5          # m: radar gap the stop ends at (owner 2026-11-23: 3.5 m; 3.2 until then, when the eased end was open loop)
 LEAD_STOPPED_V = 1.0    # m/s: lead slower than this counts as stopped
@@ -121,6 +121,7 @@ SLOPE_A = [-0.34, -0.36, -0.37, -0.37, -0.48, -0.58, -0.82, -1.10, -1.50, -1.75,
 SLOPE_DELIVER_V = [1.2 / 3.6, 2.3 / 3.6, 4.5 / 3.6, 6.5 / 3.6, 9.0 / 3.6, 12.0 / 3.6, 16.0 / 3.6, 22.0 / 3.6, 30.0 / 3.6]
 SLOPE_DELIVER_GAIN = [1.2, 1.3, 1.1, 0.95, 0.80, 0.68, 0.69, 0.79, 0.80]
 SLOPE_DELIVER_ADD = [0.0, 0.0, 0.0, 0.05, 0.25, 0.41, 0.41, 0.30, 0.27]
+SLOPE_LAND_V = [0.4, 1.0]   # of the landing's speed range: the car is down on REL_FRAC of its decel by 0.4, untouched at 1
 SLOPE_ANSWER_T = 0.35   # s: the brake's answer time at low speed (plant fit: 0.4 s at 2 km/h, 0.3 at 4.5, 0.2 from 8)
 SLOPE_LIGHT_FLOOR = -0.25   # m/s^2: a light scale never takes the request above this (the Cross creeps on -0.25)
 SLOPE_START = 0.90      # the stop begins once the room is down to the slope's own distance / this
@@ -130,8 +131,15 @@ SLOPE_W_V_LIGHT = [1.0 / 3.6, 2.5 / 3.6]  # m/s: lighter scaling fades out below
 SLOPE_LAG = 0.0         # s of travel before a change is felt (the answer time is in slope_distance: SLOPE_ANSWER_T)
 # the firmest the scaled slope may ask at each speed (the end ceiling of tncr1_long/end_force_limit.py below 3 km/h)
 SLOPE_ENV_V = [0.0, 1.0 / 3.6, 2.0 / 3.6, 3.0 / 3.6, 5.0 / 3.6, 8.0 / 3.6, 12.0 / 3.6, 20.0 / 3.6, 30.0 / 3.6]
-SLOPE_ENV_A = [-0.34, -0.36, -0.37, -0.37, -1.00, -1.40, -1.80, -2.30, -2.60]
-SLOPE_ENV_HARD_A = [-0.34, -0.36, -0.37, -0.37, -1.50, -2.00, -2.50, -2.60, -2.60]
+# 2026-11-26 (owner: "the end of the stop after my manual template"): below 3 km/h the bound is the template's taper
+# (end_force_limit.py CEIL_A: -0.60 at 3 km/h, -0.52 at 2, -0.42 at 1; -0.37 / -0.37 / -0.36 until then), so a stop
+# that has to be firmer than the plain slope keeps a steady taper to the end instead of dropping to -0.37 at 3 km/h.
+# The plain slope (k = 1) is inside both and does not change.
+SLOPE_ENV_A = CEIL_A[:4] + [-1.00, -1.40, -1.80, -2.30, -2.60]
+SLOPE_ENV_HARD_A = CEIL_A[:4] + [-1.50, -2.00, -2.50, -2.60, -2.60]
+# ... except the stop after the driver's gas creep (owner 2026-11-20: "a smooth LIGHT brake"): it keeps the bound it had
+# (sim, gas released at 3 km/h 4.0 m back: -0.45 asked / -0.66 real; with the taper -0.60 / -0.84)
+SLOPE_ENV_CREEP_A = [-0.34, -0.36, -0.37, -0.37, -1.00, -1.40, -1.80, -2.30, -2.60]
 SLOPE_K_HARD = 1.5      # a stop this short of room (late cut-in, late engagement) may use the hard bound
 SLOPE_J_BUILD_A = [0.0, 0.5, 1.0]   # m/s^2 already asked
 SLOPE_J_BUILD = [1.5, 1.5, 1.5]     # m/s^3: the build = J_BUILD, dpcr's own (0.8 at the first touch cost a short stop 0.5 s: sim 36 km/h / 37.6 m 3.0 -> 2.2 m)
@@ -176,10 +184,11 @@ def slope_request(v, k, hard=False):
 def slope_deliver(v, request):
   """the decel the car gives for a request (<= 0) at speed v, by the fit"""
   a = -request * np.interp(v, SLOPE_DELIVER_V, SLOPE_DELIVER_GAIN) + np.interp(v, SLOPE_DELIVER_V, SLOPE_DELIVER_ADD)
-  # the last km/h is eased to the feel line when the car gives more (end_force_limit.py FEEL_*): the stop takes that
-  # much longer, so the slope counts on it and begins that much earlier. Only below FEEL_PLAN, the lower part of the feel window: the
-  # ease grows at FEEL_RATE and the car answers ~0.4 s late, so the upper part is still on what the request gives.
-  return np.where(np.asarray(v) < FEEL_PLAN, np.minimum(a, -np.interp(v, FEEL_BP, FEEL_A)), a)
+  # the landing (end_force_limit.py REL_*): REL_T before the stop the request eases to REL_FRAC of itself and the car
+  # answers SLOPE_ANSWER_T later, so over the last (REL_T - SLOPE_ANSWER_T) x decel of speed the car gives less and the
+  # stop takes that much longer - the slope counts on it and begins that much earlier (closed-loop sim: 0.11 m)
+  v_land = np.maximum(np.minimum((REL_T - SLOPE_ANSWER_T) * a, REL_V - SLOPE_ANSWER_T * a), 1e-3)   # never begun above REL_V
+  return a * np.interp(np.asarray(v) / v_land, SLOPE_LAND_V, [REL_FRAC, 1.0])
 
 
 def slope_distance(v_from, k=1.0):
@@ -234,12 +243,13 @@ def _stop_point(lead, latched):
 # little positive only while the car is below CRAWL_V - changed at CRAWL_J, never a step. Once the room is down to the
 # slope's own distance (+ CRAWL_ROOM_OFF) the slope takes the stop as before. Never from a standstill: a car that has
 # stopped stays stopped (owner 11-20).
-FEEL_PLAN = 2.45 / 3.6     # m/s: below this the slope counts on the eased end (slope_deliver); 0.7 x the 3.5 km/h
-                           # window of 2026-11-25 - kept where it was when the window went to 4.5 km/h on 11-26
 CRAWL_V = 3.0 / 3.6        # m/s: the speed held on the way to the stop point
 CRAWL_V_IN = 5.0 / 3.6     # m/s: only below this (a faster approach is the slope's)
 CRAWL_V_MIN = 0.35         # m/s: only while still rolling
 CRAWL_ROOM_ON = 1.0        # m more than the slope needs from the present speed: crawl on
+CRAWL_T_ON = 2.0           # s x the speed still above CRAWL_V, more room to begin: up there the speed hold is still a
+                           # brake, and a crawl begun at 4.9 km/h with 1.0 m to spare was over 0.5 s later - a
+                           # request eased by 0.08 and built again by 0.12 at 4.3 km/h for nothing (2026-11-26)
 CRAWL_ROOM_OFF = 0.30      # m more than the slope needs (+ CRAWL_T_OFF of travel): hand over to the slope
 CRAWL_T_OFF = 0.30         # s: the slope's request builds from the released brake, the car rolls on meanwhile
 CRAWL_KP = 0.6             # 1/s
@@ -359,7 +369,8 @@ class StopApproach:
         self.crawl = spare > CRAWL_ROOM_OFF + v_ego * CRAWL_T_OFF and v_ego > CRAWL_V_MIN and not self.creep
         if not self.crawl:
           self.phase, self.eased = 'release', False   # the slope from here to the stop
-      elif (self.phase in ('wait', 'release') and CRAWL_V_MIN < v_ego < CRAWL_V_IN and spare > CRAWL_ROOM_ON
+      elif (self.phase in ('wait', 'release') and CRAWL_V_MIN < v_ego < CRAWL_V_IN
+            and spare > CRAWL_ROOM_ON + max(v_ego - CRAWL_V, 0.0) * CRAWL_T_ON
             and not self.creep and not getattr(lead, 'virtual', False)):
         self.crawl = True
       if self.crawl:
@@ -394,7 +405,7 @@ class StopApproach:
       if self.creep and self._creep_cap(v_ego, lead.dRel) > CREEP_GIVE_UP:
         self.creep = False             # no room for a soft stop: the ordinary stop (and the urgent rule) from here
       if self.creep:
-        target, j_build = max(target, -self._creep_cap(v_ego, lead.dRel)), CREEP_J
+        target, j_build = max(target, -self._creep_cap(v_ego, lead.dRel), float(np.interp(v_ego, SLOPE_ENV_V, SLOPE_ENV_CREEP_A))), CREEP_J
       out = self._step(target, SLOPE_J_EASE, j_build)
     elif self.phase == 'wait':
       if exp and a_ego is not None and a_ego < -(need + WAIT_FB_MARGIN):

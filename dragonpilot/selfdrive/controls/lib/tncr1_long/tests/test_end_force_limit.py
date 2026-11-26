@@ -7,16 +7,21 @@ import numpy as np
 import pytest
 import dragonpilot.selfdrive.controls.lib.tncr1_long.end_force_limit as EFL
 from openpilot.common.realtime import DT_CTRL
-from dragonpilot.selfdrive.controls.lib.tncr1_long.end_force_limit import EndForceLimit, HOLD_RATE, POST_T, \
+from dragonpilot.selfdrive.controls.lib.tncr1_long.end_force_limit import EndForceLimit, HOLD_RATE, HOLD_SOFT_RATE, POST_T, \
   SETTLE_MIN, SETTLE_MAX, V_LINE, END_ACCEL, CEIL_BP, CEIL_A, \
   END_RELEASE_RATE, END_FIRM_RATE, END_GAP_MIN
 
 
 @pytest.fixture(autouse=True)
-def _no_feel_for_the_older_tests(monkeypatch, request):
-  # the tests written before FEEL_* leave a_ego at its default (-1.0 = "slowing"); the feel has its own tests below
-  if 'feel' not in request.node.name:
-    monkeypatch.setattr(EFL, 'FEEL_KI', 0.0)
+def _no_landing_for_the_older_tests(monkeypatch, request):
+  # the tests written before the landing (REL_*) leave a_ego at its default (-1.0 = "slowing hard"); the landing has
+  # its own tests below
+  if 'landing' not in request.node.name:
+    monkeypatch.setattr(EFL, 'REL_RATE', 0.0)
+  # the tests of the line below 2 km/h jump from one speed to the next in a single frame; with the template's taper
+  # (2026-11-26) the ceiling is no longer flat there, so such a jump would come off as the release ramp instead
+  if 'line' in request.node.name:
+    monkeypatch.setattr(EFL, 'END_RELEASE_RATE', 1e3)
 
 
 
@@ -26,9 +31,9 @@ def ceil(kph):
 
 def test_line_from_2kph_to_minus_030():
   e = EndForceLimit()
-  assert e.update(-0.92, 2.8 / 3.6, False, True) == ceil(2.8)    # above the 2 km/h line: the ceiling (-0.37, owner 10-22)
-  assert e.update(-0.80, 2.0 / 3.6, False, True) == ceil(2.0)    # tncr: the ceiling (-0.60) caps it; a_line = -0.60
-  out = e.update(-0.70, 1.0 / 3.6, False, True)                  # 18:51: -0.70 at 1.4 km/h asked -> ceiling -0.38
+  assert e.update(-0.92, 2.8 / 3.6, False, True) == ceil(2.8)    # above the 2 km/h line: the ceiling (template taper)
+  assert e.update(-0.80, 2.0 / 3.6, False, True) == ceil(2.0)    # the ceiling (-0.52) caps it; a_line = -0.52
+  out = e.update(-0.70, 1.0 / 3.6, False, True)                  # 18:51: -0.70 at 1.4 km/h asked -> the line / ceiling
   assert abs(out - max(ceil(1.0), END_ACCEL + (ceil(2.0) - END_ACCEL) * 0.5)) < 1e-9
   assert e.update(-0.46, 0.01, False, True) >= END_ACCEL - 0.01 * 0.5 / V_LINE - 1e-9  # at the stop: ~-0.34
   assert e.update(-0.46, 0.0, False, True) == END_ACCEL
@@ -49,8 +54,8 @@ def test_standstill_continues_into_the_hold_without_a_step():
   # owner 2026-11-09: the instant of the stop and the body's settle stay on END_ACCEL (the hold asks -1.2 at once)
   for _ in range(int(SETTLE_MIN / DT_CTRL) - 1):
     assert e.update(-1.2, 0.0, True, True, -0.5) == END_ACCEL      # still settling (body moving)
-  out = e.update(-1.2, 0.0, True, True, 0.0)                      # settled after SETTLE_MIN: firms up at HOLD_RATE
-  assert abs(out - (END_ACCEL - HOLD_RATE * DT_CTRL)) < 1e-9
+  out = e.update(-1.2, 0.0, True, True, 0.0)                      # settled after SETTLE_MIN: firms up, softly (11-26)
+  assert abs(out - (END_ACCEL - HOLD_SOFT_RATE * DT_CTRL)) < 1e-9
   for _ in range(300):
     out = e.update(-1.2, 0.0, True, True)
   assert out == -1.2 and e.out is None
@@ -64,7 +69,7 @@ def test_settle_ends_at_settle_max_even_if_the_body_still_moves():
   outs = [e.update(-1.2, 0.0, True, True, -0.5) for _ in range(int(SETTLE_MAX / DT_CTRL) + 20)]
   n = int(SETTLE_MAX / DT_CTRL)
   assert all(o == END_ACCEL for o in outs[:n - 1])
-  assert outs[-1] < END_ACCEL and abs((outs[-2] - outs[-1]) - HOLD_RATE * DT_CTRL) < 1e-9
+  assert outs[-1] < END_ACCEL and abs((outs[-2] - outs[-1]) - HOLD_SOFT_RATE * DT_CTRL) < 1e-9
 
 
 def test_engaged_below_the_line():
@@ -76,7 +81,7 @@ def test_engaged_below_the_line():
   assert e.update(-0.9, 0.0, False, True) == END_ACCEL
 
 
-def test_stall_lets_the_line_go_and_reanchors():
+def test_stall_lets_the_line_go_and_reanchors_the_line():
   e = EndForceLimit()
   e.update(-0.6, 2.0 / 3.6, False, True, -0.5)
   assert e.update(-0.8, 1.5 / 3.6, False, True, -0.5) > -0.8      # on the line
@@ -93,16 +98,21 @@ def test_fixed_ceiling_from_5kph_caps_everything():  # tncr 2026-10-15 evening: 
   e = EndForceLimit()
   assert e.update(-2.7, 6.0 / 3.6, False, True) == -2.7                       # above 5 km/h: untouched
   # owner: 5 km/h may still need a firm brake; the last 1-0 km/h must be below -0.6, best -0.34
-  # 2026-10-22 owner: 3 -0.37, 2 -0.37, 1 -0.36, 0 -0.34 (below 2 km/h the line from the 2 km/h anchor: 1 km/h -0.355)
+  # 2026-10-22 owner: 3 -0.37, 2 -0.37, 1 -0.36, 0 -0.34; dpcr 2026-11-26 (owner: "after my manual template"): the
+  # template's taper 3 -0.60, 2 -0.52, 1 -0.42 (below 2 km/h the line from the 2 km/h anchor: 1 km/h -0.43 -> the table)
   # the table itself (each point on its own: from one frame to the next the cut now comes off as a ramp, see below)
-  for kph, want in ((5.0, -2.0), (4.0, -1.185), (3.0, -0.37), (2.0, -0.37), (1.0, -0.36), (0.0, END_ACCEL)):
+  for kph, want in ((5.0, -2.0), (4.0, -1.30), (3.0, -0.60), (2.0, -0.52), (1.0, -0.42), (0.0, END_ACCEL)):
     out = EndForceLimit().update(-2.7, kph / 3.6, False, True)
     assert abs(out - want) < 0.005, (kph, out)
   e2 = EndForceLimit()
   assert e2.update(-0.65, 5.0 / 3.6, False, True) == -0.65                    # an ordinary end (END curve) never touches it
-  assert e2.update(-0.60, 3.5 / 3.6, False, True) == -0.60                    # -0.78 ceiling at 3.5 km/h
-  assert EndForceLimit().update(-0.60, 3.0 / 3.6, False, True) == -0.37      # owner line from 3 km/h
-  assert -0.60 < e2.update(-0.60, 3.0 / 3.6, False, True) < -0.37             # reached from 3.5 km/h: as a ramp
+  assert e2.update(-0.60, 3.5 / 3.6, False, True) == -0.60                    # -0.95 ceiling at 3.5 km/h
+  assert EndForceLimit().update(-0.90, 3.0 / 3.6, False, True) == -0.60      # the template's taper from 3 km/h
+  e2.update(-0.90, 3.5 / 3.6, False, True)
+  assert -0.90 < e2.update(-0.90, 3.0 / 3.6, False, True) < -0.60             # reached from 3.5 km/h: as a ramp
+  # an ordinary stop asks -0.37 below 3 km/h (the plan's own end line): inside the taper, passed as it is
+  assert EndForceLimit().update(-0.37, 3.0 / 3.6, False, True) == -0.37
+  assert EndForceLimit().update(-0.37, 2.0 / 3.6, False, True) == -0.37
   e3 = EndForceLimit()                                                        # into the standstill hold without a step
   e3.update(-2.7, 1.0 / 3.6, False, True)
   assert e3.update(-2.7, 0.0, False, True, -0.5) == END_ACCEL
@@ -188,44 +198,54 @@ def test_rebound_right_after_the_stop_keeps_the_hold():
   e.update(-0.6, 0.0, True, True)
   for _ in range(int(POST_T / DT_CTRL) + 5):
     e.update(-1.2, 0.0, True, True)
-  assert e.update(-1.2, 1.0 / 3.6, False, True, 0.2) >= -0.37
+  assert e.update(-1.2, 1.0 / 3.6, False, True, 0.2) >= ceil(1.0) - 1e-9
 
 
-def _feel_stop(real_of, v0=3.4 / 3.6, accel=-0.37, **kw):
-  """a stop from v0 with the request `accel`; the car's real decel is real_of(sent). Returns rows (v, sent, real)"""
-  e = EFL.EndForceLimit(); v, a, rows = v0, real_of(accel), []
+def _landing(real_of, v0=3.4 / 3.6, accel=-0.37, lag=0.5, **kw):
+  """a stop from v0 with the request `accel` (a number or a function of speed); the car's real decel is real_of(sent),
+  answered with `lag`. Returns rows (v, sent, real, eased by the landing)"""
+  req = accel if callable(accel) else (lambda v: accel)
+  e = EFL.EndForceLimit(); v, a, rows = v0, real_of(req(v0)), []
   for _ in range(1500):
-    out = e.update(accel, v, False, True, a, **kw)
-    a += (real_of(out) - a) * 0.01 / 0.3          # the car answers with a 0.3 s lag
-    rows.append((v, out, a)); v = max(v + a * 0.01, 0.0)
+    out = e.update(req(v), v, False, True, a, **kw)
+    a += (real_of(out) - a) * 0.01 / lag
+    rows.append((v, out, a, e.feel)); v = max(v + a * 0.01, 0.0)
     if v <= 0.0:
       break
   return e, np.array(rows)
 
 
-def test_feel_eases_the_end_when_the_car_slows_harder_than_the_feel_line():
-  # route 0000000a 22:38:12: -0.37 asked, the Cross on -0.50 down to the wheel stop
-  e, r = _feel_stop(lambda s: s - 0.13)
-  assert r[0, 1] == pytest.approx(-0.37, abs=0.01)
-  assert (np.diff(r[r[:, 2] < -0.30, 1]) >= -1e-9).all()                  # only eases while the car slows this hard
-  assert r[:, 1].min() >= -0.37 - 1e-6                                    # and nothing is ever firmer than the end value
-  assert np.diff(r[:, 1]).max() <= EFL.FEEL_RATE * 0.01 + 1e-9            # slowly
-  assert EFL.FEEL_FLOOR + 1e-9 >= r[:, 1].max() > -0.30                   # eased, never past the floor
-  assert r[-1, 2] > -0.42                                                 # the car is softer at the wheel stop than -0.50
+def test_landing_lets_the_pedal_come_up_just_before_the_stop():
+  # the owner's template 0000000c 13:06:06: firm and steady to ~1.1 km/h, then 1360 -> 840 N in 0.4 s
+  e, r = _landing(lambda s: 1.2 * s)
+  start = r[np.argmax(r[:, 3] > 0.0), 0]
+  assert 1.2 / 3.6 < start < 2.0 / 3.6                                    # not from 3-4 km/h as the feel line did
+  assert np.allclose(r[r[:, 0] > 2.0 / 3.6, 1], -0.37, atol=1e-6)         # until then the plan as it is
+  assert (np.diff(r[:, 1]) >= -1e-9).all()                                # only eases
+  assert np.diff(r[:, 1]).max() <= EFL.REL_RATE * 0.01 + 5e-4             # slowly (+ the line's own ease below 2 km/h)
+  assert r[-1, 1] == pytest.approx(EFL.REL_FLOOR, abs=0.01)               # to 0.70 of the request / the floor
+  assert r[-1, 2] > 0.90 * r[0, 2]                                        # the car lands softer than it came
   # ... and the instant of the stop and the settle stay on what was eased (no step back to the end value)
   sent = r[-1, 1]
   assert e.update(-0.37, 0.0, True, True, 0.3) == pytest.approx(sent, abs=1e-6)
   assert e.update(-1.2, 0.0, True, True, 0.3) == pytest.approx(sent, abs=1e-6)
 
 
-def test_feel_leaves_a_soft_stop_alone():
-  # route 00000005 09:04:45: -0.37 asked, the car on -0.10 .. -0.20 - nothing to ease
-  _, r = _feel_stop(lambda s: s + 0.22)
-  assert np.allclose(r[r[:, 0] > 2.0 / 3.6, 1], -0.37, atol=1e-6)
-  assert r[:, 1].max() <= -0.33
+def test_landing_is_timed_by_the_real_decel():
+  # a car that slows harder starts earlier (the same time before the stop), a car that hardly slows starts late
+  starts = []
+  for gain in (0.8, 1.2, 1.6):   # the car gives 0.8 / 1.2 / 1.6 x the request
+    _, r = _landing(lambda s, g=gain: g * s)
+    starts.append(r[np.argmax(r[:, 3] > 0.0), 0])
+  assert starts[0] < starts[1] < starts[2] <= EFL.REL_V
+  for st, gain in zip(starts, (0.8, 1.2, 1.6), strict=True):
+    # ... but a decel the request cannot keep (more than REL_GAIN x it - 12:29:39) does not bring it forward
+    assert st == pytest.approx(EFL.REL_T * max(min(gain, EFL.REL_GAIN) * 0.37, EFL.END_DECEL_MIN), abs=0.03)
 
 
-def test_feel_never_goes_under_what_the_room_needs():
+def test_landing_never_goes_under_the_floor_nor_under_what_the_room_needs():
+  _, r = _landing(lambda s: 1.2 * s, accel=-0.28)
+  assert r[:, 1].max() == pytest.approx(EFL.REL_FLOOR, abs=1e-6) and r[:, 3].max() > 0.0
   # 2.6 m behind a standing lead at 3 km/h on a car that slows hard: the end keeps what still stops END_GAP_MIN short
   e = EFL.EndForceLimit(); v, d, a = 3.0 / 3.6, 2.6, -0.6
   for _ in range(1500):
@@ -238,50 +258,60 @@ def test_feel_never_goes_under_what_the_room_needs():
   assert d > EFL.END_GAP_MIN - 0.05
 
 
-def test_feel_is_forgotten_for_the_next_stop():
-  e, _ = _feel_stop(lambda s: s - 0.13)
+def test_landing_is_forgotten_for_the_next_stop():
+  e, _ = _landing(lambda s: 1.2 * s)
   assert e.feel > 0.0
   e.update(-0.5, 7.0 / 3.6, False, True, -0.5)
   assert e.feel == 0.0
 
 
-def test_feel_gives_the_ease_back_when_the_car_stops_slowing():
-  # the hybrid's creep eats a light request (route 00000159: -0.30 gave ~0): eased first, then the car hardly slows -
-  # the ease comes back slowly, never past the end value
-  e = EFL.EndForceLimit(); v = 3.0 / 3.6; outs = []
+def test_landing_is_given_back_when_the_car_stops_slowing():
+  # the hybrid's creep eats a light request (route 00000159: -0.30 gave ~0; 0000000b 12:29:40 -0.25 gave 0 at
+  # 1.6 km/h): what was eased comes back slowly, never past the plan's own value
+  e = EFL.EndForceLimit(); v = 1.6 / 3.6; outs = []
   for _ in range(60):
-    outs.append(e.update(-0.37, v, False, True, -0.60))
-  assert outs[-1] > -0.30
+    outs.append(e.update(-0.37, v, False, True, -0.50))
+  assert outs[-1] == pytest.approx(EFL.REL_FRAC * -0.37, abs=1e-6)
   for _ in range(200):
     outs.append(e.update(-0.37, v, False, True, -0.02))
   assert outs[-1] == pytest.approx(-0.37, abs=1e-6)
-  assert (-np.diff(outs)).max() <= EFL.FEEL_RATE * 0.01 + 1e-9
+  assert (-np.diff(outs)).max() <= EFL.REL_RATE * 0.01 + 1e-9
 
 
-def test_feel_does_not_ease_on_top_of_a_brake_that_was_just_let_go():
-  # route 0000000b 12:33:18: -0.70 at 4 km/h cut to -0.37 at 3; the car's decel still belonged to the firm brake, the
-  # feel eased to -0.19, the Cross rolled on for 2 s and stopped 2.1 m from the lead
-  e = EFL.EndForceLimit(); outs = []
-  for _ in range(100):
-    e.update(-0.70, 4.2 / 3.6, False, True, -0.70)
-  for i in range(60):   # 0.6 s after the release: the car still slows hard
-    outs.append(e.update(-0.37, 3.0 / 3.6, False, True, -0.70 + 0.3 * i / 60))
-  assert min(outs[:40]) == pytest.approx(-0.37, abs=1e-6) and max(outs[:40]) == pytest.approx(-0.37, abs=1e-6)
-  # ... a steady request the car answers too hard is eased as before
-  for _ in range(150):
-    outs.append(e.update(-0.37, 2.6 / 3.6, False, True, -0.52))
-  assert outs[-1] > -0.25
-
-
-def test_feel_window_opens_early_enough_to_be_done_before_the_wheels_stop():
-  # 13:05:07 (not good) the ease began at 2.8 km/h and reached the floor at 0.9 km/h; 13:09:56 (acceptable) at 3.4 / 1.65
-  _, r = _feel_stop(lambda s: s - 0.10, v0=4.4 / 3.6, accel=-0.45)
-  floor_at = r[np.argmax(r[:, 1] >= r[:, 1].max() - 1e-6), 0] * 3.6
-  assert floor_at > 1.8
-
-
-def test_feel_leaves_a_firm_request_alone():
-  # a late stop still asks -0.70 at 4.2 km/h and the car gives just that: not the end of a stop yet, nothing is eased
+def test_landing_leaves_a_car_that_rolls_on_alone():
+  # route 0000000b 12:33:16: 2.2 km/h with no decel after a brake let go - the stop is not near, nothing is eased
   e = EFL.EndForceLimit()
-  outs = [e.update(-0.70, 4.2 / 3.6, False, True, -0.80) for _ in range(150)]
+  outs = [e.update(-0.37, 2.2 / 3.6, False, True, -0.05) for _ in range(150)]
+  assert max(outs) == pytest.approx(-0.37, abs=1e-6) and e.feel == 0.0
+  # ... and above REL_V a firm stop is never eased, however near the stop is by the clock
+  e = EFL.EndForceLimit()
+  outs = [e.update(-0.70, 4.2 / 3.6, False, True, -1.20) for _ in range(150)]
   assert max(outs) == pytest.approx(-0.70, abs=1e-6) and e.feel == 0.0
+
+
+def test_landing_of_a_firm_arrival_is_one_steady_taper():
+  # owner's template: -0.71 at 3 km/h, -0.63 at 2.2, -0.56 at 1.3 - a stop that arrives firm follows the ceiling's
+  # taper and then lands; no cut to -0.37 at 3 km/h (0000000b 12:33:14: -0.70 -> -0.26 in 0.4 s, the car rolled 2 s)
+  _, r = _landing(lambda s: 1.15 * s, v0=4.9 / 3.6, accel=lambda v: -0.75)
+  assert (np.diff(r[:, 1]) >= -1e-9).all()                                # only eases
+  assert np.diff(r[:, 1]).max() / 0.01 <= EFL.END_RELEASE_RATE + 1e-6     # and never a step
+  at = lambda kph: r[np.argmin(np.abs(r[:, 0] - kph / 3.6)), 1]
+  assert at(3.0) == pytest.approx(-0.60, abs=0.04) and -0.56 < at(2.0) < -0.40
+  assert r[-1, 1] > -0.34 and r[-1, 1] <= EFL.REL_FLOOR + 1e-9
+
+
+def test_hold_firms_softly_after_the_stop_and_fast_after_a_roll():
+  # owner's template: 800-960 N kept for 2.5 s after the stop. 13:05:07: the hold went 1040 -> 2600 N in 0.7 s while the
+  # car was still rolling under the wheel sensors' floor: -0.5 / +0.3 m/s^2 on the body
+  e = EndForceLimit()
+  e.update(-0.37, 1.0 / 3.6, False, True, -0.4)
+  outs = [e.update(-1.2, 0.0, True, True, 0.0) for _ in range(200)]
+  d = -np.diff(outs)
+  assert d.max() <= HOLD_SOFT_RATE * DT_CTRL + 1e-9 and outs[-1] < -0.9
+  e = EndForceLimit()
+  e.update(-0.37, 1.0 / 3.6, False, True, -0.4)
+  for _ in range(30):
+    e.update(-1.2, 0.0, True, True, 0.0)
+  a = e.update(-1.2, 0.8 / 3.6, False, True, 0.5)        # the wheels roll again
+  b = e.update(-1.2, 0.8 / 3.6, False, True, 0.5)
+  assert a - b == pytest.approx(HOLD_RATE * DT_CTRL, abs=1e-9)

@@ -50,6 +50,13 @@ POST_V = 2.0 / 3.6     # m/s: a rebound / creep below this is still the stop
 # then firms at HOLD_RATE into the standstill hold. The 11-08 protection stays and acts on what really happens: if the
 # wheels roll again during the settle (the standstill flag drops - the wheel-pulse creep; a rebound keeps it set, 13:00
 # +0.06 s: vEgo -0.16, flag 1), the settle ends at once and the hold firms at HOLD_RATE as before.
+# dpcr, owner 2026-11-26 (template): after his stop he kept 800-960 N for 2.5 s and the body did not move again
+# (IMU within 0.1). The system's hold firmed 0.55 s after the wheel sensors read 0 at 1.5 m/s^3 (1040 -> 2600 N in
+# 0.7 s) - and the sensors read 0 from ~0.6 km/h: on the stops that ended light (13:05:07 one bookmark, 13:09:56,
+# 11-24 09:12:14 / 09:13:53 / 09:18:17) the car was still rolling, the growing hold stopped it and the body took
+# -0.5 / +0.3 m/s^2 (stops that had really stood: 0.06 / 0.09). That is force rising before the real stop (item 0).
+# The hold now firms at HOLD_SOFT_RATE; HOLD_RATE is kept for a car whose wheels rolled again (the 11-08 creep).
+HOLD_SOFT_RATE = 0.5   # m/s^3
 SETTLE_MIN = 0.5       # s
 SETTLE_MAX = 1.0       # s
 SETTLE_A = 0.1         # m/s^2: |aEgo| below this = the body has settled
@@ -71,8 +78,18 @@ SETTLE_A = 0.1         # m/s^2: |aEgo| below this = the body has settled
 # -0.37, 1 km/h -0.36, 0 km/h -0.34 - put it in, I want to see the effect". The ceiling below 3 km/h is now that line
 # (was -1.2 / -0.60 / -0.38 / -0.34); 3 -> 5 km/h still opens to -2.0. A ceiling only: a lighter request stays lighter
 # (item 0 - nothing raises the force before the stop).
+# dpcr, owner 2026-11-26 ("make the end of the stop after my manual template"): his own stop that day (route 0000000c
+# 13:06:06, three bookmarks, not engaged) held 1360-1400 N from 4.6 to 1.2 km/h with the car on -0.76 at 3.8 km/h,
+# -0.71 at 3, -0.63 at 2.2, -0.56 at 1.3 - one steady taper, ~0.2 m/s^3 - and only then let the pedal come up. The
+# same shape on 10-05 (22:56:14: -0.67 at 3.6, -0.70 at 1.5) and 10-28 (09:19: -1.0 at 3, -0.8 at 1.5). The ceiling
+# of 10-22 (-0.37 from 3 km/h down) cut every stop that arrived firmer to -0.37 between 4 and 3 km/h: 11-26 12:33:14
+# the request went -0.70 -> -0.26 in 0.4 s, the brake 1120 -> 280 N, and the Cross rolled 2 s at 2.2 km/h with no
+# decel before it was braked again (a two-stage stop, 2.12 m; 12:34 / 12:41 the same, and 11-24 before the feel).
+# The ceiling below 3 km/h is now the template's taper as a request (his real decel / ~1.2, what the Cross gives for a
+# request down there): a stop that arrives firm eases along it instead of being cut. Still a ceiling only - an
+# ordinary stop asks -0.37 here and is not touched - and 0 km/h is the same -0.34.
 CEIL_BP = [0.0, 1.0 / 3.6, 2.0 / 3.6, 3.0 / 3.6, 5.0 / 3.6]  # m/s
-CEIL_A = [-0.34, -0.36, -0.37, -0.37, -2.0]                 # m/s^2 (CEIL_A[0] must equal END_ACCEL)
+CEIL_A = [-0.34, -0.42, -0.52, -0.60, -2.0]                 # m/s^2 (CEIL_A[0] must equal END_ACCEL)
 CEIL_V = CEIL_BP[-1]
 CEIL_TOP = CEIL_A[-1]
 STALL_V = 0.5 / 3.6    # m/s
@@ -122,45 +139,35 @@ END_FIRM_RATE = 1.0        # m/s^3: how fast it may build (a creep toward the le
 END_DECEL_MIN = 0.3        # m/s^2: the decel assumed for the time to stop when the car is barely slowing
 
 
-# Feel of the last km/h (dpcr, owner 2026-11-24, C4 road test of 5cfac4a3d: "the stop is not right, there is a jolt -
-# bring over how dppb made the end smooth"). dppb's end: the request only eases, on what the car really gives, down to
-# the lightest value at the wheel stop. On the Cross the SAME -0.36 at the end gives two different stops (89 recorded
-# stops, real decel from the wheel speed over 1.5 -> 0.7 km/h): after a firm brake let go late the car is on -0.10 ..
-# -0.25 and stops without a nod (route 00000005 09:04:45, 09:12:14); after a gentle approach - what the stop slope
-# now makes of every stop - it keeps -0.40 .. -0.56 to the wheel stop (0000000a 22:38:12 -0.50, 09:09:11 -0.51), and
-# that decel ending in one step is the jolt. No fixed table can be right for both, so the end follows the car: below
-# FEEL_V, while the car slows harder than FEEL_A for its speed (by more than FEEL_DB), the request is eased - only
-# eased, FEEL_KI x the excess (at most FEEL_RATE, FEEL_MAX in all), never lighter than FEEL_FLOOR nor than what still stops END_GAP_MIN behind the lead
-# (END_NEED), and what was eased stays eased through the wheel stop and the settle (the hold then firms from there).
-# If the eased car then slows less than the feel line, the ease is given back just as slowly - never past the end value
-# that was sent on every stop until now, so nothing is firmer than before.
-# A stop that is already soft, a downhill where the car slows less, a creep toward the lead: nothing is eased.
-FEEL_V = 4.5 / 3.6         # m/s: the end begins here (3.5 until 2026-11-26, see FEEL_STEADY below)
-FEEL_V_MIN = 0.8 / 3.6     # m/s: below this the wheel-speed decel is no longer a measurement - what was eased is kept
-FEEL_V_OFF = 6.0 / 3.6     # m/s: above this a new stop begins (the ease is forgotten)
-FEEL_BP = [0.0, 1.0 / 3.6, 2.0 / 3.6, 3.5 / 3.6, 4.5 / 3.6]   # m/s
-FEEL_A = [-0.20, -0.24, -0.30, -0.36, -0.40]                  # m/s^2: the real decel the end of a stop should have
-FEEL_DB = 0.03             # m/s^2
-FEEL_KI = 4.0              # 1/s (1.5 until 2026-11-26: with 0.1 of excess the ease took 1.5 s, too late)
-FEEL_RATE = 0.4            # m/s^3: the fastest the ease may grow (a quick let-go is what makes the hybrid roll on)
-FEEL_MAX = 0.20            # m/s^2: the most that is eased (-0.37 -> -0.17)
-FEEL_FLOOR = -0.17         # m/s^2: the lightest eased request (recorded: -0.17 .. -0.20 still stops the Cross at -0.11 .. -0.26)
-# dpcr, owner 2026-11-26 after the first drive with the feel (f541f6b54, 7 stops): "the stop still jolts a little; one
-# was acceptable (two bookmarks)". Two things in the logs:
-# (1) 13:09:56 (acceptable): eased from 3.4 km/h, on the floor by 1.65 km/h, the car answered ~0.9 s later: -0.24 /
-#     -0.19 over the last 0.4 s. 13:05:07 (not good): eased only from 2.8 km/h, on the floor at 0.9 km/h - the car was
-#     still on -0.40 / -0.34 as it stopped. The ease has to be finished ~1 s before the wheels stop: the window now
-#     opens at 4.5 km/h (line -0.40 there, -0.36 at 3.5) and the gain is 4 (was 1.5).
-# (2) 12:33:18 / 12:41:45 (stopped 2.12 / 2.14 m): the request came off a firm brake (-0.70 .. -1.1 at 4 km/h -> -0.37
-#     at 3) and the car's decel was still that of the firm brake, so the feel eased on top of the release (-0.19 at
-#     2.3 km/h); the Cross then rolled at 2 km/h with no decel for 2 s, the ease was given back - an ease-then-reapply
-#     and a short stop. The measured decel only says something about the request while that request is STEADY: no
-#     new ease while the request is more than FEEL_STEADY lighter than its own FEEL_STEADY_TAU average.
-FEEL_STEADY = 0.10         # m/s^2
-FEEL_STEADY_TAU = 0.6      # s
-# The window now reaches up to where a request may still be firm for a reason (the slope of a late stop): only a
-# request that is itself already near the end value is eased.
-FEEL_REQ_MAX = -0.50       # m/s^2: a request firmer than this is not the end of a stop yet
+# The landing (dpcr). 2026-11-24 the owner asked for dppb's smooth end ("the stop is not right, there is a jolt"); the
+# first two tries followed a line of real decel from 3.5 / 4.5 km/h down (FEEL_A, 64b53b26f / 1193d9358) and eased to
+# -0.17 early. Owner 2026-11-26 after the first of them: "still jolts a little", then "make the end of the stop after
+# my manual template". What the template (0000000c 13:06:06, see CEIL_A) does at the very end: firm and steady down to
+# 1.1 km/h, then the pedal comes up 1360 -> 840 N (x 0.62) in ~0.4 s, the decel fades -0.47 -> ~-0.1 over the last
+# 0.35 s and the car lands; 840 N stays on. What the early ease did instead (hold.py over 35 stops): either the same
+# -0.45 to the wheel stop (body rebound 0.5 m/s^2 peak to peak), or - eased to -0.17 from 3 km/h - the Cross hung at
+# ~0.5 km/h on its creep torque until the standstill hold stopped it (HOLD_SOFT_RATE above).
+# So the request stays on the plan until the stop is REL_T away (speed / the car's real decel - the Cross answers a
+# request ~0.6 s late down here: 13:05:07 the ease reached -0.17 at 1.05 km/h and the decel fell 0.6 s later, so the
+# real decel starts to fade over the last ~0.3 s as in the template), then eases at REL_RATE to REL_FRAC of itself -
+# only eases, never lighter than REL_FLOOR nor than what still stops END_GAP_MIN behind the lead (END_NEED) - and what
+# was eased stays through the wheel stop and the settle.
+# The hybrid's creep torque sets how light and how early this may be: hands-off the same brake force gives ~0.25 m/s^2
+# less than under his foot (1320 N: -0.45 engaged, -0.70 manual), -0.17 .. -0.25 sent has left the Cross rolling at
+# 1.6 - 2.2 km/h with no decel at all (12:29:40, 12:33:16) and holding -0.20 another time (13:09:55). So REL_FRAC is
+# 0.70, not the template's 0.62 (840 / 1360 N), the landing never begins above REL_V, and the decel that times it is
+# never taken as more than REL_GAIN x the request: 12:29:39 the car was on -0.57 for 0.5 s at 2.5 km/h with -0.33
+# asked (the brake filling in late after the regeneration ends at ~4.5 km/h) - not a decel the request can keep.
+# A car that stops slowing meanwhile (aEgo above STALL_A while still measured) gets it back at the same slow rate, at
+# most back to the plan's own value, so nothing is ever firmer than without the landing.
+REL_V = 2.0 / 3.6          # m/s: the landing never begins above this
+REL_T = 1.0                # s to the stop (speed / real decel) at which the pedal starts to come up
+REL_GAIN = 1.3             # the real decel counted for that is at most this x the request
+REL_FRAC = 0.70            # of the request
+REL_RATE = 0.35            # m/s^3
+REL_FLOOR = -0.25          # m/s^2: the lightest landing request
+FEEL_V_MIN = 0.8 / 3.6     # m/s: below this the wheel-speed decel is no longer a measurement
+FEEL_V_OFF = 6.0 / 3.6     # m/s: above this a new stop begins (the landing is forgotten)
 
 
 def end_need(v_ego: float, lead_d: float | None, lead_v: float | None) -> float:
@@ -193,9 +200,9 @@ class EndForceLimit:
     self.holding = False # the dynamic end is holding firmer than the ceiling / line
     self.post_t = None   # time since the first standstill of this stop (None = not stopped yet)
     self.settle = False  # the stop is settling: no firmer than the end value yet
-    self.feel = 0.0      # how much the end has been eased for what the car really gives (FEEL_*)
+    self.feel = 0.0      # how much the landing has eased the request (REL_*)
     self.eased = None    # the eased request last sent while moving
-    self.req_lp = None   # the request before the feel, averaged over FEEL_STEADY_TAU
+    self.rolled = False  # the wheels rolled again after the stop: the hold firms at HOLD_RATE
 
   def update(self, accel: float, v_ego: float, standstill: bool, long_active: bool, a_ego: float = -1.0,
              pitch: float | None = None, lead_d: float | None = None, lead_v: float | None = None) -> float:
@@ -210,6 +217,7 @@ class EndForceLimit:
       self.post_t += DT_CTRL
       if not standstill:
         self.settle = False  # the wheels roll again: no more waiting, the hold firms now (11-08)
+        self.rolled = True
       if not standstill and (v_ego > POST_V or self.post_t > POST_T):
         self.post_t, self.settle = None, False
       else:
@@ -241,23 +249,18 @@ class EndForceLimit:
         out = self.out = held  # the standstill hold then continues from what was really sent
     else:
       self.holding = False
-    # the feel of the last km/h: ease for what the car really gives (only eases; kept to the wheel stop)
-    self.req_lp = out if self.req_lp is None else self.req_lp + (out - self.req_lp) * DT_CTRL / FEEL_STEADY_TAU
-    steady = out - self.req_lp < FEEL_STEADY   # not just let go: what the car does now still belongs to a firmer request
+    # the landing: the pedal comes up just before the stop (only eases; kept to the wheel stop)
+    self.eased = None
     if v_ego > FEEL_V_OFF:
       self.feel = 0.0
-    elif FEEL_V_MIN < v_ego < FEEL_V:
-      over = float(np.interp(v_ego, FEEL_BP, FEEL_A)) - a_ego - FEEL_DB
-      if over > 0.0 and not self.holding and steady and out >= FEEL_REQ_MAX:   # not while the end is held firm for the room that is left (END_NEED)
-        self.feel = min(self.feel + min(FEEL_KI * over, FEEL_RATE) * DT_CTRL, FEEL_MAX)
-      elif over < -2.0 * FEEL_DB:
-        # the car slows LESS than the feel line (the hybrid's creep can eat a light request - route 00000159: -0.30
-        # gave ~0): what was eased is given back at the same slow rate, at most back to the end value itself
-        self.feel = max(self.feel - min(FEEL_KI * (-over - 2.0 * FEEL_DB), FEEL_RATE) * DT_CTRL, 0.0)
-    self.eased = None
-    if self.feel > 0.0 and v_ego < FEEL_V and not self.holding:
-      eased = min(out + self.feel, max(out, min(FEEL_FLOOR, -need)))
-      self.feel = eased - out   # no wind-up past the floor
+    elif v_ego < REL_V and not self.holding:   # not while the end is held firm for the room that is left (END_NEED)
+      if v_ego > FEEL_V_MIN and a_ego > STALL_A:
+        self.feel = max(self.feel - REL_RATE * DT_CTRL, 0.0)   # the car is not stopping: back toward the plan
+      elif self.feel > 0.0 or (v_ego > FEEL_V_MIN and v_ego < REL_T * max(min(-a_ego, -REL_GAIN * out), END_DECEL_MIN)):
+        self.feel += REL_RATE * DT_CTRL
+    if self.feel > 0.0 and v_ego < REL_V and not self.holding:
+      eased = min(out + self.feel, max(out, min(REL_FRAC * out, REL_FLOOR, -need)))
+      self.feel = eased - out   # no wind-up past the landing value
       if eased > out + 1e-6:
         out = self.out = self.eased = eased
     self.sent = out
@@ -272,7 +275,7 @@ class EndForceLimit:
     if standstill:
       if self.out is None:
         return accel
-      self.out = max(accel, self.out - HOLD_RATE * DT_CTRL)
+      self.out = max(accel, self.out - (HOLD_RATE if self.rolled else HOLD_SOFT_RATE) * DT_CTRL)
       if self.out <= accel + 1e-6:
         self.out = None
         return accel
