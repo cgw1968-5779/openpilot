@@ -62,16 +62,63 @@ HARD_V_W = [0.0, 1.0]
 HARD_CEIL = -1.5      # m/s^2: the lifted command never gets lighter than this
 TRIM_RATE = 1.0       # m/s^3
 
+# After the driver's gas (dpcr, owner 2026-11-26: "the stop after creeping up with the gas is still heavy - the PCM?
+# keep looking for a way to solve it"). The PCM reports what it really asks for, PCM_CRUISE ACCEL_NET. On an ordinary
+# low-speed brake that is our command plus its creep-torque compensation, which follows PCM_CRUISE NEUTRAL_FORCE
+# (6306 samples below 9 km/h, claude_work/dpcr_1127/pcmscan.py): net - cmd = -0.00036 x neutral + 0.03, i.e. -0.33 at
+# 0.4-1 km/h (955 N), -0.25 at 2.5-3 (668 N), -0.17 at 4-5 (447 N), -0.03 at 6-8 (149 N), within 0.04 of the line.
+# After the gas it asks for MORE than that, from the first frame and for as long as the stop takes:
+#   0000000a 11-24 22:55:04 (gas released at 3 km/h): cmd -0.25, net -0.80 (expected -0.50), 1200 N, the car on -0.55;
+#   000000ec 11-06 (3 km/h): cmd -0.30, net -0.67 (expected -0.53), 1000-1040 N, the car on -0.45 .. -0.57.
+# That extra (0.12 .. 0.30) is the PCM's own and it is measured every frame, with no lag: so for GAS_T after the gas,
+# below GAS_V, the command is eased by exactly what the PCM adds beyond its usual compensation (less GAS_DB, at most
+# GAS_MAX, moved at GAS_RATE, the brake never let go completely: GAS_FLOOR). Only eases, only while the PCM really
+# does it - once net - cmd is back on the line the trim is gone - and never on a command that is not braking.
+GAS_T = 6.0            # s after the gas was let go
+GAS_V = 10.0 / 3.6     # m/s
+GAS_NET_K = -0.00036   # m/s^2 per N of NEUTRAL_FORCE
+GAS_NET_C = 0.03       # m/s^2
+GAS_DB = 0.06          # m/s^2
+GAS_MAX = 0.30         # m/s^2
+GAS_RATE = 1.0         # m/s^3
+GAS_TAU = 0.15         # s: smoothing of the measured extra
+GAS_FLOOR = -0.05      # m/s^2: the eased command stays a brake
+GAS_FADE = 1.0         # s: the last part of GAS_T fades the trim out
+GAS_CMD_BP = [-1.0, -0.6]   # m/s^2: a firm command (the room is short) is eased less, from -1.0 not at all
+
 
 class DeliveryTrim:
   def __init__(self, dt: float = DT_CTRL * 3):
     self.dt = dt
     self.n_hist = max(int(round(RELEASE_T / dt)), 1)
     self.reset()
+    self.gas_t = 1e3    # s since the driver's gas
+    self.gas_trim = 0.0  # what the command is eased by after the gas (GAS_*)
+    self.extra = 0.0    # what the PCM asks beyond its usual compensation (smoothed, <= 0)
+    self.sent = None    # the command last returned
 
-  def reset(self):
+  def reset(self, gas: bool = False):
     self.hist: list[float] = []
     self.trim = 0.0   # the applied correction (negative = firmer)
+    if hasattr(self, 'gas_t'):
+      # long control is off: with the driver's gas the clock starts again, otherwise it just runs on
+      self.gas_t = 0.0 if gas else self.gas_t + self.dt
+      self.gas_trim, self.extra, self.sent = 0.0, 0.0, None
+
+  def _after_gas(self, cmd: float, v_ego: float, pcm_net, neutral) -> float:
+    self.gas_t += self.dt
+    live = pcm_net is not None and neutral is not None and self.gas_t < GAS_T and v_ego < GAS_V and cmd < 0.0
+    target = 0.0
+    if live and self.sent is not None:
+      extra = min((pcm_net - self.sent) - (GAS_NET_K * neutral + GAS_NET_C), 0.0)
+      self.extra += (extra - self.extra) * min(self.dt / GAS_TAU, 1.0)
+      target = float(np.clip(-self.extra - GAS_DB, 0.0, GAS_MAX)) * float(np.interp(self.gas_t, [GAS_T - GAS_FADE, GAS_T], [1.0, 0.0])) * \
+        float(np.interp(cmd, GAS_CMD_BP, [0.0, 1.0]))
+    elif not live:
+      self.extra = 0.0
+    step = GAS_RATE * self.dt
+    self.gas_trim = float(np.clip(target, self.gas_trim - step, self.gas_trim + step))
+    return max(cmd, min(cmd + self.gas_trim, GAS_FLOOR))   # only ever lighter, and still a brake
 
   def _target(self, cmd: float, v_ego: float, releasing: bool) -> float:
     if not ENABLED or cmd >= STEADY_FROM:
@@ -84,7 +131,7 @@ class DeliveryTrim:
     lighter = min(lighter, max(HARD_CEIL - cmd, 0.0))  # never above HARD_CEIL
     return -firmer + lighter
 
-  def apply(self, cmd: float, v_ego: float, standstill: bool, long_active: bool) -> float:
+  def apply(self, cmd: float, v_ego: float, standstill: bool, long_active: bool, pcm_net=None, neutral=None) -> float:
     if not long_active or standstill:
       self.reset()
       return cmd
@@ -95,4 +142,5 @@ class DeliveryTrim:
     target = self._target(cmd, v_ego, releasing)
     step = TRIM_RATE * self.dt
     self.trim = float(np.clip(target, self.trim - step, self.trim + step))
-    return cmd + self.trim
+    self.sent = self._after_gas(cmd + self.trim, v_ego, pcm_net, neutral)
+    return self.sent

@@ -57,6 +57,8 @@ class CarState(CarStateBase):
     self.tncr1_creep = Tncr1CreepSpeed()  # dragonpilot hook (dpcr tncr1 copy)
 
     self.pcm_follow_distance = 0
+    self.pcm_accel_net = None      # dragonpilot: what the PCM itself asks for (delivery_trim.py GAS_*)
+    self.pcm_neutral_force = None
 
     self.acc_type = 1
     self.lkas_hud = {}
@@ -205,6 +207,8 @@ class CarState(CarStateBase):
         ret.accFaulted = ret.accFaulted or cp.vl["PCM_CRUISE_2"]["LOW_SPEED_LOCKOUT"] == 2
 
     pcm_acc_status = cp.vl["PCM_CRUISE"]["CRUISE_STATE"]
+    self.pcm_accel_net = cp.vl["PCM_CRUISE"]["ACCEL_NET"]          # dragonpilot hook: delivery_trim.py GAS_*
+    self.pcm_neutral_force = cp.vl["PCM_CRUISE"]["NEUTRAL_FORCE"]
     ret.cruiseState.standstill = pcm_acc_status == 7
     ret.cruiseState.enabled = bool(cp.vl["PCM_CRUISE"]["CRUISE_ACTIVE"])
     ret.cruiseState.nonAdaptive = pcm_acc_status in (1, 2, 3, 4, 5, 6)
