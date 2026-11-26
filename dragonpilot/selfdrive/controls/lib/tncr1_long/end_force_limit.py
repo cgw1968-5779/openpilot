@@ -135,16 +135,32 @@ END_DECEL_MIN = 0.3        # m/s^2: the decel assumed for the time to stop when 
 # If the eased car then slows less than the feel line, the ease is given back just as slowly - never past the end value
 # that was sent on every stop until now, so nothing is firmer than before.
 # A stop that is already soft, a downhill where the car slows less, a creep toward the lead: nothing is eased.
-FEEL_V = 3.5 / 3.6         # m/s: the end begins here
+FEEL_V = 4.5 / 3.6         # m/s: the end begins here (3.5 until 2026-11-26, see FEEL_STEADY below)
 FEEL_V_MIN = 0.8 / 3.6     # m/s: below this the wheel-speed decel is no longer a measurement - what was eased is kept
-FEEL_V_OFF = 5.0 / 3.6     # m/s: above this a new stop begins (the ease is forgotten)
-FEEL_BP = [0.0, 1.0 / 3.6, 2.0 / 3.6, 3.5 / 3.6]   # m/s
-FEEL_A = [-0.20, -0.24, -0.30, -0.42]              # m/s^2: the real decel the end of a stop should have
+FEEL_V_OFF = 6.0 / 3.6     # m/s: above this a new stop begins (the ease is forgotten)
+FEEL_BP = [0.0, 1.0 / 3.6, 2.0 / 3.6, 3.5 / 3.6, 4.5 / 3.6]   # m/s
+FEEL_A = [-0.20, -0.24, -0.30, -0.36, -0.40]                  # m/s^2: the real decel the end of a stop should have
 FEEL_DB = 0.03             # m/s^2
-FEEL_KI = 1.5              # 1/s
+FEEL_KI = 4.0              # 1/s (1.5 until 2026-11-26: with 0.1 of excess the ease took 1.5 s, too late)
 FEEL_RATE = 0.4            # m/s^3: the fastest the ease may grow (a quick let-go is what makes the hybrid roll on)
 FEEL_MAX = 0.20            # m/s^2: the most that is eased (-0.37 -> -0.17)
 FEEL_FLOOR = -0.17         # m/s^2: the lightest eased request (recorded: -0.17 .. -0.20 still stops the Cross at -0.11 .. -0.26)
+# dpcr, owner 2026-11-26 after the first drive with the feel (f541f6b54, 7 stops): "the stop still jolts a little; one
+# was acceptable (two bookmarks)". Two things in the logs:
+# (1) 13:09:56 (acceptable): eased from 3.4 km/h, on the floor by 1.65 km/h, the car answered ~0.9 s later: -0.24 /
+#     -0.19 over the last 0.4 s. 13:05:07 (not good): eased only from 2.8 km/h, on the floor at 0.9 km/h - the car was
+#     still on -0.40 / -0.34 as it stopped. The ease has to be finished ~1 s before the wheels stop: the window now
+#     opens at 4.5 km/h (line -0.40 there, -0.36 at 3.5) and the gain is 4 (was 1.5).
+# (2) 12:33:18 / 12:41:45 (stopped 2.12 / 2.14 m): the request came off a firm brake (-0.70 .. -1.1 at 4 km/h -> -0.37
+#     at 3) and the car's decel was still that of the firm brake, so the feel eased on top of the release (-0.19 at
+#     2.3 km/h); the Cross then rolled at 2 km/h with no decel for 2 s, the ease was given back - an ease-then-reapply
+#     and a short stop. The measured decel only says something about the request while that request is STEADY: no
+#     new ease while the request is more than FEEL_STEADY lighter than its own FEEL_STEADY_TAU average.
+FEEL_STEADY = 0.10         # m/s^2
+FEEL_STEADY_TAU = 0.6      # s
+# The window now reaches up to where a request may still be firm for a reason (the slope of a late stop): only a
+# request that is itself already near the end value is eased.
+FEEL_REQ_MAX = -0.50       # m/s^2: a request firmer than this is not the end of a stop yet
 
 
 def end_need(v_ego: float, lead_d: float | None, lead_v: float | None) -> float:
@@ -179,6 +195,7 @@ class EndForceLimit:
     self.settle = False  # the stop is settling: no firmer than the end value yet
     self.feel = 0.0      # how much the end has been eased for what the car really gives (FEEL_*)
     self.eased = None    # the eased request last sent while moving
+    self.req_lp = None   # the request before the feel, averaged over FEEL_STEADY_TAU
 
   def update(self, accel: float, v_ego: float, standstill: bool, long_active: bool, a_ego: float = -1.0,
              pitch: float | None = None, lead_d: float | None = None, lead_v: float | None = None) -> float:
@@ -225,11 +242,13 @@ class EndForceLimit:
     else:
       self.holding = False
     # the feel of the last km/h: ease for what the car really gives (only eases; kept to the wheel stop)
+    self.req_lp = out if self.req_lp is None else self.req_lp + (out - self.req_lp) * DT_CTRL / FEEL_STEADY_TAU
+    steady = out - self.req_lp < FEEL_STEADY   # not just let go: what the car does now still belongs to a firmer request
     if v_ego > FEEL_V_OFF:
       self.feel = 0.0
     elif FEEL_V_MIN < v_ego < FEEL_V:
       over = float(np.interp(v_ego, FEEL_BP, FEEL_A)) - a_ego - FEEL_DB
-      if over > 0.0 and not self.holding:   # not while the end is held firm for the room that is left (END_NEED)
+      if over > 0.0 and not self.holding and steady and out >= FEEL_REQ_MAX:   # not while the end is held firm for the room that is left (END_NEED)
         self.feel = min(self.feel + min(FEEL_KI * over, FEEL_RATE) * DT_CTRL, FEEL_MAX)
       elif over < -2.0 * FEEL_DB:
         # the car slows LESS than the feel line (the hybrid's creep can eat a light request - route 00000159: -0.30

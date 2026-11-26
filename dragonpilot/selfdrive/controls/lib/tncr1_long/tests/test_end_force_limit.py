@@ -241,7 +241,7 @@ def test_feel_never_goes_under_what_the_room_needs():
 def test_feel_is_forgotten_for_the_next_stop():
   e, _ = _feel_stop(lambda s: s - 0.13)
   assert e.feel > 0.0
-  e.update(-0.5, 6.0 / 3.6, False, True, -0.5)
+  e.update(-0.5, 7.0 / 3.6, False, True, -0.5)
   assert e.feel == 0.0
 
 
@@ -256,3 +256,32 @@ def test_feel_gives_the_ease_back_when_the_car_stops_slowing():
     outs.append(e.update(-0.37, v, False, True, -0.02))
   assert outs[-1] == pytest.approx(-0.37, abs=1e-6)
   assert (-np.diff(outs)).max() <= EFL.FEEL_RATE * 0.01 + 1e-9
+
+
+def test_feel_does_not_ease_on_top_of_a_brake_that_was_just_let_go():
+  # route 0000000b 12:33:18: -0.70 at 4 km/h cut to -0.37 at 3; the car's decel still belonged to the firm brake, the
+  # feel eased to -0.19, the Cross rolled on for 2 s and stopped 2.1 m from the lead
+  e = EFL.EndForceLimit(); outs = []
+  for _ in range(100):
+    e.update(-0.70, 4.2 / 3.6, False, True, -0.70)
+  for i in range(60):   # 0.6 s after the release: the car still slows hard
+    outs.append(e.update(-0.37, 3.0 / 3.6, False, True, -0.70 + 0.3 * i / 60))
+  assert min(outs[:40]) == pytest.approx(-0.37, abs=1e-6) and max(outs[:40]) == pytest.approx(-0.37, abs=1e-6)
+  # ... a steady request the car answers too hard is eased as before
+  for _ in range(150):
+    outs.append(e.update(-0.37, 2.6 / 3.6, False, True, -0.52))
+  assert outs[-1] > -0.25
+
+
+def test_feel_window_opens_early_enough_to_be_done_before_the_wheels_stop():
+  # 13:05:07 (not good) the ease began at 2.8 km/h and reached the floor at 0.9 km/h; 13:09:56 (acceptable) at 3.4 / 1.65
+  _, r = _feel_stop(lambda s: s - 0.10, v0=4.4 / 3.6, accel=-0.45)
+  floor_at = r[np.argmax(r[:, 1] >= r[:, 1].max() - 1e-6), 0] * 3.6
+  assert floor_at > 1.8
+
+
+def test_feel_leaves_a_firm_request_alone():
+  # a late stop still asks -0.70 at 4.2 km/h and the car gives just that: not the end of a stop yet, nothing is eased
+  e = EFL.EndForceLimit()
+  outs = [e.update(-0.70, 4.2 / 3.6, False, True, -0.80) for _ in range(150)]
+  assert max(outs) == pytest.approx(-0.70, abs=1e-6) and e.feel == 0.0

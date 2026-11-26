@@ -61,7 +61,7 @@ MPC as on the car, 25 stops): stopped-lead stops identical; 11 moving-lead stops
 import numpy as np
 
 from openpilot.common.realtime import DT_MDL
-from dragonpilot.selfdrive.controls.lib.tncr1_long.end_force_limit import FEEL_A, FEEL_BP, FEEL_V
+from dragonpilot.selfdrive.controls.lib.tncr1_long.end_force_limit import FEEL_A, FEEL_BP
 
 STOP_GAP = 3.5          # m: radar gap the stop ends at (owner 2026-11-23: 3.5 m; 3.2 until then, when the eased end was open loop)
 LEAD_STOPPED_V = 1.0    # m/s: lead slower than this counts as stopped
@@ -177,9 +177,9 @@ def slope_deliver(v, request):
   """the decel the car gives for a request (<= 0) at speed v, by the fit"""
   a = -request * np.interp(v, SLOPE_DELIVER_V, SLOPE_DELIVER_GAIN) + np.interp(v, SLOPE_DELIVER_V, SLOPE_DELIVER_ADD)
   # the last km/h is eased to the feel line when the car gives more (end_force_limit.py FEEL_*): the stop takes that
-  # much longer, so the slope counts on it and begins that much earlier. Only the lower FEEL_PLAN of the feel window: the
+  # much longer, so the slope counts on it and begins that much earlier. Only below FEEL_PLAN, the lower part of the feel window: the
   # ease grows at FEEL_RATE and the car answers ~0.4 s late, so the upper part is still on what the request gives.
-  return np.where(np.asarray(v) < FEEL_PLAN * FEEL_V, np.minimum(a, -np.interp(v, FEEL_BP, FEEL_A)), a)
+  return np.where(np.asarray(v) < FEEL_PLAN, np.minimum(a, -np.interp(v, FEEL_BP, FEEL_A)), a)
 
 
 def slope_distance(v_from, k=1.0):
@@ -234,7 +234,8 @@ def _stop_point(lead, latched):
 # little positive only while the car is below CRAWL_V - changed at CRAWL_J, never a step. Once the room is down to the
 # slope's own distance (+ CRAWL_ROOM_OFF) the slope takes the stop as before. Never from a standstill: a car that has
 # stopped stays stopped (owner 11-20).
-FEEL_PLAN = 0.7            # of end_force_limit.FEEL_V: below this the slope counts on the eased end (slope_deliver)
+FEEL_PLAN = 2.45 / 3.6     # m/s: below this the slope counts on the eased end (slope_deliver); 0.7 x the 3.5 km/h
+                           # window of 2026-11-25 - kept where it was when the window went to 4.5 km/h on 11-26
 CRAWL_V = 3.0 / 3.6        # m/s: the speed held on the way to the stop point
 CRAWL_V_IN = 5.0 / 3.6     # m/s: only below this (a faster approach is the slope's)
 CRAWL_V_MIN = 0.35         # m/s: only while still rolling

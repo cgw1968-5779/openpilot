@@ -529,6 +529,6 @@ def test_slope_crawl_is_only_for_a_slow_car_with_room_and_never_from_rest():
 
 def test_slope_counts_on_the_eased_end():
   # end_force_limit eases the last km/h to the feel line: the slope's distance from low speed is the longer one
-  v = 0.5 * SA.FEEL_PLAN * SA.FEEL_V
+  v = 0.5 * SA.FEEL_PLAN
   assert float(SA.slope_deliver(v, -0.37)) == pytest.approx(-float(np.interp(v, SA.FEEL_BP, SA.FEEL_A)))
-  assert float(SA.slope_deliver(SA.FEEL_V, -0.37)) > 0.40     # above the window: what the request gives
+  assert float(SA.slope_deliver(3.5 / 3.6, -0.37)) > 0.40     # above it: what the request gives
