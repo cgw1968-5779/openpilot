@@ -207,8 +207,8 @@ class CarState(CarStateBase):
         ret.accFaulted = ret.accFaulted or cp.vl["PCM_CRUISE_2"]["LOW_SPEED_LOCKOUT"] == 2
 
     pcm_acc_status = cp.vl["PCM_CRUISE"]["CRUISE_STATE"]
-    self.pcm_accel_net = cp.vl["PCM_CRUISE"]["ACCEL_NET"]          # dragonpilot hook: delivery_trim.py GAS_*
-    self.pcm_neutral_force = cp.vl["PCM_CRUISE"]["NEUTRAL_FORCE"]
+    self.pcm_accel_net = cp.vl["PCM_CRUISE"].get("ACCEL_NET")          # dragonpilot hook: delivery_trim.py GAS_*
+    self.pcm_neutral_force = cp.vl["PCM_CRUISE"].get("NEUTRAL_FORCE")  # (None on the cars whose PCM_CRUISE has neither)
     ret.cruiseState.standstill = pcm_acc_status == 7
     ret.cruiseState.enabled = bool(cp.vl["PCM_CRUISE"]["CRUISE_ACTIVE"])
     ret.cruiseState.nonAdaptive = pcm_acc_status in (1, 2, 3, 4, 5, 6)
