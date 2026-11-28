@@ -99,3 +99,41 @@ def test_after_gas_a_firm_command_is_not_eased_and_it_ends():
   _, outs = _after_gas(-0.25, -0.30, t=DTM.GAS_T + 1.0)                # GAS_T after the gas it is over
   assert outs[-1] == pytest.approx(-0.25, abs=1e-6)
   assert min(np.diff(outs)) >= -DTM.GAS_RATE * 0.03 - 1e-9             # ... given back as a ramp
+
+
+def _creep_run(cmd_fn, v0, secs=8.0, lost=0.2):
+  """toy car: the first `lost` of a positive command is lost (11-28 measurement), 0.3 s lag; returns (t, cmd, sent, a, v)"""
+  from opendbc.car.toyota.tncr1_send.delivery_trim import DeliveryTrim
+  dt, tr, a, v, out = 0.03, DeliveryTrim(0.03), 0.0, v0, []
+  for k in range(int(secs / dt)):
+    cmd = cmd_fn(k * dt)
+    sent = tr.apply(cmd, v, False, True, a_ego=a)
+    want = max(sent - lost, 0.0) if sent > 0.0 else sent
+    a += (want - a) * dt / 0.3
+    v = max(v + a * dt, 0.0)
+    out.append((k * dt, cmd, sent, a, v))
+  return out
+
+
+def test_small_gas_at_creep_speed_is_made_up():
+  # 11-28 14:29:58: +0.2 asked at 5 km/h, the car gave +0.05: now it gets what was asked, without running past it
+  out = _creep_run(lambda t: 0.2, 5.0 / 3.6)
+  assert max(s for _, _, s, _, _ in out) <= 0.2 + 0.25 + 1e-9
+  assert 0.15 < out[int(3.0 / 0.03)][3] < 0.26 and max(a for _, _, _, a, _ in out) < 0.30
+  none = _creep_run(lambda t: 0.2, 5.0 / 3.6, lost=0.0)   # a car that gives what is asked: (almost) nothing added
+  assert max(s - c for _, c, s, _, _ in none) < 0.05 and none[-1][2] - none[-1][1] < 0.01
+
+
+def test_creep_gas_never_touches_a_brake_or_a_firm_gas():
+  from opendbc.car.toyota.tncr1_send.delivery_trim import DeliveryTrim
+  # gas made up, then the plan turns to braking: continuous through zero, and the brake command is passed as it is
+  out = _creep_run(lambda t: 0.2 if t < 4.0 else max(0.2 - 0.5 * (t - 4.0), -0.4), 5.0 / 3.6)
+  for (_, c0, s0, _, _), (_, c1, s1, _, _) in zip(out, out[1:], strict=False):
+    assert s1 - s0 > 3.5 * min(c1 - c0, 0.0) - 0.5 * 0.03 - 1e-9   # no step: the added gas leaves in proportion to the plan's own move
+  assert all(abs(s - c) < 1e-9 for _, c, s, _, _ in out if c <= 0.0)
+  tr = DeliveryTrim(0.03)
+  for _ in range(200):   # a firm gas, standstill speeds and above 15 km/h: nothing
+    assert tr.apply(0.8, 5.0 / 3.6, False, True, a_ego=0.0) == 0.8
+    assert tr.apply(0.2, 2.0 / 3.6, False, True, a_ego=0.0) == 0.2
+    assert tr.apply(0.2, 20.0 / 3.6, False, True, a_ego=0.0) == 0.2
+    assert tr.apply(0.2, 5.0 / 3.6, False, True) == 0.2   # no measurement: nothing

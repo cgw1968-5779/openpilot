@@ -308,7 +308,7 @@ class CarController(CarControllerBase):
                                                        relaxed=hud_control.leadDistanceBars == 3,
                                                        handover=not self.engage_close.active)  # tncr1 hook
           pcm_accel_cmd = self.delivery_trim.apply(pcm_accel_cmd, CS.out.vEgo, CS.out.standstill, CC.longActive,
-                                                   CS.pcm_accel_net, CS.pcm_neutral_force)  # tncr1 hook
+                                                   CS.pcm_accel_net, CS.pcm_neutral_force, CS.out.aEgo)  # tncr1 hook
           pcm_accel_cmd = max(actuators.accel, self.params.ACCEL_MIN) if max_brake else pcm_accel_cmd  # dragonpilot hook: urgent brake as is, see above
           pcm_accel_cmd = end_force_cap(pcm_accel_cmd, actuators.accel, CS.out.vEgo, CS.out.standstill)  # tncr1 hook
         else:

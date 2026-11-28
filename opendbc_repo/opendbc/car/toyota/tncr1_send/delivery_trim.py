@@ -86,6 +86,31 @@ GAS_FLOOR = -0.05      # m/s^2: the eased command stays a brake
 GAS_FADE = 1.0         # s: the last part of GAS_T fades the trim out
 GAS_CMD_BP = [-1.0, -0.6]   # m/s^2: a firm command (the room is short) is eased less, from -1.0 not at all
 
+# A small gas at creep speed (dpcr, owner 2026-11-28, route 00000010 14:29:50: "the lead crept off, the gap slowly grew
+# too far and the car did not follow; it should add a little gas and stay with the lead - without disturbing the
+# smooth stop end"). The lead left at 3-7 km/h; the plan asked +0.10 .. +0.28 for 12 s, the car reached 5.3 km/h and
+# stayed there (aEgo +0.02 .. +0.08 on a +0.31 .. +0.35 command, the PID's integral already in it), the gap went
+# 3.1 -> 13 m and the owner pressed the gas. The hybrid's idle creep ends near 5 km/h and a small positive command
+# gives about half of itself there (all of that day's engaged samples, command +0.05 .. +0.6, speed 1.5 s later):
+#   km/h      command  ->  car          km/h      command  ->  car
+#   0-2        +0.19      +0.34         4-5.5      +0.29      +0.06
+#   2-4        +0.20      +0.18         4-5.5      +0.30      +0.12
+#   2-4        +0.42      +0.58         9-12       +0.24      +0.05
+#   4-5.5      +0.97      +1.15         9-12       +0.39      +0.33
+# i.e. roughly the first 0.2 of a positive command is lost between 4 and 12 km/h; a firm one (>= 0.6) is not.
+# So, on a positive command only: while the car gives less than the command, the missing part is added, integrated at
+# CREEP_KI (taken back CREEP_BACK times faster once the car gives more), at most CREEP_MAX. Faded in over CREEP_V_BP
+# (below it the idle creep already gives more than asked) and out again above it, out over CREEP_CMD_BP for a firm
+# command, and in proportion to the command over CREEP_ZERO, so it is exactly zero at and below a zero command:
+# a braking command - every stop, and the end of it - never passes through this.
+CREEP_V_BP = [3.0 / 3.6, 4.5 / 3.6, 12.0 / 3.6, 15.0 / 3.6]   # m/s
+CREEP_V_W = [0.0, 1.0, 1.0, 0.0]
+CREEP_CMD_BP = [0.40, 0.60]   # m/s^2: the command from which less / nothing is added
+CREEP_ZERO = 0.10             # m/s^2: full only from this command up
+CREEP_KI = 0.8                # 1/s
+CREEP_BACK = 2.5              # x faster back
+CREEP_MAX = 0.25              # m/s^2
+
 
 class DeliveryTrim:
   def __init__(self, dt: float = DT_CTRL * 3):
@@ -96,6 +121,7 @@ class DeliveryTrim:
     self.gas_trim = 0.0  # what the command is eased by after the gas (GAS_*)
     self.extra = 0.0    # what the PCM asks beyond its usual compensation (smoothed, <= 0)
     self.sent = None    # the command last returned
+    self.creep = 0.0    # gas added for a small positive command the car does not give (CREEP_*)
 
   def reset(self, gas: bool = False):
     self.hist: list[float] = []
@@ -104,6 +130,7 @@ class DeliveryTrim:
       # long control is off: with the driver's gas the clock starts again, otherwise it just runs on
       self.gas_t = 0.0 if gas else self.gas_t + self.dt
       self.gas_trim, self.extra, self.sent = 0.0, 0.0, None
+      self.creep = 0.0
 
   def _after_gas(self, cmd: float, v_ego: float, pcm_net, neutral) -> float:
     self.gas_t += self.dt
@@ -120,6 +147,19 @@ class DeliveryTrim:
     self.gas_trim = float(np.clip(target, self.gas_trim - step, self.gas_trim + step))
     return max(cmd, min(cmd + self.gas_trim, GAS_FLOOR))   # only ever lighter, and still a brake
 
+  def _creep_gas(self, cmd: float, v_ego: float, a_ego) -> float:
+    w = 0.0
+    if a_ego is not None and cmd > 0.0:
+      w = float(np.interp(v_ego, CREEP_V_BP, CREEP_V_W)) * float(np.interp(cmd, CREEP_CMD_BP, [1.0, 0.0]))
+    if w > 0.0:
+      short = cmd - a_ego
+      self.creep = float(np.clip(self.creep + CREEP_KI * (short if short > 0.0 else CREEP_BACK * short) * self.dt, 0.0, CREEP_MAX * w))
+    else:
+      self.creep = max(self.creep - CREEP_KI * CREEP_BACK * CREEP_MAX * self.dt, 0.0)
+    if cmd <= 0.0:
+      return cmd
+    return cmd + self.creep * min(cmd / CREEP_ZERO, 1.0)
+
   def _target(self, cmd: float, v_ego: float, releasing: bool) -> float:
     if not ENABLED or cmd >= STEADY_FROM:
       return 0.0
@@ -131,7 +171,7 @@ class DeliveryTrim:
     lighter = min(lighter, max(HARD_CEIL - cmd, 0.0))  # never above HARD_CEIL
     return -firmer + lighter
 
-  def apply(self, cmd: float, v_ego: float, standstill: bool, long_active: bool, pcm_net=None, neutral=None) -> float:
+  def apply(self, cmd: float, v_ego: float, standstill: bool, long_active: bool, pcm_net=None, neutral=None, a_ego=None) -> float:
     if not long_active or standstill:
       self.reset()
       return cmd
@@ -143,4 +183,5 @@ class DeliveryTrim:
     step = TRIM_RATE * self.dt
     self.trim = float(np.clip(target, self.trim - step, self.trim + step))
     self.sent = self._after_gas(cmd + self.trim, v_ego, pcm_net, neutral)
+    self.sent = self._creep_gas(self.sent, v_ego, a_ego)
     return self.sent
