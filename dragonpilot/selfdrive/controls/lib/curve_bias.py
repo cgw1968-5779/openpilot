@@ -51,13 +51,69 @@ CURVE_OUTWARD_FRAC_V = [0.0, 0.13, 0.22, 0.22, 0.22, 0.22, 0.22]
 CURVE_OUTWARD_FRAC_RANGE = [0.0, 0.35]   # the table plus the learned part (curve_bias_learn.py) stays inside this
 
 
-def apply_curve_outward_bias(desired_curvature: float, v_ego: float, extra: float = 0.0) -> float:
+# dpcr, owner 2026-11-28 (route 00000015 16:33:35-40, bookmark: "the 70 km/h right curve was very bad, the car almost ran
+# out of the lane; the first dragonpilot cornered well, it only did not centre"): an S-bend, the right curve tightening
+# to R 90 m at 71 km/h (the model asked 3.5 -> 11.3 1/km in 1.7 s, 4.3 m/s^2). The command was the model x 0.73 (table
+# 0.22 + learned 0.047) minus the centering's push away from the inside line (-1.3 1/km): 1.8 where the model asked
+# 4.3, the wheel unwound from 10 to 3 deg, and one second later the torque sat at 100 % for 2 s while the car swept
+# from 87 cm inside to the outer line. Same shape on route 00000011 14:38:24 / 14:38:31 (left curve, 61-66 km/h, model
+# 8.7 -> command 6.8 1/km, the car slid 50-100 cm outward in 2 s). The outward fraction is for curves the car has
+# margin in (there the model cuts the inside); a curve that takes about all the steering there is (the command is
+# capped at 3.0 m/s^2, drive_helpers MAX_LATERAL_ACCEL_NO_ROLL, and the torque gives 2.9-3.1 at 70 km/h) has no margin
+# to run wide and come back. So the fraction fades out with the lateral acceleration the curve asks for, from the
+# model's curvature or the lane centre's curvature ahead (lane_centering's fit, which saw this curve tighten 0.5 s
+# before the model's action), whichever is larger. Dynamic and continuous (no step). First version (8127ecd04): whole up to 2.0 m/s^2, gone from
+# 3.0 m/s^2 at every speed; superseded the same night by the torque share below.
+# dpcr, owner 2026-11-28 night, after reading the above: "what I want is the car's full torque kept for the curve, the
+# torque is never to be cut; every curve the full torque can take must be taken (I hold the speed myself when needed).
+# FRAC is there to place the car as centred as possible; on a straight it must not touch the stability." So:
+# 1. The outward fraction may only use steering the curve does not need. What the full torque holds, measured with the
+#    torque command at 100 % for >= 0.5 s, hands off (routes 0d-15, 26 s): 20-50 km/h 1.9-2.2 m/s^2 (p10 1.6-2.1, the
+#    wheel at 40-100 deg), 70-80 km/h 3.0 (p10 2.86) -> CURVE_TORQUE_AY, taken a little under the measured values. The
+#    fraction is whole while the curve asks less than CURVE_TORQUE_SHARE[0] of that and gone from CURVE_TORQUE_SHARE[1]
+#    on, so the last 10 % and the torque limit itself are never reached with a cut command.
+# 2. A straight is a straight by the ROAD, not by the command: while the lane lines are seen the fraction fades in with
+#    the lane centre's own curvature ahead (CURVE_ROAD_K, the same band as the line pursuit's LINE_OUT_K_BP), so a
+#    correction on a straight road - however large - is never scaled. Without lines: the command's deadzone as before.
+# dpcr, owner 2026-11-28 late (route 00000017 22:00-22:20 on 3d6311b9f, "it crosses the inside line completely"; then:
+# "at every speed, in a tight curve, the full torque must be usable and the car must not sit on the inside"). The table
+# above (1.8 / 2.1 / 2.9 at 30 / 50 / 70 km/h, fraction gone from 90 % of it) was far too low at 40-60 km/h: with that
+# night's route added, the torque command at 100 % for >= 0.5 s, hands off (45 s in all), holds 2.1 m/s^2 at 30-40
+# km/h, 2.7 at 40-50, 2.9-3.0 from 50 km/h up (50-60 km/h: median 2.94, p10 2.77). So the fade took the outward
+# fraction and the centering's push away from the inside line out of ordinary mountain curves (R 77-150 m at 45-60
+# km/h, 1.8-2.6 m/s^2), which the car takes with torque to spare - without them it ran 60-100 cm inside, up to 1.8 m.
+# The outward fraction does not cost steady-state torque (the curve's curvature is the road's either way, the fraction
+# only moves where the car settles); it costs when the curve asks MORE than the torque holds. So: whole up to the
+# measured limit, gone from 120 % of it. Open-loop replay of the logged model frames through the real classes against
+# the daytime state (2bb3276a3): 11-28 day routes 11 + 15 (80 min) 0.67 % of the frames change by > 0.02 m/s^2, model
+# demand below 2.0 m/s^2 unchanged (4767 s, mean 0.000); night route 17 1.7 %, demand 2.0-2.5 m/s^2 mean 0.013.
+# 16:33:36-37: the command reaches the model's 9.9 1/km at 16:33:37.0 (was 6.7), estimated farthest point toward the
+# outer line 90 -> ~40 cm. With [0.9, 1.1] the estimate was ~20 cm, but twice as many of route 17's frames changed.
+CURVE_TORQUE_V_BP = [35.0 * CV.KPH_TO_MS, 45.0 * CV.KPH_TO_MS, 55.0 * CV.KPH_TO_MS]   # m/s
+CURVE_TORQUE_AY = [2.1, 2.7, 2.9]      # m/s^2 the full steering torque holds (measured, see above)
+CURVE_TORQUE_SHARE = [1.0, 1.2]        # of it: outward fraction whole .. gone
+CURVE_ROAD_K = [1.0e-4, 3.0e-4]        # 1/m: lane-centre curvature ahead, straight road .. curve
+
+
+def curve_demand_weight(curvature: float, lane_k: float | None, v_ego: float) -> float:
+  """1 while the curve leaves steering torque to spare (outward bias in full), 0 when it needs about all of it.
+  lane_k: |curvature| of the lane centre ahead, None = lines not seen"""
+  cap = float(np.interp(v_ego, CURVE_TORQUE_V_BP, CURVE_TORQUE_AY))
+  demand = max(abs(curvature), lane_k or 0.0) * v_ego ** 2
+  return float(np.interp(demand, [CURVE_TORQUE_SHARE[0] * cap, CURVE_TORQUE_SHARE[1] * cap], [1.0, 0.0]))
+
+
+def apply_curve_outward_bias(desired_curvature: float, v_ego: float, extra: float = 0.0, lane_k: float | None = None) -> float:
   # In a fast curve, command a slightly smaller curvature so the car runs wider and stops cutting the inside. Faded
   # out at low speed (tight curves there need the full turn-in or the car runs wide). Straights and small lane
-  # corrections below the deadzone are untouched.
+  # corrections below the deadzone are untouched. lane_k: |curvature| of the lane centre ahead (None = not seen).
   frac = float(np.interp(v_ego, CURVE_OUTWARD_V_BP, CURVE_OUTWARD_FRAC_V))
   if extra != 0.0:   # the learned part for this speed and side
     frac = float(np.clip(frac + extra, CURVE_OUTWARD_FRAC_RANGE[0], CURVE_OUTWARD_FRAC_RANGE[1]))
   if frac == 0.0 or abs(desired_curvature) <= CURVE_OUTWARD_DEADZONE:
     return desired_curvature
+  if frac > 0.0:
+    frac *= curve_demand_weight(desired_curvature, lane_k, v_ego)
+    if lane_k is not None:
+      frac *= float(np.interp(lane_k, CURVE_ROAD_K, [0.0, 1.0]))
   return desired_curvature * (1.0 - frac)   # frac < 0 scales the curvature UP (inward)
