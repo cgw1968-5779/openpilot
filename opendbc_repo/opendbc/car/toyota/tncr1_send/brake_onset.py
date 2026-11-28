@@ -70,6 +70,25 @@ LEAD_URGENT_A = -1.2      # m/s^2: lead decel (aLeadK); was -1.5
 LEAD_URGENT_REQ = -0.3    # m/s^2: our request is braking; was -2.0
 LEAD_URGENT_T_BP = [0.0, 0.1, 0.4]  # s
 LEAD_URGENT_J = [1.0, 1.0, 4.0]     # m/s^3
+# dpcr, owner 2026-11-28 ("the first brake between 20 and 10 km/h is a bit too hard"; 1 bookmark at 13:58:54, route
+# 0000000f): at 11 km/h, 11 m behind a lead that braked at -1.7 from 8 km/h to a stop, the template took the command
+# from 0 to -1.16 in 0.5 s, the friction brake went 0 -> 1640 N in 0.4 s and the car gave -1.6 .. -1.8 on a -1.0
+# command (imu -1.9) - while stopping there needed about -0.6 in all. A lead that brakes hard is only urgent when WE
+# have to brake firmly for it: the template now also needs the constant decel that stops the car LEAD_URGENT_GAP behind
+# where the lead will stop (its own speed and decel) to be at least LEAD_URGENT_NEED. 13:58:51: 0.64 -> the ordinary
+# soft onset with its friction entry; the two firm ones of that day (09:01:13 and 14:01:33, lead -1.8 from 20 km/h at
+# 12 m): 1.2 .. 1.7 -> the template as before. Without the lead's distance and speed nothing changes.
+LEAD_URGENT_NEED = 1.0    # m/s^2
+LEAD_URGENT_GAP = 4.0     # m
+
+
+def lead_urgent_need(lead, v_ego: float) -> float:
+  """constant decel (m/s^2, > 0) that stops the car LEAD_URGENT_GAP behind the place where the braking lead stops"""
+  d_rel, v_lead = getattr(lead, 'dRel', None), getattr(lead, 'vLead', None)
+  if d_rel is None or v_lead is None:
+    return float('inf')
+  room = d_rel - LEAD_URGENT_GAP + max(v_lead, 0.0) ** 2 / (2.0 * max(-lead.aLeadK, 0.1))
+  return v_ego ** 2 / (2.0 * max(room, 0.1))
 
 
 # Creep-follow gas release, with the creep-follow stop (see
@@ -165,7 +184,8 @@ class BrakeOnsetShaper:
     if accel_request >= 0.0:
       self.lead_urgent = False
     elif lead is not None and lead.status and lead.aLeadK <= LEAD_URGENT_A and accel_request <= LEAD_URGENT_REQ and \
-         not (t_engaged is not None and t_engaged < ENGAGE_BRAKE_T_BP[-1]):
+         not (t_engaged is not None and t_engaged < ENGAGE_BRAKE_T_BP[-1]) and \
+         (self.lead_urgent or lead_urgent_need(lead, v_ego) >= LEAD_URGENT_NEED):
       self.lead_urgent = True
     if bypass:
       self.t_onset = 0.0

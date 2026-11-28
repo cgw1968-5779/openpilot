@@ -227,3 +227,20 @@ def test_ordinary_lead_keeps_the_soft_onset():
   assert not sh2.lead_urgent and abs(none[69] - soft[69]) < 1e-9
   eng, sh3 = _onset_profile(NS(status=True, aLeadK=-2.3), t_engaged=0.2)  # inside the engage window: never
   assert not sh3.lead_urgent
+
+
+def test_lead_urgent_only_when_the_car_itself_has_to_brake_firmly():
+  # dpcr 11-28 13:58:51: 11 km/h, 10.9 m behind a lead braking -1.7 from 4 km/h: stopping needs ~0.6 -> the soft onset
+  from types import SimpleNamespace as NS
+  from opendbc.car.toyota.tncr1_send.brake_onset import lead_urgent_need
+  light = NS(status=True, aLeadK=-1.7, dRel=10.9, vLead=4.2 / 3.6)
+  assert 0.5 < lead_urgent_need(light, 11.0 / 3.6) < 0.8
+  soft, sh = _onset_profile(light, request=-0.9, v_ego=11.0 / 3.6)
+  ref, _ = _onset_profile(None, request=-0.9, v_ego=11.0 / 3.6)
+  assert not sh.lead_urgent and soft == ref
+  # 11-28 14:01:33.6: 23.7 km/h, 10.8 m behind a lead braking -1.6 from 16 km/h: ~1.7 -> the template, as before
+  firm = NS(status=True, aLeadK=-1.6, dRel=10.8, vLead=16.1 / 3.6)
+  assert lead_urgent_need(firm, 23.7 / 3.6) > 1.4
+  out, sh = _onset_profile(firm, v_ego=23.7 / 3.6)
+  old, _ = _onset_profile(NS(status=True, aLeadK=-1.6), v_ego=23.7 / 3.6)
+  assert sh.lead_urgent and out == old
