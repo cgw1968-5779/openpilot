@@ -17,7 +17,6 @@ import numpy as np
 
 from openpilot.common.filter_simple import FirstOrderFilter
 
-from dragonpilot.selfdrive.controls.lib.curve_bias import CurveTurnIn, curve_demand_weight
 from dragonpilot.selfdrive.controls.lib.curve_bias_learn import CurveBiasLearner, LEARN_FILE
 from dragonpilot.selfdrive.controls.lib.lane_choice import LaneChoice
 
@@ -178,8 +177,6 @@ class LaneCentering:
     self.dt = dt
     # the learned curve outward fraction (curve_bias_learn.py); kept in its file only when controlsd asks for it
     self.curve_learn = CurveBiasLearner(dt, LEARN_FILE if learn else None)
-    self.curve_in = CurveTurnIn(dt)  # the curve bias itself (turn-in timing), run from controlsd's hook
-    self.k_model = None  # the model's own curvature of this cycle (before the turn-in lag), None = not given
     self.offset_filter = FirstOrderFilter(0.0, LANE_CENTER_FILTER_TAU, dt)
     self.heading_filter = FirstOrderFilter(0.0, LANE_CENTER_FILTER_TAU, dt)
     self.width_filter = FirstOrderFilter(0.0, LANE_CENTER_WIDTH_TAU, dt)  # x == 0 until the first confident width
@@ -197,7 +194,6 @@ class LaneCentering:
     self.k_hist: np.ndarray | None = None  # commanded curvature of the last LINE_PRED_T s (ring buffer)
     self.k_i = 0  # next slot = the oldest command
     self.lane_k = 0.0  # |lane-centre curvature| of the last line fit
-    self.lane_k_fresh = False  # ...and whether that fit is this cycle's
     self.fit_key = None  # model frame the lane-centre fits below belong to
     self.fit_x = np.zeros(0)
     self.fit_centre = np.zeros(0)
@@ -245,15 +241,6 @@ class LaneCentering:
     g = float(np.interp(self.lane_k, LOW_STRAIGHT_K, [1.0, 0.0]))
     return g + (1.0 - g) * float(np.interp(v_ego, [LOW_STRAIGHT_V - 10.0 / 3.6, LOW_STRAIGHT_V], [0.0, 1.0]))
 
-  def curve_ahead(self) -> float | None:
-    """|curvature| of the lane centre ahead while the lines are seen this cycle, else None (for curve_bias)"""
-    return self.lane_k if self.lane_k_fresh else None
-
-  def turn_in(self, desired_curvature: float, v_ego: float, active: bool) -> float:
-    """controlsd hook: the model's curvature with the curve bias (turn-in timing, learned part included)"""
-    self.k_model = desired_curvature
-    return self.curve_in.update(desired_curvature, v_ego, self.curve_learn.extra(v_ego, desired_curvature), self.curve_ahead(), active)
-
   def _push_command(self, k: float):
     n = max(int(round(LINE_PRED_T / self.dt)), 1)
     if self.k_hist is None or len(self.k_hist) != n:
@@ -287,7 +274,6 @@ class LaneCentering:
     if fit is None:
       return None
     self.lane_k = abs(2.0 * float(fit[0]))  # |curvature| of the lane centre ahead
-    self.lane_k_fresh = True
     y_d, psi_d = self.predicted_pose(v_ego)
     x = xd + look
     dy = float((fit[0] * x + fit[1]) * x + fit[2]) - y_d - psi_d * look
@@ -299,16 +285,11 @@ class LaneCentering:
       return self.correction
     self.k_prev = model_curvature + self.output  # the last command: the arc the car is on through the delay
     self._push_command(self.k_prev)
-    self.lane_k_fresh = False
     k_line = self.line_curvature(model_v2, v_ego) if meas_ok and not lane_changing else None
     if k_line is not None:
       out = float(np.interp(v_ego, LINE_OUT_V_BP, LINE_OUT_FRAC_V)) + self.curve_learn.extra(v_ego, k_line)   # + the learned part
       k_line *= 1.0 - _clip(out, 0.0, LINE_OUT_MAX) * float(np.interp(self.lane_k, LINE_OUT_K_BP, [0.0, 1.0]))
-    # "a line of another lane" is judged against the model's own curvature, not the one held back for the turn-in:
-    # route 00000015 16:33:35.75 the pursuit, which had the tightening curve first, was dropped for being > 1.0 m/s^2
-    # from the cut command, in the second it was needed
-    k_ref = model_curvature if self.k_model is None else self.k_model
-    trusted = k_line is not None and abs(k_line - k_ref) * v_ego ** 2 <= LINE_MAX_DIFF_ACCEL
+    trusted = k_line is not None and abs(k_line - model_curvature) * v_ego ** 2 <= LINE_MAX_DIFF_ACCEL
     if trusted:
       if not self.line_valid and self.line_w <= 0.0:
         self.line_filter.x = k_line
@@ -323,13 +304,7 @@ class LaneCentering:
     w_target *= self._straight_gate(v_ego)
     rate = LINE_W_RISE if w_target > self.line_w else LINE_W_FALL
     self.line_w = _clip(w_target, self.line_w - rate * self.dt, self.line_w + rate * self.dt)
-    # dpcr 2026-11-28 (route 00000015 16:33:36, see curve_bias.CURVE_TORQUE_AY): entering a tightening curve from its
-    # inside the PD pushed 1.3 1/km AGAINST the turn (the car was 70-87 cm inside, the curve came to it anyway). The
-    # part of the correction that opposes the turn fades out with the curve's demand, like the outward fraction.
-    corr = self.correction
-    if corr * model_curvature < 0.0:
-      corr *= curve_demand_weight(model_curvature, self.curve_ahead(), v_ego)
-    return (1.0 - self.line_w) * corr + self.line_w * (self.line_filter.x - model_curvature)
+    return (1.0 - self.line_w) * self.correction + self.line_w * (self.line_filter.x - model_curvature)
 
   def _frame_info(self, model_v2):
     """per model frame (20 Hz), not per control cycle (100 Hz): the lane-line reads, the width and the near fit.
@@ -429,9 +404,7 @@ def apply_lane_centering(lc: LaneCentering, desired_curvature: float, model_v2, 
   # dpcr 11-10: the centering now runs from 30 km/h, inside the lane choice's 15-70 km/h; while the lane choice steers
   # to another lane the centering hands back as in a lane change (it would pull to the model's lane)
   corr = lc.update(model_v2, CS.vEgo, lat_active, CS.steeringPressed, 0.0, desired_curvature, lane_changing or lc.choice.active)
-  # the outward fraction is only learned from curves it acts on in full (not from one the demand fade took it out of)
-  learn_meas = lc.last_meas if curve_demand_weight(desired_curvature, lc.curve_ahead(), CS.vEgo) >= 1.0 else None
-  lc.curve_learn.update(CS.vEgo, curvature, learn_meas, lat_active, CS.steeringPressed, CS.leftBlinker or CS.rightBlinker,
+  lc.curve_learn.update(CS.vEgo, curvature, lc.last_meas, lat_active, CS.steeringPressed, CS.leftBlinker or CS.rightBlinker,
                         lane_changing or lc.choice.active)
   if lat_active:
     corr += lc.choice.update(model_v2, CS.vEgo, desired_curvature, curvature, CS.steeringPressed,
