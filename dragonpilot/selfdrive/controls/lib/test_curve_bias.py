@@ -16,23 +16,41 @@ def test_straights_untouched():
     assert apply_curve_outward_bias(k, 80 * KPH) == k
 
 
-def test_outward_fraction_fades_out_as_the_curve_takes_all_the_steering():
-  # owner 2026-11-28 (route 00000015 16:33:36): a curve asking 2.0 m/s^2 or less is as before, 3.0 or more gets the
-  # model's full curvature, and the change in between is continuous
-  from dragonpilot.selfdrive.controls.lib.curve_bias import curve_demand_weight, CURVE_DEMAND_AY
-  v = 70 * KPH
-  for sign in (1.0, -1.0):
-    k_easy, k_mid, k_hard = (sign * a / v ** 2 for a in (CURVE_DEMAND_AY[0], 2.5, CURVE_DEMAND_AY[1]))
-    assert abs(apply_curve_outward_bias(k_easy, v) - k_easy * (1 - 0.22)) < 1e-12
-    assert abs(apply_curve_outward_bias(k_mid, v) - k_mid * (1 - 0.11)) < 1e-9
-    assert apply_curve_outward_bias(k_hard, v) == k_hard
-    assert apply_curve_outward_bias(2 * k_hard, v, 0.05) == 2 * k_hard           # the learned part goes with it
-    # the lane centre ahead already that tight: the fraction goes before the model's action asks for it
-    assert apply_curve_outward_bias(k_easy, v, 0.0, abs(k_hard)) == k_easy
-    assert apply_curve_outward_bias(k_easy, v, 0.0, abs(k_easy) / 2) == apply_curve_outward_bias(k_easy, v)
-  prev = None
-  for a in [x * 0.01 for x in range(150, 351)]:      # no step anywhere: 0.01 m/s^2 moves the command by < 0.01 m/s^2
-    out = apply_curve_outward_bias(a / v ** 2, v) * v ** 2
-    assert prev is None or 0.0 < out - prev < 0.02
-    prev = out
-  assert curve_demand_weight(0.0, 0.0, v) == 1.0
+def test_outward_fraction_never_takes_steering_the_curve_needs():
+  # owner 2026-11-28 ("the torque is never to be cut; every curve the full torque can take must be taken"): the
+  # fraction is whole while the curve asks less than 60 % of what the full torque holds at that speed, gone from 90 %,
+  # continuous in between
+  from dragonpilot.selfdrive.controls.lib.curve_bias import curve_demand_weight, CURVE_TORQUE_AY, CURVE_TORQUE_SHARE
+  for kph, cap, frac in ((50, CURVE_TORQUE_AY[1], 0.13), (70, CURVE_TORQUE_AY[2], 0.22), (110, CURVE_TORQUE_AY[2], 0.22)):
+    v = kph * KPH
+    lo, hi = CURVE_TORQUE_SHARE[0] * cap, CURVE_TORQUE_SHARE[1] * cap
+    for sign in (1.0, -1.0):
+      k_easy, k_mid, k_hard = (sign * a / v ** 2 for a in (lo, (lo + hi) / 2, hi))
+      assert abs(apply_curve_outward_bias(k_easy, v) - k_easy * (1 - frac)) < 1e-12
+      assert abs(apply_curve_outward_bias(k_mid, v) - k_mid * (1 - frac / 2)) < 1e-9
+      assert apply_curve_outward_bias(k_hard, v) == k_hard
+      assert apply_curve_outward_bias(2 * k_hard, v, 0.05) == 2 * k_hard           # the learned part goes with it
+      # the lane centre ahead already that tight: the fraction goes before the model's action asks for it
+      assert apply_curve_outward_bias(k_easy, v, 0.0, abs(k_hard)) == k_easy
+      assert apply_curve_outward_bias(k_easy, v, 0.0, abs(k_easy)) == apply_curve_outward_bias(k_easy, v)
+    prev = None
+    for a in [x * 0.01 for x in range(50, 351)]:      # no step anywhere: 0.01 m/s^2 moves the command by < 0.02 m/s^2
+      out = apply_curve_outward_bias(a / v ** 2, v) * v ** 2
+      assert prev is None or 0.0 < out - prev < 0.02
+      prev = out
+    assert curve_demand_weight(0.0, None, v) == curve_demand_weight(0.0, 0.0, v) == 1.0
+
+
+def test_a_straight_road_is_never_scaled_whatever_the_correction():
+  # owner 2026-11-28: "on a straight FRAC must not touch the stability". With the lines seen the road decides:
+  # lane centre ahead straighter than R 10000 m -> the command passes unchanged, even a large correction
+  from dragonpilot.selfdrive.controls.lib.curve_bias import CURVE_ROAD_K
+  for kph in (60, 90, 110):
+    v = kph * KPH
+    for k in (0.0006, -0.0012, 0.002):
+      assert apply_curve_outward_bias(k, v, 0.03, 0.0) == k
+      assert apply_curve_outward_bias(k, v, 0.03, CURVE_ROAD_K[0]) == k
+      full = apply_curve_outward_bias(k, v, 0.03)                                   # lines not seen: as before
+      assert apply_curve_outward_bias(k, v, 0.03, CURVE_ROAD_K[1]) == full != k     # a real curve: as before
+      half = apply_curve_outward_bias(k, v, 0.03, sum(CURVE_ROAD_K) / 2)
+      assert abs(half - (k + full) / 2) < 1e-12

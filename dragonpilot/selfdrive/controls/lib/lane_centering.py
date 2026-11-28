@@ -243,9 +243,9 @@ class LaneCentering:
     g = float(np.interp(self.lane_k, LOW_STRAIGHT_K, [1.0, 0.0]))
     return g + (1.0 - g) * float(np.interp(v_ego, [LOW_STRAIGHT_V - 10.0 / 3.6, LOW_STRAIGHT_V], [0.0, 1.0]))
 
-  def curve_ahead(self) -> float:
-    """|curvature| of the lane centre ahead while the lines are seen this cycle, else 0 (for curve_bias's demand fade)"""
-    return self.lane_k if self.lane_k_fresh else 0.0
+  def curve_ahead(self) -> float | None:
+    """|curvature| of the lane centre ahead while the lines are seen this cycle, else None (for curve_bias)"""
+    return self.lane_k if self.lane_k_fresh else None
 
   def _push_command(self, k: float):
     n = max(int(round(LINE_PRED_T / self.dt)), 1)
@@ -312,7 +312,7 @@ class LaneCentering:
     w_target *= self._straight_gate(v_ego)
     rate = LINE_W_RISE if w_target > self.line_w else LINE_W_FALL
     self.line_w = _clip(w_target, self.line_w - rate * self.dt, self.line_w + rate * self.dt)
-    # dpcr 2026-11-28 (route 00000015 16:33:36, see curve_bias.CURVE_DEMAND_AY): entering a tightening curve from its
+    # dpcr 2026-11-28 (route 00000015 16:33:36, see curve_bias.CURVE_TORQUE_AY): entering a tightening curve from its
     # inside the PD pushed 1.3 1/km AGAINST the turn (the car was 70-87 cm inside, the curve came to it anyway). The
     # part of the correction that opposes the turn fades out with the curve's demand, like the outward fraction.
     corr = self.correction
