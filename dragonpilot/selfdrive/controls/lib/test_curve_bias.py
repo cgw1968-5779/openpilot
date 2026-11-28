@@ -27,16 +27,17 @@ def test_outward_fraction_never_takes_steering_the_curve_needs():
     cap = float(np.interp(v, CURVE_TORQUE_V_BP, CURVE_TORQUE_AY))
     lo, hi = CURVE_TORQUE_SHARE[0] * cap, CURVE_TORQUE_SHARE[1] * cap
     for sign in (1.0, -1.0):
-      k_easy, k_mid, k_hard = (sign * a / v ** 2 for a in (lo, (lo + hi) / 2, hi))
+      # the demand is the command with the fraction in full (what the road asks), not the model's request
+      k_easy, k_mid, k_hard = (sign * a / (1 - frac) / v ** 2 for a in (lo, (lo + hi) / 2, hi))
       assert abs(apply_curve_outward_bias(k_easy, v) - k_easy * (1 - frac)) < 1e-12
       assert abs(apply_curve_outward_bias(k_mid, v) - k_mid * (1 - frac / 2)) < 1e-9
       assert abs(apply_curve_outward_bias(k_hard, v) - k_hard) < 1e-12
       assert apply_curve_outward_bias(2 * k_hard, v, 0.05) == 2 * k_hard           # the learned part goes with it
       # the lane centre ahead already that tight: the fraction goes before the model's action asks for it
       assert abs(apply_curve_outward_bias(k_easy, v, 0.0, abs(k_hard)) - k_easy) < 1e-12
-      assert apply_curve_outward_bias(k_easy, v, 0.0, abs(k_easy)) == apply_curve_outward_bias(k_easy, v)
+      assert apply_curve_outward_bias(k_easy, v, 0.0, abs(k_easy) * (1 - frac)) == apply_curve_outward_bias(k_easy, v)
     prev = None
-    for a in [x * 0.01 for x in range(50, 401)]:      # no step anywhere: 0.01 m/s^2 moves the command by < 0.03 m/s^2
+    for a in [x * 0.01 for x in range(50, 501)]:      # no step anywhere: 0.01 m/s^2 moves the command by < 0.03 m/s^2
       out = apply_curve_outward_bias(a / v ** 2, v) * v ** 2
       assert prev is None or 0.0 < out - prev < 0.03
       prev = out

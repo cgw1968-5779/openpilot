@@ -113,7 +113,11 @@ def apply_curve_outward_bias(desired_curvature: float, v_ego: float, extra: floa
   if frac == 0.0 or abs(desired_curvature) <= CURVE_OUTWARD_DEADZONE:
     return desired_curvature
   if frac > 0.0:
-    frac *= curve_demand_weight(desired_curvature, lane_k, v_ego)
+    # the demand is what the ROAD asks: the command with the fraction in full, not the model's request. In a steady
+    # curve the model asks road / (1 - frac) to hold its line (R 96 m at 57 km/h = 2.6 m/s^2 -> it asks 3.2), so
+    # weighing the request itself took a quarter of the fraction out of curves well inside the torque limit (route
+    # 00000017 22:15:18: 34 % of the curve's time, 22:17:15: 39 %).
+    frac *= curve_demand_weight(desired_curvature * (1.0 - frac), lane_k, v_ego)
     if lane_k is not None:
       frac *= float(np.interp(lane_k, CURVE_ROAD_K, [0.0, 1.0]))
   return desired_curvature * (1.0 - frac)   # frac < 0 scales the curvature UP (inward)

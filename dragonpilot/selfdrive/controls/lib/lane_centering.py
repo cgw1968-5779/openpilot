@@ -163,8 +163,17 @@ LINE_PRED_T = 0.75          # s: measured command -> actual yaw delay (route fa;
 # curvature gets an outward fraction too, LINE_OUT_FRAC_V over LINE_OUT_V_BP, faded in with the curve over
 # LINE_OUT_K_BP (no step at the straight / curve edge). Closed loop it settles outward of the lane centre by about
 # (1/(1-frac) - 1) k L^2 / 2: at 100 km/h (L 47 m) with 0.08: R 2000 m ~6 cm, R 1000 m ~12 cm, R 500 m ~25 cm.
-LINE_OUT_V_BP = [85.0 / 3.6, 100.0 / 3.6]  # m/s
-LINE_OUT_FRAC_V = [0.0, 0.08]
+# dpcr (owner 2026-11-28 late: "FRAC still has to be tuned just right" -> shown the table below -> "do it"): 11-28 day
+# routes, hands off, ordinary curves (0.4-2.0 m/s^2): the command's cut against the model's curvature shrinks as the
+# pursuit takes the curve over (below 70 km/h it only has curves handed to it across 60-70, LOW_STRAIGHT_V), and the
+# car moves inside with it: 55-60 km/h cut 20 %, 5 cm OUTSIDE; 60-65 17 %, +1 cm; 65-70 14 %, 14-25 cm inside; 70-75
+# 10 %, 28-39 cm inside; 75-85 4-8 %, 26-61 cm inside. Raising curve_bias's 70 km/h value (0.22 -> 0.30) would move
+# 70-75 km/h by ~4 cm only (it acts on the 15 % the pursuit leaves). So the pursuit's own fraction starts where the
+# pursuit starts taking curves: 0 at 60 km/h, 0.12 at 70-85, 0.08 at 100 as before. Steady-state estimate by the formula
+# above at 72 km/h (L 34 m, weight 0.85): 0.8 m/s^2 ~13 cm outward, 1.6 m/s^2 ~27 cm. Like curve_bias's fraction it
+# goes when the curve asks more than the steering torque holds (curve_demand_weight).
+LINE_OUT_V_BP = [60.0 / 3.6, 70.0 / 3.6, 85.0 / 3.6, 100.0 / 3.6]  # m/s
+LINE_OUT_FRAC_V = [0.0, 0.12, 0.12, 0.08]
 LINE_OUT_MAX = 0.20                        # with the learned part (curve_bias_learn.py)
 LINE_OUT_K_BP = [1e-4, 3e-4]               # 1/m: |lane-centre curvature| (centre fit) over which the fraction fades in;
                                            # not the pursuit's own curvature (it wiggles +-0.26e-3 on straights)
@@ -296,7 +305,8 @@ class LaneCentering:
     k_line = self.line_curvature(model_v2, v_ego) if meas_ok and not lane_changing else None
     if k_line is not None:
       out = float(np.interp(v_ego, LINE_OUT_V_BP, LINE_OUT_FRAC_V)) + self.curve_learn.extra(v_ego, k_line)   # + the learned part
-      k_line *= 1.0 - _clip(out, 0.0, LINE_OUT_MAX) * float(np.interp(self.lane_k, LINE_OUT_K_BP, [0.0, 1.0]))
+      out = _clip(out, 0.0, LINE_OUT_MAX) * curve_demand_weight(model_curvature, self.lane_k, v_ego)
+      k_line *= 1.0 - out * float(np.interp(self.lane_k, LINE_OUT_K_BP, [0.0, 1.0]))
     trusted = k_line is not None and abs(k_line - model_curvature) * v_ego ** 2 <= LINE_MAX_DIFF_ACCEL
     if trusted:
       if not self.line_valid and self.line_w <= 0.0:

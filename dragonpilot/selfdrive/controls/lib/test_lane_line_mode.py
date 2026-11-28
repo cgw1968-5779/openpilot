@@ -58,11 +58,18 @@ def test_follows_the_lane_curvature_not_the_model():
   assert abs(out - (LINE_W_MAX * (k_lane - 1 / 800) + (1 - LINE_W_MAX) * lc.correction)) < 2e-5
 
 
-def test_no_outward_fraction_at_or_below_85_kph():
-  lc = LaneCentering(DT)
-  v = 84 / 3.6
-  out = _run(lc, _model(curv=1 / 1000), v, 1 / 800, 4.0)
-  assert abs(out - (LINE_W_MAX * (1 / 1000 - 1 / 800) + (1 - LINE_W_MAX) * lc.correction)) < 2e-5
+def test_outward_fraction_from_60_kph_whole_from_70():
+  # owner 2026-11-28 late: the pursuit's outward fraction starts where the pursuit starts taking curves (0 at 60 km/h,
+  # 0.12 at 70-85, 0.08 at 100); it was 0 up to 85 km/h and the 65-85 km/h curves sat 14-61 cm inside
+  from dragonpilot.selfdrive.controls.lib.lane_centering import LINE_OUT_FRAC_V, LINE_OUT_V_BP
+  assert [round(x * 3.6) for x in LINE_OUT_V_BP] == [60, 70, 85, 100] and LINE_OUT_FRAC_V == [0.0, 0.12, 0.12, 0.08]
+  for kph, frac in ((84, 0.12), (72, 0.12)):
+    lc = LaneCentering(DT)
+    out = _run(lc, _model(curv=1 / 1000), kph / 3.6, 1 / 800, 4.0)
+    # with this static model frame the pursuit starts from the pose on the arc of its own (already wider) command, so
+    # about three quarters of the fraction shows in the output (0.088 of 0.12); on the road the model frame moves with the car
+    k_line = (out - (1 - LINE_W_MAX) * lc.correction) / LINE_W_MAX + 1 / 800
+    assert 0.07 < 1 - k_line * 1000 <= frac
 
 
 def test_no_line_mode_below_30_kph_or_without_model_curvature():
