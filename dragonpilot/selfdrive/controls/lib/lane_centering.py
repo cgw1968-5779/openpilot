@@ -17,7 +17,7 @@ import numpy as np
 
 from openpilot.common.filter_simple import FirstOrderFilter
 
-from dragonpilot.selfdrive.controls.lib.curve_bias import curve_demand_weight
+from dragonpilot.selfdrive.controls.lib.curve_bias import CurveTurnIn, curve_demand_weight
 from dragonpilot.selfdrive.controls.lib.curve_bias_learn import CurveBiasLearner, LEARN_FILE
 from dragonpilot.selfdrive.controls.lib.lane_choice import LaneChoice
 
@@ -178,6 +178,8 @@ class LaneCentering:
     self.dt = dt
     # the learned curve outward fraction (curve_bias_learn.py); kept in its file only when controlsd asks for it
     self.curve_learn = CurveBiasLearner(dt, LEARN_FILE if learn else None)
+    self.curve_in = CurveTurnIn(dt)  # the curve bias itself (turn-in timing), run from controlsd's hook
+    self.k_model = None  # the model's own curvature of this cycle (before the turn-in lag), None = not given
     self.offset_filter = FirstOrderFilter(0.0, LANE_CENTER_FILTER_TAU, dt)
     self.heading_filter = FirstOrderFilter(0.0, LANE_CENTER_FILTER_TAU, dt)
     self.width_filter = FirstOrderFilter(0.0, LANE_CENTER_WIDTH_TAU, dt)  # x == 0 until the first confident width
@@ -247,6 +249,11 @@ class LaneCentering:
     """|curvature| of the lane centre ahead while the lines are seen this cycle, else None (for curve_bias)"""
     return self.lane_k if self.lane_k_fresh else None
 
+  def turn_in(self, desired_curvature: float, v_ego: float, active: bool) -> float:
+    """controlsd hook: the model's curvature with the curve bias (turn-in timing, learned part included)"""
+    self.k_model = desired_curvature
+    return self.curve_in.update(desired_curvature, v_ego, self.curve_learn.extra(v_ego, desired_curvature), self.curve_ahead(), active)
+
   def _push_command(self, k: float):
     n = max(int(round(LINE_PRED_T / self.dt)), 1)
     if self.k_hist is None or len(self.k_hist) != n:
@@ -297,7 +304,11 @@ class LaneCentering:
     if k_line is not None:
       out = float(np.interp(v_ego, LINE_OUT_V_BP, LINE_OUT_FRAC_V)) + self.curve_learn.extra(v_ego, k_line)   # + the learned part
       k_line *= 1.0 - _clip(out, 0.0, LINE_OUT_MAX) * float(np.interp(self.lane_k, LINE_OUT_K_BP, [0.0, 1.0]))
-    trusted = k_line is not None and abs(k_line - model_curvature) * v_ego ** 2 <= LINE_MAX_DIFF_ACCEL
+    # "a line of another lane" is judged against the model's own curvature, not the one held back for the turn-in:
+    # route 00000015 16:33:35.75 the pursuit, which had the tightening curve first, was dropped for being > 1.0 m/s^2
+    # from the cut command, in the second it was needed
+    k_ref = model_curvature if self.k_model is None else self.k_model
+    trusted = k_line is not None and abs(k_line - k_ref) * v_ego ** 2 <= LINE_MAX_DIFF_ACCEL
     if trusted:
       if not self.line_valid and self.line_w <= 0.0:
         self.line_filter.x = k_line

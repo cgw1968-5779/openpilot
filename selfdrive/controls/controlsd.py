@@ -13,7 +13,6 @@ from opendbc.car.car_helpers import interfaces
 from opendbc.car.vehicle_model import VehicleModel
 from opendbc.safety import ALTERNATIVE_EXPERIENCE
 from openpilot.selfdrive.controls.lib.drive_helpers import clip_curvature
-from dragonpilot.selfdrive.controls.lib.curve_bias import apply_curve_outward_bias
 from dragonpilot.selfdrive.controls.lib.lane_centering import LaneCentering, apply_lane_centering as centre_lane
 from dragonpilot.selfdrive.controls.lib.lane_change_rate import LaneChangeRate
 from openpilot.selfdrive.controls.lib.latcontrol import LatControl
@@ -143,7 +142,7 @@ class Controls:
       new_desired_curvature = self.sm['lateralManeuverPlan'].desiredCurvature if CC.latActive else self.curvature
     else:
       new_desired_curvature = model_v2.action.desiredCurvature if CC.latActive else self.curvature
-      new_desired_curvature = apply_curve_outward_bias(new_desired_curvature, CS.vEgo, self.lane_centering.curve_learn.extra(CS.vEgo, new_desired_curvature), self.lane_centering.curve_ahead()) if CC.latActive else new_desired_curvature  # dragonpilot hook
+      new_desired_curvature = self.lane_centering.turn_in(new_desired_curvature, CS.vEgo, CC.latActive)  # dragonpilot hook
       new_desired_curvature = centre_lane(self.lane_centering, new_desired_curvature, model_v2, CS, CC.latActive, self.curvature)  # dragonpilot hook
     new_desired_curvature = self.lane_change_rate.update(new_desired_curvature, self.desired_curvature, model_v2.meta.laneChangeState, CS.vEgo)  # dragonpilot hook
     self.desired_curvature, curvature_limited = clip_curvature(CS.vEgo, self.desired_curvature, new_desired_curvature, lp.roll)

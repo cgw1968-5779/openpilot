@@ -32,6 +32,10 @@ Closed loop: the offset falls by S x the fraction with S ~ 0.5 .. 4 m per unit (
 closed-loop sims of those days), so GAIN x S = 0.03 .. 0.24 per curve: it settles over ~5 .. 30 curves of a speed range
 and cannot oscillate (stable below 2).
 
+dpcr 2026-11-28 (owner: "FRAC only as a pure turn-in timing adjustment"): the fraction is now the turn-in lag
+(curve_bias.CurveTurnIn, fraction x CURVE_IN_T seconds), so only the first LEARN_T_ACT seconds of a curve teach it, and
+no sample is taken while the curve needs the steering (curve_demand_weight < 1, see lane_centering).
+
 Where it acts. extra(v, curvature) is added to curve_bias's fraction (the model's curvature) AND to the line pursuit's
 own outward fraction (lane_centering LINE_OUT_FRAC_V): above 70 km/h the pursuit carries 0.85 of the command and
 curve_bias alone is left with ~2 %. The learned part is bounded to LEARN_RANGE around the hand-set table.
@@ -56,6 +60,9 @@ LEARN_K_TAU = 0.5            # s: smoothing of that curvature
 LEARN_T_SKIP = 1.0           # s: the turn-in, not learned from
 LEARN_T_TAIL = 0.7           # s: the way out of the curve, not learned from either
 LEARN_T_MIN = 3.0            # s: the shortest curve learned from (turn-in and way out included)
+LEARN_T_ACT = 4.0            # s into the curve: what is learned from. dpcr 11-28: the bias is turn-in TIMING now
+                             # (curve_bias.CurveTurnIn), it places the car over the first seconds of a curve only;
+                             # where the model's own line sits later in a long curve is not its doing
 LEARN_VALID_MIN = 0.6        # share of the learned part with trusted lines
 LEARN_PRESSED_MAX = 0.05     # share of the curve with the driver's hand on the wheel
 LEARN_DB = 0.03              # m: inside / outside by less than this is centred
@@ -123,7 +130,7 @@ class CurveBiasLearner:
     self.t += self.dt
     self.n_all += 1
     self.n_pressed_all += bool(steering_pressed)   # his hand anywhere in the curve, the turn-in and the way out too
-    if self.t <= LEARN_T_SKIP:
+    if self.t <= LEARN_T_SKIP or self.t > LEARN_T_ACT:
       return
     # a sample counts once it is LEARN_T_TAIL old: what is still waiting when the curve ends is the way out
     e = None

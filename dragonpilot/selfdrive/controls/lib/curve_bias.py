@@ -89,17 +89,46 @@ def curve_demand_weight(curvature: float, lane_k: float | None, v_ego: float) ->
   return float(np.interp(demand, [CURVE_TORQUE_SHARE[0] * cap, CURVE_TORQUE_SHARE[1] * cap], [1.0, 0.0]))
 
 
-def apply_curve_outward_bias(desired_curvature: float, v_ego: float, extra: float = 0.0, lane_k: float | None = None) -> float:
-  # In a fast curve, command a slightly smaller curvature so the car runs wider and stops cutting the inside. Faded
-  # out at low speed (tight curves there need the full turn-in or the car runs wide). Straights and small lane
-  # corrections below the deadzone are untouched. lane_k: |curvature| of the lane centre ahead (None = not seen).
-  frac = float(np.interp(v_ego, CURVE_OUTWARD_V_BP, CURVE_OUTWARD_FRAC_V))
-  if extra != 0.0:   # the learned part for this speed and side
-    frac = float(np.clip(frac + extra, CURVE_OUTWARD_FRAC_RANGE[0], CURVE_OUTWARD_FRAC_RANGE[1]))
-  if frac == 0.0 or abs(desired_curvature) <= CURVE_OUTWARD_DEADZONE:
-    return desired_curvature
-  if frac > 0.0:
-    frac *= curve_demand_weight(desired_curvature, lane_k, v_ego)
+# dpcr, owner 2026-11-28 late ("if FRAC is a fraction less steering, that is not what I want"; told that the model's
+# path keeps drifting to the inside of a curve: "then FRAC has its use, but only as a pure turn-in TIMING adjustment -
+# do that"): the fraction no longer scales the curvature. It is now the TIME the turn-in is held back: while the
+# model's curvature is growing the command follows it through a first-order lag of fraction x CURVE_IN_T seconds
+# (0.22 -> 0.40 s, 0.13 at 50 km/h -> 0.23 s; the learned part moves it by 0.018 s per 0.01), so the car enters the
+# curve a little later and wider; once the curvature stops growing the command IS the model's, in full - mid-curve,
+# easing and the way out are never touched (no lag when |curvature| falls or changes side). Same table, same learned
+# values, same range: only what the number means has changed. The lag is multiplied by the torque weight above (no
+# hold-back at all in a curve that needs the steering) and by the road weight (none on a straight road).
+# Size: a turn-in to curvature k held back by T leaves a heading deficit v k T; at 70 km/h, 1.1 m/s^2, T 0.40 s that
+# is 0.023 rad, ~0.3-0.45 m wider over the next second or two until the model takes the car back onto its own line.
+CURVE_IN_T = 1.8   # s of turn-in lag per unit of fraction
+
+
+class CurveTurnIn:
+  """the curve outward bias as turn-in timing: update() returns the curvature to command"""
+  def __init__(self, dt: float):
+    self.dt = dt
+    self.k = 0.0     # the held-back curvature
+
+  def lag(self, desired_curvature: float, v_ego: float, extra: float = 0.0, lane_k: float | None = None) -> float:
+    """turn-in lag (s) for this curve, speed and side; 0 = the model's curvature as it is"""
+    frac = float(np.interp(v_ego, CURVE_OUTWARD_V_BP, CURVE_OUTWARD_FRAC_V))
+    if extra != 0.0:   # the learned part for this speed and side
+      frac = float(np.clip(frac + extra, CURVE_OUTWARD_FRAC_RANGE[0], CURVE_OUTWARD_FRAC_RANGE[1]))
+    if frac <= 0.0:
+      return 0.0
     if lane_k is not None:
       frac *= float(np.interp(lane_k, CURVE_ROAD_K, [0.0, 1.0]))
-  return desired_curvature * (1.0 - frac)   # frac < 0 scales the curvature UP (inward)
+    elif abs(desired_curvature) <= CURVE_OUTWARD_DEADZONE:
+      return 0.0
+    return frac * curve_demand_weight(desired_curvature, lane_k, v_ego) * CURVE_IN_T
+
+  def update(self, desired_curvature: float, v_ego: float, extra: float = 0.0, lane_k: float | None = None,
+             active: bool = True) -> float:
+    tau = self.lag(desired_curvature, v_ego, extra, lane_k) if active else 0.0
+    if desired_curvature * self.k < 0.0:
+      self.k = 0.0                        # the other side: this turn-in starts from straight ahead
+    if tau <= self.dt or abs(desired_curvature) <= abs(self.k):
+      self.k = desired_curvature          # not turning in (or no lag here): the model's curvature in full
+    else:
+      self.k += (desired_curvature - self.k) * self.dt / tau
+    return self.k

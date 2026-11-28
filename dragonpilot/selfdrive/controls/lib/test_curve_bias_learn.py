@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 
 import dragonpilot.selfdrive.controls.lib.curve_bias_learn as CL
-from dragonpilot.selfdrive.controls.lib.curve_bias import apply_curve_outward_bias, CURVE_OUTWARD_FRAC_RANGE, CURVE_OUTWARD_V_BP
+from dragonpilot.selfdrive.controls.lib.curve_bias import CURVE_OUTWARD_FRAC_RANGE, CURVE_OUTWARD_V_BP
 
 DT = 0.01
 RIGHT, LEFT = 0.002, -0.002   # 1/m (R 500 m); positive = right
@@ -122,9 +122,12 @@ def test_the_file_is_written_between_curves_not_in_one(tmp_path, monkeypatch):
 
 
 def test_curve_bias_takes_the_learned_part_inside_its_range():
-  v = 65.0 / 3.6
-  base = 1.0 - apply_curve_outward_bias(0.002, v) / 0.002
-  assert 1.0 - apply_curve_outward_bias(0.002, v, 0.03) / 0.002 == pytest.approx(base + 0.03)
-  assert 1.0 - apply_curve_outward_bias(0.002, v, -0.03) / 0.002 == pytest.approx(base - 0.03)
-  assert 1.0 - apply_curve_outward_bias(0.002, v, 5.0) / 0.002 == pytest.approx(CURVE_OUTWARD_FRAC_RANGE[1])
-  assert apply_curve_outward_bias(0.0003, v, 0.05) == 0.0003          # a straight stays untouched
+  # the learned part moves the turn-in lag: CURVE_IN_T seconds per unit of fraction, inside the fraction's range
+  from dragonpilot.selfdrive.controls.lib.curve_bias import CurveTurnIn, CURVE_IN_T
+  v, ti = 65.0 / 3.6, CurveTurnIn(DT)
+  base = ti.lag(0.002, v)
+  assert base == pytest.approx(0.22 * CURVE_IN_T)
+  assert ti.lag(0.002, v, 0.03) == pytest.approx(base + 0.03 * CURVE_IN_T)
+  assert ti.lag(0.002, v, -0.03) == pytest.approx(base - 0.03 * CURVE_IN_T)
+  assert ti.lag(0.002, v, 5.0) == pytest.approx(CURVE_OUTWARD_FRAC_RANGE[1] * CURVE_IN_T)
+  assert ti.lag(0.0003, v, 0.05) == 0.0 and ti.update(0.0003, v, 0.05) == 0.0003          # a straight stays untouched
