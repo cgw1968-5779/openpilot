@@ -51,13 +51,36 @@ CURVE_OUTWARD_FRAC_V = [0.0, 0.13, 0.22, 0.22, 0.22, 0.22, 0.22]
 CURVE_OUTWARD_FRAC_RANGE = [0.0, 0.35]   # the table plus the learned part (curve_bias_learn.py) stays inside this
 
 
-def apply_curve_outward_bias(desired_curvature: float, v_ego: float, extra: float = 0.0) -> float:
+# dpcr, owner 2026-11-28 (route 00000015 16:33:35-40, bookmark: "the 70 km/h right curve was very bad, the car almost ran
+# out of the lane; the first dragonpilot cornered well, it only did not centre"): an S-bend, the right curve tightening
+# to R 90 m at 71 km/h (the model asked 3.5 -> 11.3 1/km in 1.7 s, 4.3 m/s^2). The command was the model x 0.73 (table
+# 0.22 + learned 0.047) minus the centering's push away from the inside line (-1.3 1/km): 1.8 where the model asked
+# 4.3, the wheel unwound from 10 to 3 deg, and one second later the torque sat at 100 % for 2 s while the car swept
+# from 87 cm inside to the outer line. Same shape on route 00000011 14:38:24 / 14:38:31 (left curve, 61-66 km/h, model
+# 8.7 -> command 6.8 1/km, the car slid 50-100 cm outward in 2 s). The outward fraction is for curves the car has
+# margin in (there the model cuts the inside); a curve that takes about all the steering there is (the command is
+# capped at 3.0 m/s^2, drive_helpers MAX_LATERAL_ACCEL_NO_ROLL, and the torque gives 2.9-3.1 at 70 km/h) has no margin
+# to run wide and come back. So the fraction fades out with the lateral acceleration the curve asks for, from the
+# model's curvature or the lane centre's curvature ahead (lane_centering's fit, which saw this curve tighten 0.5 s
+# before the model's action), whichever is larger: all of it up to CURVE_DEMAND_AY[0], none from CURVE_DEMAND_AY[1].
+# Dynamic and continuous (no step); curves below 2.0 m/s^2 are exactly as before.
+CURVE_DEMAND_AY = [2.0, 3.0]   # m/s^2
+
+
+def curve_demand_weight(curvature: float, lane_k: float, v_ego: float) -> float:
+  """1 while the curve leaves the steering margin (outward bias in full), 0 when it takes all there is"""
+  return float(np.interp(max(abs(curvature), lane_k) * v_ego ** 2, CURVE_DEMAND_AY, [1.0, 0.0]))
+
+
+def apply_curve_outward_bias(desired_curvature: float, v_ego: float, extra: float = 0.0, lane_k: float = 0.0) -> float:
   # In a fast curve, command a slightly smaller curvature so the car runs wider and stops cutting the inside. Faded
   # out at low speed (tight curves there need the full turn-in or the car runs wide). Straights and small lane
-  # corrections below the deadzone are untouched.
+  # corrections below the deadzone are untouched. lane_k: |curvature| of the lane centre ahead (0 = not seen).
   frac = float(np.interp(v_ego, CURVE_OUTWARD_V_BP, CURVE_OUTWARD_FRAC_V))
   if extra != 0.0:   # the learned part for this speed and side
     frac = float(np.clip(frac + extra, CURVE_OUTWARD_FRAC_RANGE[0], CURVE_OUTWARD_FRAC_RANGE[1]))
   if frac == 0.0 or abs(desired_curvature) <= CURVE_OUTWARD_DEADZONE:
     return desired_curvature
+  if frac > 0.0:
+    frac *= curve_demand_weight(desired_curvature, lane_k, v_ego)
   return desired_curvature * (1.0 - frac)   # frac < 0 scales the curvature UP (inward)

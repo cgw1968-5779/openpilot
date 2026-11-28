@@ -155,3 +155,27 @@ def test_low_speed_straights_only():
   fast = LaneCentering(DT)
   _run(fast, _model(offset=0.0, curv=1 / 1000), 100 / 3.6, 1 / 1000, 4.0)   # above 70 km/h: curves as before
   assert fast.line_w == LINE_W_MAX
+
+
+def test_correction_against_a_demanding_turn_fades_out():
+  # owner 2026-11-28 (route 00000015 16:33:36): the car sits on the inside of a right curve (RIGHT of the centre), so
+  # the PD pushes left, against the turn. In a gentle curve that push is kept; when the curve takes all the steering
+  # it is gone; a push WITH the turn (car on the outside) is always kept.
+  import dragonpilot.selfdrive.controls.lib.lane_centering as lcm
+  v = 71 / 3.6
+  w_max = lcm.LINE_W_MAX
+  lcm.LINE_W_MAX = 0.0   # PD only
+  try:
+    outs = {}
+    for name, k_model, offset in (('gentle', 1.5 / v ** 2, 0.5), ('hard', 3.2 / v ** 2, 0.5), ('hard_outside', 3.2 / v ** 2, -0.5)):
+      lc = LaneCentering(DT)
+      outs[name] = (_run(lc, _model(offset=offset), v, k_model, 3.0), lc.correction)   # lane centre RIGHT of the car = car left
+    # offset > 0 in _model = centre to the right = car LEFT = outside of a right curve -> correction pushes right (with the turn)
+    assert outs['gentle'][1] > 0.0 and outs['gentle'][0] == outs['gentle'][1]
+    assert outs['hard'][0] == outs['hard'][1] > 0.0
+    assert outs['hard_outside'][1] < 0.0 and outs['hard_outside'][0] == 0.0     # against the turn, at 3.2 m/s^2: gone
+    lc = LaneCentering(DT)
+    out = _run(lc, _model(offset=-0.5), v, 1.5 / v ** 2, 3.0)                   # against a gentle turn: kept in full
+    assert out == lc.correction < 0.0
+  finally:
+    lcm.LINE_W_MAX = w_max
